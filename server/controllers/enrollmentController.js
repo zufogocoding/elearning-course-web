@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 const crypto = require('crypto');
 const querystring = require('qs');
 
@@ -170,6 +169,12 @@ const vnpayIpn = async (req, res) => {
 
   vnp_Params = sortObject(vnp_Params);
   const secretKey = process.env.VNP_HASH_SECRET;
+  
+  if (!secretKey) {
+    console.error('VNP_HASH_SECRET is not defined in .env');
+    return res.status(500).json({ RspCode: '99', Message: 'Server configuration error' });
+  }
+
   const signData = querystring.stringify(vnp_Params, { encode: false });
   const hmac = crypto.createHmac("sha512", secretKey);
   const signed = hmac.update(new Buffer.from(signData, 'utf-8')).digest("hex");     
