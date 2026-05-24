@@ -509,3 +509,93 @@ CREATE INDEX idx_user_quiz_attempts_user_quiz ON user_quiz_attempts(user_id, qui
 - [ ] **TASK-7.4 [DevOps]:** Tối ưu hóa Database Indexes trên Postgres để tăng tốc truy vấn tiến độ học tập và lịch sử thanh toán. *(Chưa bắt đầu)*
 - [ ] **TASK-7.5 [Testing]:** Viết kiểm thử tích hợp (End-to-End Testing) cho toàn bộ luồng nghiệp vụ mua khóa học -> học -> làm quiz -> nhận chứng chỉ. *(Chưa bắt đầu)*
 
+---
+
+## 10. Phân Công Phát Triển UI, Quy Trình Kiểm Thử & Tích Hợp CI/CD
+
+### 10.1. Phân Công Công Việc UI (UI Development Assignments)
+
+Để đảm bảo hiệu suất song song, công việc phát triển Frontend (Next.js 16 + Tailwind CSS v4) được phân bổ cho 4 lập trình viên (Developer A, B, C, D) theo các nhóm mô-đun chức năng độc lập:
+
+| Thành Viên | Vai Trò & Trách Nhiệm Chính | Các Task UI Cụ Thể (Chi Tiết tại Mục 9) |
+| :--- | :--- | :--- |
+| **Developer A** | **UI Core, Auth & Đánh Giá** | - Xây dựng hệ thống UI kit cơ bản (Layouts, Navigation, Button, Form Inputs, Modals, Toast).<br>- **TASK-2.5**: Giao diện Đăng ký, Đăng nhập, Quên/Reset mật khẩu.<br>- **TASK-7.1**: Giao diện đánh giá khóa học (Reviews) tích hợp ở trang chi tiết khóa học. |
+| **Developer B** | **Student Learning Experience** | - **TASK-5.4**: Giao diện khu vực học tập (Learning Area) kèm Sidebar hiển thị danh sách bài học và Progress bar.<br>- **TASK-5.5**: Tích hợp trình phát Video Player (hỗ trợ gọi API progress định kỳ 10 giây, chặn tua gian lận).<br>- **TASK-5.6**: Giao diện đọc bài viết (Text lesson) kèm bộ đếm thời gian tối thiểu.<br>- **TASK-6.4**: Giao diện làm bài trắc nghiệm (Quiz player) có đếm ngược thời gian và hiển thị đáp án sau nộp.<br>- **TASK-6.5**: Giao diện hiển thị, tải chứng chỉ PDF và trang xác minh chứng chỉ (mã UUID). |
+| **Developer C** | **E-Commerce & Payments** | - Xây dựng trang danh mục khóa học (Catalog) và tính năng tìm kiếm/lọc.<br>- **TASK-4.5**: Trang chi tiết khóa học (Course Details) và Màn hình Checkout (chọn cổng thanh toán VNPayQR / MoMo, hiển thị thông tin chuyển hướng).<br>- **TASK-4.6**: Giao diện nhập mã giảm giá (Coupon), kiểm tra hiệu lực và hiển thị mức giảm theo thời gian thực. |
+| **Developer D** | **Admin Dashboard & Management** | - **TASK-3.5**: Trang Admin Dashboard quản lý danh sách khóa học, cây danh mục (Categories), quản lý cấu trúc chương/bài học.<br>- **TASK-3.6**: Giao diện Admin soạn thảo Quiz & Câu hỏi (Quiz builder, đáp án, điểm chuẩn đạt, giới hạn số lần làm).<br>- **TASK-7.3**: Giao diện báo cáo thống kê cho Admin (biểu đồ doanh thu, tỷ lệ hoàn thành khóa học). |
+
+---
+
+### 10.2. Đề Xuất Quy Trình Kiểm Thử (Testing Flow)
+
+Quy trình kiểm thử được thiết kế nhằm đảm bảo tính toàn vẹn của các chức năng quan trọng (chống tua gian lận, thanh toán an toàn, cấp chứng chỉ chính xác):
+
+```mermaid
+graph TD
+    A[Lập trình viên viết mã nguồn] --> B[Kiểm thử đơn vị - Unit Test]
+    B --> C[Kiểm thử tích hợp - Integration Test]
+    C --> D[Kiểm thử đầu cuối tự động - E2E Test]
+    D --> E[Kiểm thử thủ công - Manual QA]
+    E --> F[Phát hành mã nguồn - Production Deployment]
+```
+
+1. **Bước 1: Kiểm thử đơn vị (Unit Testing):**
+   - Thực hiện trên local trước khi gửi Pull Request.
+   - Tập trung vào các hàm xử lý logic tách biệt (xác thực token, tính toán giảm giá coupon, tính thời gian đọc văn bản bài học).
+2. **Bước 2: Kiểm thử tích hợp (Integration Testing):**
+   - Kiểm tra tương tác giữa Frontend và API Backend.
+   - Đảm bảo cơ chế cập nhật tiến độ học tập (`/lessons/{id}/progress`) hoạt động đúng tần suất 10 giây và lưu trữ chính xác giá trị `last_checkpoint_time` trong database.
+   - Kiểm tra các Webhook/IPN thanh toán giả lập với chữ ký bảo mật hợp lệ.
+3. **Bước 3: Kiểm thử đầu cuối tự động (E2E Testing):**
+   - Sử dụng các công cụ tự động để giả lập toàn bộ hành vi của người dùng từ khi mua khóa học đến khi nhận chứng chỉ.
+   - Đo lường và kiểm tra chặt chẽ luồng chống gian lận (ngăn chặn việc gửi trực tiếp API hoàn thành khi chưa đạt yêu cầu checkpoint video/đọc bài viết).
+4. **Bước 4: Kiểm thử thủ công trên Staging (Manual Testing):**
+   - Triển khai ứng dụng lên môi trường Staging.
+   - Sử dụng các tài khoản Sandbox của VNPay/MoMo để thực hiện thanh toán thực tế và kiểm tra phản ứng của hệ thống.
+   - Thử nghiệm trên các thiết bị di động và trình duyệt khác nhau để kiểm tra độ phản hồi giao diện (Responsive UI).
+
+---
+
+### 10.3. Các Phương Pháp Kiểm Thử Chi Tiết (Testing Methods)
+
+| Phương Pháp | Công Cụ Đề Xuất | Đối Tượng Áp Dụng | Mô Tả Kịch Bản Kiểm Thử |
+| :--- | :--- | :--- | :--- |
+| **Unit Test** | **Vitest** (cho FE & BE) / **Jest** | - React Components (Client)<br>- Các hàm tiện ích, Middlewares (Server) | - Kiểm tra trạng thái của Coupon Input khi nhập mã sai, đúng hoặc hết hạn.<br>- Kiểm tra hàm tính chữ ký bảo mật VNPay/MoMo (đảm bảo output trùng khớp với tài liệu cổng thanh toán). |
+| **API Test** | **Supertest** / **Postman CLI** | - REST API Endpoints | - Gửi request nộp bài quiz và xác thực phản hồi chấm điểm.<br>- Gửi IPN callback giả mạo để kiểm tra cơ chế chặn truy cập không hợp lệ từ bên ngoài. |
+| **E2E Test** | **Cypress** hoặc **Playwright** | - Luồng mua học tập đầu cuối (User flow) | - Giả lập người dùng bấm "Mua", nhập Coupon hợp lệ, chuyển tới màn hình VNPay, nhận webhook thành công, hiển thị khóa học đã mua.<br>- Giả lập hành vi học bài: Kiểm tra nếu tua trực tiếp đến cuối video thì nút "Hoàn thành" có bị khóa/lỗi không. |
+| **Race Condition Test** | **Artillery** / Custom Scripts | - API Đăng ký mua khóa học kèm coupon | - Gửi đồng thời 100 requests mua khóa học áp dụng coupon chỉ còn 1 lượt dùng duy nhất, xác nhận chỉ 1 request thành công và các request còn lại được xử lý an toàn (không bị âm số lượng). |
+| **Security Test** | **OWASP ZAP** / Manual Auditing | - Endpoint `/videos/{lessonId}/playback`, cookies | - Kiểm tra token JWT lưu trong HTTP-Only cookie có thể bị truy cập từ javascript không (phải đảm bảo không).<br>- Xác thực Signed URL của video hết hạn đúng cấu hình quy định. |
+
+---
+
+### 10.4. Kế Hoạch Tích Hợp CI/CD (CI/CD Integration Plan)
+
+Khả năng tích hợp CI/CD cho dự án hiện tại là hoàn toàn khả thi do kiến trúc của dự án đã được Docker hóa (`docker-compose.yml`, `Dockerfile` cho server).
+
+#### Quy Trình Tích Hợp Liên Tục (Continuous Integration - CI)
+Mỗi khi có Pull Request được tạo trên Github:
+1. **GitHub Actions Workflow** sẽ tự động kích hoạt.
+2. **Kiểm tra cú pháp & Định dạng (Lint & Format):**
+   - Chạy `npm run lint` trên cả thư mục `client` và `server`.
+   - Kiểm tra định dạng mã nguồn bằng Prettier.
+3. **Kiểm tra kiểu dữ liệu (Type-checking):**
+   - Chạy `tsc --noEmit` trong thư mục `client` để đảm bảo không có lỗi TypeScript trước khi build.
+4. **Chạy Unit Tests:**
+   - Thực thi toàn bộ Unit Tests của frontend và backend. Pull Request chỉ được phép merge khi 100% tests vượt qua.
+5. **Build thử nghiệm:**
+   - Chạy `npm run build` cho cả client và server nhằm phát hiện các lỗi biên dịch ở môi trường production.
+
+#### Quy Trình Triển Khai Liên Tục (Continuous Deployment - CD)
+Khi code được merge vào nhánh chính (`main` hoặc `production`):
+1. **Build Docker Images:**
+   - Tự động build Docker image mới cho backend server dựa trên `server/Dockerfile`.
+   - Đẩy (push) image lên Docker Registry (ví dụ Docker Hub hoặc AWS ECR).
+2. **Deploy Môi Trường Staging/Production:**
+   - Sử dụng Ansible hoặc gọi lệnh SSH trực tiếp tới máy chủ VPS để thực hiện:
+     - `docker compose pull server`
+     - Chạy migrations cơ sở dữ liệu: `npx prisma db push` hoặc `npx prisma migrate deploy` để cập nhật cấu trúc bảng mới mà không mất mát dữ liệu.
+     - Khởi động lại các container một cách an toàn mà không gián đoạn dịch vụ (Zero-downtime deployment).
+3. **Triển khai Frontend (Vercel / Next.js hosting):**
+   - Client sử dụng Next.js có thể được liên kết trực tiếp với Vercel để tối ưu việc phân phối qua CDN và tự động hóa toàn bộ quá trình build/deploy tĩnh mỗi khi nhánh production có cập nhật.
+
+
