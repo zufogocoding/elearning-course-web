@@ -48,10 +48,10 @@ app.use('/api/learning', learningRoutes);
 // Khởi động server
 app.listen(PORT, async () => {
   console.log(`Backend REST API đang chạy tại http://localhost:${PORT}`);
-});
   try {
     await initEmailTransporter();
   } catch (error) {
     console.error('Lỗi khi khởi tạo email service:', error);
-  };
+  }
+});
 

@@ -265,6 +265,7 @@ const deleteCourse = async (req, res) => {
 module.exports = {
   createCourse,
   getAllCourses,
+  getAdminCourses,
   getCourseBySlug, 
   updateCourse,    
   deleteCourse    

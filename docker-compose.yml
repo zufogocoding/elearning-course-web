@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data:Z
 
@@ -22,7 +22,7 @@ services:
       - ./server/.env
     depends_on:
       - db
-    # Lệnh này đảm bảo Prisma gen type và push db trước khi chạy server
-    command: sh -c "npx prisma generate && npx prisma db push && node server.js"
+    # Lệnh này đảm bảo Prisma gen type và chạy deploy migrations trước khi chạy server
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && node server.js"
 volumes:
   pgdata:

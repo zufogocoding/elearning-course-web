@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sun, Moon, Menu, X, GraduationCap } from "lucide-react";
+import { Sun, Moon, Menu, X, GraduationCap, LogOut, User as UserIcon } from "lucide-react";
 import { useTheme } from "@/components/ui/ThemeProvider";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_LINKS = [
   { href: "/courses", label: "Courses" },
@@ -13,6 +14,7 @@ const NAV_LINKS = [
 
 export default function Header() {
   const { isDark, toggle } = useTheme();
+  const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const path = usePathname();
 
@@ -79,22 +81,54 @@ export default function Header() {
 
           {/* Auth Buttons – Desktop */}
           <div className="hidden md:flex items-center gap-2">
-            <Link
-              href="/auth/login"
-              className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
-                isDark
-                  ? "text-[#7a87a1] hover:text-[#e2e8f0] hover:bg-[#22263a]"
-                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
-              }`}
-            >
-              Log in
-            </Link>
-            <Link
-              href="/auth/register"
-              className="text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm shadow-indigo-600/20"
-            >
-              Sign up
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/profile"
+                  className={`flex items-center gap-2.5 text-sm font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+                    isDark
+                      ? "border-[#252840] bg-[#1a1d2e] text-[#e2e8f0] hover:border-indigo-500/50 hover:bg-[#22263a]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-extrabold text-[10px]">
+                    {user.username.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span>{user.username}</span>
+                </Link>
+                <button
+                  id="header-logout-btn"
+                  onClick={logout}
+                  title="Đăng xuất"
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
+                    isDark
+                      ? "bg-[#22263a] hover:bg-rose-950/20 text-[#a0aec0] hover:text-rose-400 border border-transparent hover:border-rose-900/30"
+                      : "bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-transparent hover:border-rose-100"
+                  }`}
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
+                    isDark
+                      ? "text-[#7a87a1] hover:text-[#e2e8f0] hover:bg-[#22263a]"
+                      : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm shadow-indigo-600/20"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Hamburger */}
@@ -135,24 +169,56 @@ export default function Header() {
               isDark ? "border-[#1e2235]" : "border-slate-100"
             }`}
           >
-            <Link
-              href="/auth/login"
-              onClick={() => setMobileOpen(false)}
-              className={`flex-1 text-center text-sm font-medium py-2.5 rounded-lg border transition-colors ${
-                isDark
-                  ? "border-[#252840] text-[#e2e8f0] hover:bg-[#1a1d2e]"
-                  : "border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              Log in
-            </Link>
-            <Link
-              href="/auth/register"
-              onClick={() => setMobileOpen(false)}
-              className="flex-1 text-center text-sm font-semibold py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
-            >
-              Sign up
-            </Link>
+            {user ? (
+              <div className="flex flex-col gap-2 w-full">
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold ${
+                    isDark ? "text-indigo-400 hover:bg-[#1a1d2e]" : "text-indigo-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-extrabold text-xs">
+                    {user.username.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span>{user.username} ({user.email})</span>
+                </Link>
+                <button
+                  onClick={() => {
+                    setMobileOpen(false);
+                    logout();
+                  }}
+                  className={`w-full text-center text-sm font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                    isDark
+                      ? "bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border border-rose-900/30"
+                      : "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100"
+                  }`}
+                >
+                  <LogOut className="w-4 h-4" /> Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex-1 text-center text-sm font-medium py-2.5 rounded-lg border transition-colors ${
+                    isDark
+                      ? "border-[#252840] text-[#e2e8f0] hover:bg-[#1a1d2e]"
+                      : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/auth/register"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex-1 text-center text-sm font-semibold py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
