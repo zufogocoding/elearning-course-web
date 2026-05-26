@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useTheme } from "@/components/ui/ThemeProvider";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { api } from "@/lib/api";
 import {
   User,
   Mail,
@@ -24,9 +28,11 @@ import {
   Eye,
   EyeOff,
   Save,
+  Loader2,
+  LogOut,
 } from "lucide-react";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// Mock courses for placeholder when real course API is not yet built
 const ENROLLED_COURSES = [
   {
     id: "ui-ux-design",
@@ -81,19 +87,16 @@ const PURCHASE_HISTORY = [
     amount: "$74.99",
     status: "Completed",
   },
-  {
-    id: "INV-2024-003",
-    date: "Mar 20, 2024",
-    course: "SEO Fundamentals",
-    amount: "$49.99",
-    status: "Refunded",
-  },
 ];
 
 type Tab = "learning" | "settings" | "purchases";
 
 export default function ProfilePage() {
   const { isDark } = useTheme();
+  const { user, isLoading, logout, refreshUser } = useAuth();
+  const { showToast } = useToast();
+  const router = useRouter();
+
   const [activeTab, setActiveTab] = useState<Tab>("learning");
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -104,7 +107,83 @@ export default function ProfilePage() {
     achievements: true,
   });
 
-  // ─── Theme Tokens ───────────────────────────────────────────────────────────
+  // Settings form states
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Sync state with user data
+  useEffect(() => {
+    if (user) {
+      setUsername(user.username || "");
+      setBio(user.bio || "");
+      setAvatarUrl(user.avatarUrl || "");
+    }
+  }, [user]);
+
+  // Auth Guard
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/auth/login");
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading || !user) {
+    return (
+      <div className={`min-h-screen flex flex-col justify-center items-center ${isDark ? "bg-[#0d0f1a]" : "bg-slate-50"}`}>
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <p className={`mt-4 text-sm font-semibold ${isDark ? "text-[#7a87a1]" : "text-slate-500"}`}>Loading your profile...</p>
+      </div>
+    );
+  }
+
+  const handleSaveSettings = async () => {
+    if (!username.trim()) {
+      showToast("error", "Username không được để trống");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const body: any = { username, bio, avatarUrl };
+      if (newPassword) {
+        if (!currentPassword) {
+          showToast("error", "Vui lòng nhập mật khẩu hiện tại để đổi mật khẩu");
+          setIsUpdating(false);
+          return;
+        }
+        if (newPassword.length < 6) {
+          showToast("error", "Mật khẩu mới phải có ít nhất 6 ký tự");
+          setIsUpdating(false);
+          return;
+        }
+        body.currentPassword = currentPassword;
+        body.newPassword = newPassword;
+      }
+
+      const res = await api.put("/api/users/me", body);
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast("error", data.error || "Cập nhật thất bại");
+        return;
+      }
+
+      showToast("success", "Cập nhật thông tin tài khoản thành công!");
+      setCurrentPassword("");
+      setNewPassword("");
+      await refreshUser();
+    } catch {
+      showToast("error", "Lỗi kết nối đến máy chủ");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Theme Tokens
   const bg = isDark ? "bg-[#0d0f1a]" : "bg-slate-50";
   const sectionBg = isDark ? "bg-[#13151f]" : "bg-white";
   const card = isDark ? "bg-[#1a1d2e] border-[#252840]" : "bg-white border-slate-200";
@@ -126,20 +205,30 @@ export default function ProfilePage() {
         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
     }`;
 
+  const usernameInitials = username.slice(0, 2).toUpperCase() || "US";
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${bg}`}>
       <Header />
 
       <main className="flex-1">
-        {/* ── Profile Hero ─────────────────────────────────────────────── */}
+        {/* Profile Hero */}
         <section className={`border-b ${divider} ${sectionBg} transition-colors duration-300`}>
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
               {/* Avatar */}
               <div className="relative shrink-0">
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-xl shadow-indigo-600/30">
-                  <span className="text-3xl font-extrabold text-white tracking-tight">JD</span>
-                </div>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={username}
+                    className="w-24 h-24 rounded-2xl object-cover shadow-xl border-2 border-indigo-500/40"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-xl shadow-indigo-600/30">
+                    <span className="text-3xl font-extrabold text-white tracking-tight">{usernameInitials}</span>
+                  </div>
+                )}
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
                   <CheckCircle className="w-3 h-3 text-white" />
                 </div>
@@ -147,13 +236,13 @@ export default function ProfilePage() {
 
               {/* Info */}
               <div className="flex-1 text-center sm:text-left">
-                <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>John Doe</h1>
+                <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>{username}</h1>
                 <div className={`flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-1.5 text-sm ${muted}`}>
                   <span className="flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5" /> john.doe@email.com
+                    <Mail className="w-3.5 h-3.5" /> {user.email}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" /> Joined January 2024
+                    <Calendar className="w-3.5 h-3.5" /> Role: {user.role}
                   </span>
                 </div>
 
@@ -178,16 +267,17 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Edit Button */}
+              {/* Logout Button */}
               <button
                 id="edit-profile-btn"
+                onClick={logout}
                 className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-semibold transition-all ${
                   isDark
-                    ? "border-[#252840] text-[#e2e8f0] hover:border-indigo-500/50 hover:bg-[#1a1d2e]"
-                    : "border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-slate-50"
+                    ? "border-rose-900/30 text-rose-400 hover:bg-rose-950/20"
+                    : "border-rose-100 text-rose-600 hover:bg-rose-50"
                 }`}
               >
-                <Edit3 className="w-4 h-4" /> Edit Profile
+                <LogOut className="w-4 h-4" /> Đăng xuất
               </button>
             </div>
 
@@ -206,7 +296,7 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* ── Tab Content ──────────────────────────────────────────────── */}
+        {/* Tab Content */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
           {/* My Learning */}
@@ -261,19 +351,13 @@ export default function ProfilePage() {
                           <Clock className="w-3 h-3" /> {course.lastAccessed}
                         </span>
                         {course.completed ? (
-                          <a
-                            href="/certificates"
-                            className="flex items-center gap-1 text-xs font-semibold text-emerald-500 hover:text-emerald-400 transition-colors"
-                          >
-                            <Award className="w-3 h-3" /> View Certificate
-                          </a>
+                          <span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
+                            <Award className="w-3 h-3" /> Completed
+                          </span>
                         ) : (
-                          <a
-                            href={`/courses/${course.id}/learn`}
-                            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all"
-                          >
-                            <Play className="w-3 h-3" /> Continue
-                          </a>
+                          <span className="flex items-center gap-1 text-xs font-semibold text-indigo-500">
+                            <Play className="w-3 h-3" /> In Progress
+                          </span>
                         )}
                       </div>
                     </div>
@@ -292,32 +376,34 @@ export default function ProfilePage() {
                   <User className="w-4 h-4 text-indigo-500" /> Personal Information
                 </h3>
                 <div className="space-y-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="profile-first-name" className={`block text-xs font-semibold mb-1.5 ${muted}`}>First Name</label>
-                      <input
-                        id="profile-first-name"
-                        type="text"
-                        defaultValue="John"
-                        className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="profile-last-name" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Last Name</label>
-                      <input
-                        id="profile-last-name"
-                        type="text"
-                        defaultValue="Doe"
-                        className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
-                      />
-                    </div>
+                  <div>
+                    <label htmlFor="profile-username" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Username</label>
+                    <input
+                      id="profile-username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
+                    />
                   </div>
                   <div>
                     <label htmlFor="profile-email" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Email Address</label>
                     <input
                       id="profile-email"
                       type="email"
-                      defaultValue="john.doe@email.com"
+                      value={user.email}
+                      disabled
+                      className={`w-full px-4 py-3 border rounded-xl outline-none text-sm cursor-not-allowed opacity-60 ${input}`}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="profile-avatar" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Avatar Image URL</label>
+                    <input
+                      id="profile-avatar"
+                      type="text"
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      placeholder="https://example.com/avatar.jpg"
                       className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
                     />
                   </div>
@@ -326,7 +412,9 @@ export default function ProfilePage() {
                     <textarea
                       id="profile-bio"
                       rows={3}
-                      defaultValue="Passionate about design and technology. Currently upskilling in UI/UX and front-end development."
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder="Add a bio..."
                       className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm resize-none ${input}`}
                     />
                   </div>
@@ -344,7 +432,9 @@ export default function ProfilePage() {
                     <input
                       id="current-password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter current password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Nhập mật khẩu hiện tại"
                       className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm pr-10 ${input}`}
                     />
                     <button
@@ -360,7 +450,9 @@ export default function ProfilePage() {
                     <input
                       id="new-password"
                       type={showNewPassword ? "text" : "password"}
-                      placeholder="Enter new password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Nhập mật khẩu mới"
                       className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm pr-10 ${input}`}
                     />
                     <button
@@ -426,9 +518,16 @@ export default function ProfilePage() {
 
               <button
                 id="save-profile-settings"
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20"
+                onClick={handleSaveSettings}
+                disabled={isUpdating}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20"
               >
-                <Save className="w-4 h-4" /> Save Changes
+                {isUpdating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                <span>Save Changes</span>
               </button>
             </div>
           )}
@@ -471,28 +570,15 @@ export default function ProfilePage() {
                                   : "bg-rose-500/15 text-rose-500"
                               }`}
                             >
-                              {row.status === "Refunded" ? (
-                                <span className="flex items-center gap-1">
-                                  <RefreshCcw className="w-3 h-3" /> {row.status}
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1">
-                                  <CheckCircle className="w-3 h-3" /> {row.status}
-                                </span>
-                              )}
+                              <span className="flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> {row.status}
+                              </span>
                             </span>
                           </td>
                           <td className="px-4 py-3.5">
-                            <button
-                              id={`download-invoice-${i}`}
-                              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                                isDark
-                                  ? "border-[#252840] text-[#a0aec0] hover:border-indigo-500/40 hover:text-indigo-400"
-                                  : "border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
-                              }`}
-                            >
-                              <Download className="w-3 h-3" /> {row.id}
-                            </button>
+                            <span className={`text-xs font-semibold text-indigo-500`}>
+                              {row.id}
+                            </span>
                           </td>
                         </tr>
                       ))}
