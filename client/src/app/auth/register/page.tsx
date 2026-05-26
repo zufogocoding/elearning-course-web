@@ -8,6 +8,7 @@ import { useTheme } from '@/components/ui/ThemeProvider';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import OtpInput from '@/components/ui/OtpInput';
+import { registerSchema } from '@/lib/validation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -66,6 +67,7 @@ export default function RegisterPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // OTP state
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -102,9 +104,18 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
 
-    if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+    // Validate using Zod
+    const validation = registerSchema.safeParse({ username, email, password, confirmPassword });
+    if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.issues.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0].toString()] = err.message;
+        }
+      });
+      setFieldErrors(errors);
       return;
     }
 
@@ -272,10 +283,16 @@ export default function RegisterPage() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="johndoe"
-                    required
-                    className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
+                      fieldErrors.username
+                        ? 'border-rose-500 focus:ring-rose-500/20'
+                        : input
+                    }`}
                   />
                 </div>
+                {fieldErrors.username && (
+                  <p className="text-xs text-rose-500 mt-1">{fieldErrors.username}</p>
+                )}
               </div>
 
               {/* Email */}
@@ -293,10 +310,16 @@ export default function RegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    required
-                    className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
+                      fieldErrors.email
+                        ? 'border-rose-500 focus:ring-rose-500/20'
+                        : input
+                    }`}
                   />
                 </div>
+                {fieldErrors.email && (
+                  <p className="text-xs text-rose-500 mt-1">{fieldErrors.email}</p>
+                )}
               </div>
 
               {/* Password */}
@@ -313,8 +336,11 @@ export default function RegisterPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Create a strong password"
-                    required
-                    className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
+                    className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
+                      fieldErrors.password
+                        ? 'border-rose-500 focus:ring-rose-500/20'
+                        : input
+                    }`}
                   />
                   <button
                     id="register-toggle-password"
@@ -325,6 +351,9 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {fieldErrors.password && (
+                  <p className="text-xs text-rose-500 mt-1">{fieldErrors.password}</p>
+                )}
                 <PasswordStrengthBar password={password} />
               </div>
 
@@ -341,9 +370,10 @@ export default function RegisterPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat your password"
-                    required
-                    className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input} ${
-                      confirmPassword && confirmPassword !== password ? 'border-rose-400 focus:ring-rose-400/30' : ''
+                    className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
+                      fieldErrors.confirmPassword
+                        ? 'border-rose-500 focus:ring-rose-500/20'
+                        : input
                     }`}
                   />
                   <button
@@ -355,10 +385,10 @@ export default function RegisterPage() {
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {confirmPassword && confirmPassword !== password && (
-                  <p className="text-xs text-rose-500 mt-1">Passwords do not match</p>
+                {fieldErrors.confirmPassword && (
+                  <p className="text-xs text-rose-500 mt-1">{fieldErrors.confirmPassword}</p>
                 )}
-                {confirmPassword && confirmPassword === password && (
+                {!fieldErrors.confirmPassword && confirmPassword && confirmPassword === password && (
                   <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" /> Passwords match
                   </p>
@@ -391,7 +421,7 @@ export default function RegisterPage() {
               <button
                 id="register-submit-btn"
                 type="submit"
-                disabled={isLoading || !agreedToTerms || password !== confirmPassword}
+                disabled={isLoading || !agreedToTerms}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 mt-2 text-sm"
               >
                 {isLoading ? (
