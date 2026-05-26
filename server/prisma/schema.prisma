@@ -22,14 +22,15 @@ model User {
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
 
-  passwordResetTokens PasswordResetToken[]
-  courses             Course[]
-  enrollments         Enrollment[]
-  paymentTransactions PaymentTransaction[]
-  lessonCompletions   LessonCompletion[]
-  userQuizAttempts    UserQuizAttempt[]
-  courseReviews       CourseReview[]
-  certificates        Certificate[]
+  passwordResetTokens   PasswordResetToken[]
+  courses               Course[]
+  enrollments           Enrollment[]
+  paymentTransactions   PaymentTransaction[]
+  lessonCompletions     LessonCompletion[]
+  userQuizAttempts      UserQuizAttempt[]
+  courseReviews         CourseReview[]
+  certificates          Certificate[]
+  emailVerificationOtps EmailVerificationOtp[]
 
   @@map("users")
 }
@@ -351,4 +352,17 @@ model CourseVersion {
 
   @@unique([courseId, versionNumber])
   @@map("course_versions")
+}
+
+// 10. Email Verification OTPs
+model EmailVerificationOtp {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  otp       String   // SHA-256 hash of the OTP
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verification_otps")
 }
