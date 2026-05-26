@@ -1,26 +1,81 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
+/* ── Class-based dark mode for Tailwind v4 ── */
+@variant dark (&:where(.dark, .dark *));
+
+/* ── Design Tokens – Light ── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brand:        #4F46E5;  /* indigo-600 */
+  --brand-dark:   #4338CA;  /* indigo-700 */
+  --brand-light:  #6366F1;  /* indigo-500 */
+  --brand-muted:  #EEF2FF;  /* indigo-50  */
+
+  --bg:           #F8FAFC;
+  --bg-card:      #FFFFFF;
+  --bg-subtle:    #F1F5F9;
+  --border:       #E2E8F0;
+  --border-strong:#CBD5E1;
+
+  --text:         #0F172A;
+  --text-muted:   #64748B;
+  --text-subtle:  #94A3B8;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── Design Tokens – Dark ── */
+.dark {
+  --bg:           #0D0F1A;
+  --bg-card:      #1A1D2E;
+  --bg-subtle:    #13151F;
+  --border:       #1E2235;
+  --border-strong:#252840;
+
+  --text:         #E2E8F0;
+  --text-muted:   #7A87A1;
+  --text-subtle:  #4A5568;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ── */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar          { width: 5px; height: 5px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: rgba(120, 120, 200, 0.25); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(80, 80, 200, 0.45); }
+
+/* ── Animation utilities (used by learn page) ── */
+@keyframes elevate-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+.fade-in {
+  animation-name: elevate-fade-in;
+}
+.slide-in-from-bottom-2 {
+  animation-name: elevate-fade-in;
+}
+.duration-300 {
+  animation-duration: 300ms;
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(79, 70, 229, 0.15);
+  color: inherit;
 }
