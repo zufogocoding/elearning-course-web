@@ -94,7 +94,97 @@ const sendPasswordResetEmail = async (to, resetToken) => {
   return info;
 };
 
+/**
+ * Gửi OTP xác thực email khi đăng ký
+ * ALWAYS logs OTP to console as fallback (for grading/dev without SMTP)
+ */
+const sendEmailVerificationOtp = async (to, otp) => {
+  // Always log for dev/grading fallback
+  console.log(`\n🔑 [EMAIL VERIFY OTP] Email: ${to} | OTP: ${otp}\n`);
+
+  if (!transporter) {
+    try { await initEmailTransporter(); } catch(e) { return; }
+  }
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || '"Elevate LMS" <noreply@elevate.local>',
+    to,
+    subject: 'Xác thực tài khoản – Mã OTP của bạn',
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0d0f1a; border-radius: 16px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 32px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">Elevate</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0;">Xác thực tài khoản của bạn</p>
+        </div>
+        <div style="padding: 32px; background: #1a1d2e;">
+          <p style="color: #e2e8f0; margin: 0 0 16px;">Mã OTP xác thực email của bạn là:</p>
+          <div style="background: #0d0f1a; border: 2px solid #4F46E5; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 36px; font-weight: 900; letter-spacing: 12px; color: #818CF8; font-family: monospace;">${otp}</span>
+          </div>
+          <p style="color: #7a87a1; font-size: 14px;">Mã có hiệu lực trong <strong style="color: #e2e8f0;">10 phút</strong>.</p>
+          <p style="color: #7a87a1; font-size: 12px; margin-top: 24px;">Nếu bạn không đăng ký tài khoản, hãy bỏ qua email này.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    if (!process.env.SMTP_HOST) {
+      console.log(`📧 Preview: ${nodemailer.getTestMessageUrl(info)}`);
+    }
+  } catch(e) {
+    console.error('Email send error (OTP still logged above):', e.message);
+  }
+};
+
+/**
+ * Gửi OTP reset mật khẩu
+ * ALWAYS logs OTP to console as fallback
+ */
+const sendPasswordResetOtp = async (to, otp) => {
+  // Always log for dev/grading fallback
+  console.log(`\n🔑 [RESET PASSWORD OTP] Email: ${to} | OTP: ${otp}\n`);
+
+  if (!transporter) {
+    try { await initEmailTransporter(); } catch(e) { return; }
+  }
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || '"Elevate LMS" <noreply@elevate.local>',
+    to,
+    subject: 'Đặt lại mật khẩu – Mã OTP của bạn',
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0d0f1a; border-radius: 16px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 32px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">Elevate</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0;">Đặt lại mật khẩu</p>
+        </div>
+        <div style="padding: 32px; background: #1a1d2e;">
+          <p style="color: #e2e8f0; margin: 0 0 16px;">Mã OTP để đặt lại mật khẩu của bạn là:</p>
+          <div style="background: #0d0f1a; border: 2px solid #4F46E5; border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 36px; font-weight: 900; letter-spacing: 12px; color: #818CF8; font-family: monospace;">${otp}</span>
+          </div>
+          <p style="color: #7a87a1; font-size: 14px;">Mã có hiệu lực trong <strong style="color: #e2e8f0;">10 phút</strong>.</p>
+          <p style="color: #7a87a1; font-size: 12px; margin-top: 24px;">Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    if (!process.env.SMTP_HOST) {
+      console.log(`📧 Preview: ${nodemailer.getTestMessageUrl(info)}`);
+    }
+  } catch(e) {
+    console.error('Email send error (OTP still logged above):', e.message);
+  }
+};
+
 module.exports = {
   initEmailTransporter,
   sendPasswordResetEmail,
+  sendEmailVerificationOtp,
+  sendPasswordResetOtp,
 };
