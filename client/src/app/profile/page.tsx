@@ -8,6 +8,7 @@ import { useTheme } from "@/components/ui/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
+import { updateMeSchema } from "@/lib/validation";
 import {
   User,
   Mail,
@@ -114,6 +115,7 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Sync state with user data
   useEffect(() => {
@@ -141,8 +143,24 @@ export default function ProfilePage() {
   }
 
   const handleSaveSettings = async () => {
-    if (!username.trim()) {
-      showToast("error", "Username không được để trống");
+    setFieldErrors({});
+
+    const validation = updateMeSchema.safeParse({
+      username,
+      bio: bio || undefined,
+      avatarUrl: avatarUrl || undefined,
+      currentPassword: currentPassword || undefined,
+      newPassword: newPassword || undefined,
+    });
+
+    if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.issues.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0].toString()] = err.message;
+        }
+      });
+      setFieldErrors(errors);
       return;
     }
 
@@ -150,16 +168,6 @@ export default function ProfilePage() {
     try {
       const body: any = { username, bio, avatarUrl };
       if (newPassword) {
-        if (!currentPassword) {
-          showToast("error", "Vui lòng nhập mật khẩu hiện tại để đổi mật khẩu");
-          setIsUpdating(false);
-          return;
-        }
-        if (newPassword.length < 6) {
-          showToast("error", "Mật khẩu mới phải có ít nhất 6 ký tự");
-          setIsUpdating(false);
-          return;
-        }
         body.currentPassword = currentPassword;
         body.newPassword = newPassword;
       }
@@ -383,8 +391,15 @@ export default function ProfilePage() {
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
+                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
+                        fieldErrors.username
+                          ? "border-rose-500 focus:ring-rose-500/20"
+                          : input
+                      }`}
                     />
+                    {fieldErrors.username && (
+                      <p className="text-xs text-rose-500 mt-1">{fieldErrors.username}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="profile-email" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Email Address</label>
@@ -404,8 +419,15 @@ export default function ProfilePage() {
                       value={avatarUrl}
                       onChange={(e) => setAvatarUrl(e.target.value)}
                       placeholder="https://example.com/avatar.jpg"
-                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
+                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
+                        fieldErrors.avatarUrl
+                          ? "border-rose-500 focus:ring-rose-500/20"
+                          : input
+                      }`}
                     />
+                    {fieldErrors.avatarUrl && (
+                      <p className="text-xs text-rose-500 mt-1">{fieldErrors.avatarUrl}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="profile-bio" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Bio</label>
@@ -415,8 +437,15 @@ export default function ProfilePage() {
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       placeholder="Add a bio..."
-                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm resize-none ${input}`}
+                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm resize-none ${
+                        fieldErrors.bio
+                          ? "border-rose-500 focus:ring-rose-500/20"
+                          : input
+                      }`}
                     />
+                    {fieldErrors.bio && (
+                      <p className="text-xs text-rose-500 mt-1">{fieldErrors.bio}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -435,15 +464,23 @@ export default function ProfilePage() {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Nhập mật khẩu hiện tại"
-                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm pr-10 ${input}`}
+                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm pr-10 ${
+                        fieldErrors.currentPassword
+                          ? "border-rose-500 focus:ring-rose-500/20"
+                          : input
+                      }`}
                     />
                     <button
                       id="toggle-current-password"
+                      type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className={`absolute right-3 top-[2.15rem] ${muted} hover:text-indigo-500 transition-colors`}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
+                    {fieldErrors.currentPassword && (
+                      <p className="text-xs text-rose-500 mt-1">{fieldErrors.currentPassword}</p>
+                    )}
                   </div>
                   <div className="relative">
                     <label htmlFor="new-password" className={`block text-xs font-semibold mb-1.5 ${muted}`}>New Password</label>
@@ -453,15 +490,23 @@ export default function ProfilePage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Nhập mật khẩu mới"
-                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm pr-10 ${input}`}
+                      className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm pr-10 ${
+                        fieldErrors.newPassword
+                          ? "border-rose-500 focus:ring-rose-500/20"
+                          : input
+                      }`}
                     />
                     <button
                       id="toggle-new-password"
+                      type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       className={`absolute right-3 top-[2.15rem] ${muted} hover:text-indigo-500 transition-colors`}
                     >
                       {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
+                    {fieldErrors.newPassword && (
+                      <p className="text-xs text-rose-500 mt-1">{fieldErrors.newPassword}</p>
+                    )}
                   </div>
                 </div>
               </div>
