@@ -598,4 +598,93 @@ Khi code được merge vào nhánh chính (`main` hoặc `production`):
 3. **Triển khai Frontend (Vercel / Next.js hosting):**
    - Client sử dụng Next.js có thể được liên kết trực tiếp với Vercel để tối ưu việc phân phối qua CDN và tự động hóa toàn bộ quá trình build/deploy tĩnh mỗi khi nhánh production có cập nhật.
 
+---
+
+## 11. Kế Hoạch Giao Diện & Kiến Trúc Nâng Cao (4 Thành Viên)
+
+Để nâng cấp dự án LMS đạt chuẩn vận hành thực tế, chúng ta sẽ áp dụng các kiến trúc cao cấp của Next.js (App Router), cải thiện hiệu suất render, tối ưu hóa SEO, tích hợp bảo mật mạng xã hội và phủ kiểm thử đơn vị.
+
+### 11.1. Giải Thích Kiến Trúc Kỹ Thuật Nâng Cao
+
+#### 1. Server Actions (Hành động phía Server)
+* **Khái niệm**: Là các hàm bất đồng bộ (async functions) chạy trực tiếp trên Server nhưng có thể được gọi từ Client Component hoặc qua thuộc tính `action` của thẻ HTML `<form>`.
+* **Lý do chọn**: 
+  - Loại bỏ hoàn toàn mã boilerplate tạo API route (`fetch`, `axios`, endpoints).
+  - Tích hợp trực tiếp với cơ sở dữ liệu (Prisma) và Server-side validation (Zod) một cách an toàn mà không lộ logic xử lý ra Client.
+  - Hỗ trợ **Progressive Enhancement**: Các form đăng ký, gửi đánh giá hoặc cập nhật thông tin vẫn hoạt động bình thường ngay cả khi người dùng tắt JavaScript trên trình duyệt.
+* **Tình huống áp dụng**: Biểu mẫu gửi đánh giá khóa học (`Course Reviews`) và form cập nhật hồ sơ cá nhân (`updateMe`).
+
+#### 2. Chiến lược Rendering (SSR, SSG, ISR)
+* **SSG (Static Site Generation)**:
+  - *Nguyên lý*: Trang được biên dịch thành HTML tĩnh duy nhất một lần tại thời điểm build hệ thống.
+  - *Áp dụng*: Trang chủ (Landing Page), trang chính sách điều khoản, trang bảng giá. Những trang này có nội dung cố định, giúp tải cực nhanh và tiết kiệm tài nguyên server tối đa.
+* **SSR (Server-Side Rendering)**:
+  - *Nguyên lý*: Server biên dịch HTML động và trả về Client trên mỗi request của người dùng.
+  - *Áp dụng*: Trang học tập cá nhân, giỏ hàng, trang cài đặt Profile. Nội dung hiển thị phụ thuộc vào danh tính (session/JWT) và tiến độ thực tế của từng học viên nên bắt buộc phải render động.
+* **ISR (Incremental Static Regeneration - Tái tạo tĩnh theo chu kỳ)**:
+  - *Nguyên lý*: Trang được tạo tĩnh như SSG nhưng sẽ tự động cập nhật ngầm trên server sau một khoảng thời gian định sẵn (ví dụ: `revalidate: 60` giây) khi có yêu cầu mới truy cập.
+  - *Áp dụng*: Trang danh mục khóa học (`/courses`). Giúp trang tải tức thì từ CDN toàn cầu nhưng vẫn tự động cập nhật danh sách khóa học mới do Admin xuất bản mà không cần phải thực hiện build lại toàn bộ dự án.
+
+#### 3. State Management (Quản lý trạng thái tối giản)
+Trong App Router, chúng ta hạn chế dùng các thư viện quản lý state cồng kềnh như Redux/Zustand trừ khi thực sự cần thiết, thay vào đó áp dụng:
+* **Server-Driven State (URL State)**: Sử dụng các tham số truy vấn trên đường dẫn (`?search=react&category=programming`). Next.js sẽ xử lý việc đồng bộ hóa dữ liệu trực tiếp bằng cách đọc `searchParams` trong Server Component. Việc chia sẻ link lọc khóa học trở nên vô cùng đơn giản.
+* **React Context API (Client-side)**: Chỉ dùng cho các trạng thái toàn cục siêu nhẹ và liên quan mật thiết tới giao diện người dùng như: Trạng thái đăng nhập của User (`AuthContext`), hiển thị thông báo nổi (`ToastContext`), hoặc chế độ sáng/tối (`ThemeContext`).
+
+#### 4. Dynamic Metadata (Metadata động là gì?)
+* **Định nghĩa**: Là cơ chế sinh các thẻ HTML `<head>` (chẳng hạn như `<title>`, `<meta name="description">`, `<meta property="og:image">`) một cách linh hoạt bằng hàm `generateMetadata()` của Next.js dựa trên ID hoặc tham số đầu vào của route.
+* **Lý do áp dụng**: Khi chia sẻ link khóa học lên mạng xã hội (Facebook, Zalo, LinkedIn), hệ thống sẽ gọi database lấy hình ảnh thumbnail, tiêu đề khóa học và mô tả ngắn của đúng khóa học đó để hiển thị khung xem trước (OpenGraph) đẹp mắt, giúp tăng tỷ lệ nhấp chuột (CTR) và cải thiện thứ hạng SEO Google.
+
+#### 5. OAuth Social Login (Đăng nhập mạng xã hội)
+* **Mô hình tích hợp**: Tích hợp luồng đăng nhập Google và Github.
+* **Quy trình hoạt động**:
+  1. Người dùng bấm nút "Đăng nhập bằng Google" tại trang đăng nhập.
+  2. Client chuyển hướng đến trang xác thực của Google Identity.
+  3. Google trả về mã xác thực (Auth Code) hoặc ID Token cho Client.
+  4. Client gửi Token này lên API `/api/auth/social-login` của Express backend.
+  5. Backend verify tính hợp lệ của token với API của Google, tự động tạo mới tài khoản User (role='user', isActive=true, verified) nếu chưa tồn tại, sau đó cấp phát bộ đôi Access Token + Refresh Token (lưu trong HTTP-Only cookie) giống luồng đăng nhập truyền thống.
+
+#### 6. Unit Testing (Kiểm thử đơn vị)
+* **Tầm quan trọng**: Đảm bảo các khối logic đơn lẻ hoạt động chính xác khi có thay đổi mã nguồn.
+* **Công cụ**: Sử dụng **Vitest** kết hợp với **React Testing Library** (dành cho các components UI React) và **Supertest** (dành cho API Backend).
+
+---
+
+### 11.2. Phân Công Nhiệm Vụ Chi Tiết (4 Người)
+
+Dưới đây là bảng phân rã các đầu việc cụ thể, phân phối công bằng cho 4 thành viên trong nhóm phát triển:
+
+#### 👥 DEVELOPER A: CHUYÊN GIA BẢO MẬT & SOCIAL AUTH (OAuth, JWT & Auth UI Tests)
+* **Nhiệm vụ 1: Phát triển luồng Đăng nhập Mạng xã hội (OAuth 2.0)**
+  - *Backend (Express)*: Viết controller `/auth/google` và `/auth/github` để xác thực mã OAuth Token nhận từ client, tạo user mới và thiết lập cookie.
+  - *Frontend (Next.js)*: Tích hợp nút bấm Google, Github có thiết kế hiện đại tại trang đăng nhập, xử lý redirect và nhận token từ nhà cung cấp.
+* **Nhiệm vụ 2: Viết Unit Test cho luồng Xác thực**
+  - Viết Unit Test bằng Vitest để kiểm tra tính đúng đắn của `validators` đăng ký/đăng nhập (Zod Validation).
+  - Viết API Test bằng Supertest kiểm tra cơ chế chặn truy cập trái phép của JWT Middleware.
+
+#### 👥 DEVELOPER B: PHÁT TRIỂN TIẾN ĐỘ HỌC TẬP & SERVER ACTIONS
+* **Nhiệm vụ 1: Chuyển đổi Form và tích hợp Server Actions**
+  - Tạo Server Action `submitReviewAction` trong file `src/app/actions/reviews.ts` để người học gửi đánh giá 1-5 sao trực tiếp lên server. Sử dụng `revalidatePath('/courses/[slug]')` để cập nhật lập tức điểm rating trung bình mà không cần reload trang.
+  - Chuyển đổi form cập nhật mật khẩu mới của người dùng trong trang Profile sang sử dụng Server Action nhằm tối ưu hóa tính an toàn.
+* **Nhiệm vụ 2: Viết Unit Test cho tiến độ học tập**
+  - Viết test case kiểm tra hàm tính toán tiến độ khóa học dựa trên số bài học đã hoàn thành.
+  - Viết test case giả lập sự kiện xem video, đảm bảo API progress gửi lên server đúng tần suất 10 giây.
+
+#### 👥 DEVELOPER C: TỐI ƯU HÓA RENDERING & DYNAMIC METADATA (SEO)
+* **Nhiệm vụ 1: Tối ưu hóa Chiến lược Render & Tích hợp Dynamic Metadata**
+  - *SSG & ISR*: Cấu hình trang danh mục khóa học `/courses` hiển thị cực nhanh dưới dạng tĩnh, tự làm mới sau mỗi 60 giây bằng cách thêm `export const revalidate = 60;`.
+  - *Dynamic Metadata*: Triển khai hàm `generateMetadata` trong file `src/app/courses/[id]/page.tsx`. Hàm này sẽ gọi API lấy thông tin khóa học tương ứng dựa trên `params.id` để render động các thẻ `<title>` và `<meta>` cho SEO.
+* **Nhiệm vụ 2: Viết Unit Test cho SEO và Component Tĩnh**
+  - Kiểm tra xem component hiển thị danh sách khóa học có render đúng số lượng từ dữ liệu tĩnh giả lập không.
+  - Viết test case xác minh các thẻ meta OpenGraph xuất hiện đầy đủ trong mã HTML được sinh ra.
+
+#### 👥 DEVELOPER D: QUẢN LÝ TRẠNG THÁI & PROFILE SETTINGS
+* **Nhiệm vụ 1: Quản lý bộ lọc động bằng URL State (searchParams) & React Context**
+  - Thiết kế bộ lọc tìm kiếm nâng cao ở trang danh sách khóa học (tìm theo từ khóa, danh mục category, sắp xếp theo giá).
+  - Sử dụng React hook `useSearchParams`, `usePathname`, và `useRouter` để lưu trữ bộ lọc lên URL. Đọc các tham số này trên Server Component để truy vấn dữ liệu chính xác từ database.
+  - Tối ưu hóa `AuthContext` hiện tại, đảm bảo thông tin user cập nhật đồng bộ sau khi cập nhật hồ sơ cá nhân.
+* **Nhiệm vụ 2: Viết Unit Test cho State và Profile**
+  - Viết Unit Test kiểm tra tính năng đồng bộ hóa: Thay đổi bộ lọc trên UI có tự động thay đổi URL tương ứng hay không.
+  - Kiểm thử `AuthContext` để đảm bảo lưu trữ và giải phóng token đúng cách khi đăng nhập/đăng xuất.
+
+
 
