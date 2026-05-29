@@ -100,24 +100,32 @@ const getAdminCourses = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    // Build filter
+    const where = { 
+      createdBy: adminId,
+      deletedAt: null 
+    };
+
+    // Hỗ trợ lọc theo trạng thái
+    if (req.query.status) {
+      where.status = req.query.status;
+    }
+
     // Lấy tất cả khóa học do Admin này tạo (chưa bị xóa mềm)
     const courses = await prisma.course.findMany({
-      where: { 
-        createdBy: adminId,
-        deletedAt: null 
-      },
+      where,
       skip: skip,
       take: limit,
       orderBy: { updatedAt: 'desc' },
       include: {
-        category: { select: { name: true } },
+        category: { select: { id: true, name: true } },
         _count: { select: { sections: true, enrollments: true } } // Đếm số chương và số người mua
       }
     });
 
     // Đếm tổng số để làm phân trang trên Frontend
     const totalCourses = await prisma.course.count({
-      where: { createdBy: adminId, deletedAt: null }
+      where
     });
 
     res.status(200).json({
