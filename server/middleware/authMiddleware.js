@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 
+// MUST match the secret in auth.js (JWT_ACCESS_SECRET)
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'access-secret-dev';
+
 // Middleware xác thực User (Kiểm tra xem đã đăng nhập chưa)
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -10,12 +13,14 @@ const verifyToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // Giải mã token. Nếu token hết hạn hoặc sai bí mật, nó sẽ ném ra lỗi
-    // Nhớ cấu hình JWT_SECRET trong file .env của server
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_key_elearning');
-    req.user = decoded; // { id, email, role } (Ví dụ)
+    // Giải mã token dùng chung JWT_ACCESS_SECRET với auth.js
+    const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
+    req.user = decoded; // { id, email, role }
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token đã hết hạn', code: 'TOKEN_EXPIRED' });
+    }
     return res.status(401).json({ error: 'Token không hợp lệ hoặc đã hết hạn.' });
   }
 };
