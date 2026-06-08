@@ -8,6 +8,7 @@ export default defineConfig({
   // Cấu hình migration
   migrations: {
     path: 'prisma/migrations',
+    seed: 'node prisma/seed.js',
   },
 
   // URL kết nối database cho Prisma CLI (migrate, db push, etc.)
