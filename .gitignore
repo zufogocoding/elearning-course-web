@@ -34,3 +34,6 @@ yarn-error.log*
 server/generated/
 node_modules
 .env
+
+# AI Rules
+.ai-rules.md
