@@ -158,23 +158,23 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
             <CheckCircle className="w-12 h-12 text-emerald-500 fill-emerald-500/20" />
           </div>
           <h1 className={`text-3xl font-extrabold tracking-tight ${text} mb-3`}>
-            Payment Received!
+            Đã nhận thanh toán!
           </h1>
           <p className={`text-base ${muted} mb-8`}>
-            Your enrollment is being confirmed. You&apos;ll receive an email shortly.
+            Đăng ký của bạn đang được xác nhận. Bạn sẽ nhận được email trong chốc lát.
           </p>
 
           <div className={`border ${divider} rounded-2xl p-6 ${sectionBg} mb-8 text-left space-y-3`}>
             <div className="flex justify-between items-center">
-              <span className={`text-sm ${muted}`}>Course</span>
+              <span className={`text-sm ${muted}`}>Khóa học</span>
               <span className={`text-sm font-semibold ${text}`}>{course.title}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className={`text-sm ${muted}`}>Amount paid</span>
+              <span className={`text-sm ${muted}`}>Số tiền đã thanh toán</span>
               <span className="text-sm font-bold text-emerald-500">${finalPrice}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className={`text-sm ${muted}`}>Order ID</span>
+              <span className={`text-sm ${muted}`}>Mã đơn hàng</span>
               <span className={`text-xs font-mono ${subtle}`}>{orderRef}</span>
             </div>
           </div>
@@ -184,10 +184,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
             id="go-to-course-btn"
             className="w-full block py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center text-base transition-all shadow-md shadow-indigo-600/25 mb-4"
           >
-            Start Learning →
+            Bắt đầu học →
           </Link>
           <Link href="/courses" className={`text-sm ${muted} hover:text-indigo-500 transition-colors`}>
-            Browse more courses
+            Duyệt thêm khóa học
           </Link>
         </main>
         <Footer />
@@ -203,8 +203,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Checkout</h1>
-          <p className={`text-sm mt-1 ${muted}`}>Complete your purchase to get instant access.</p>
+          <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Thanh toán</h1>
+          <p className={`text-sm mt-1 ${muted}`}>Hoàn tất giao dịch mua để truy cập ngay.</p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -213,7 +213,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
           <div className="w-full lg:flex-1 space-y-5">
             <div className={`border ${divider} rounded-2xl overflow-hidden ${sectionBg}`}>
               <div className={`px-6 py-4 border-b ${divider}`}>
-                <h2 className={`font-bold text-base ${text}`}>Order Summary</h2>
+                <h2 className={`font-bold text-base ${text}`}>Tóm tắt đơn hàng</h2>
               </div>
 
               <div className="p-6 space-y-5">
@@ -235,17 +235,17 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                 {/* Price Breakdown */}
                 <div className={`space-y-3 border-t ${divider} pt-5`}>
                   <div className="flex justify-between items-center">
-                    <span className={`text-sm ${muted}`}>Original price</span>
+                    <span className={`text-sm ${muted}`}>Giá gốc</span>
                     <span className={`text-sm line-through ${subtle}`}>${course.originalPrice}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-emerald-500 font-medium">Discount</span>
+                    <span className="text-sm text-emerald-500 font-medium">Giảm giá</span>
                     <span className="text-sm text-emerald-500 font-semibold">−${discount}</span>
                   </div>
                   {couponApplied && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-emerald-500 font-medium flex items-center gap-1">
-                        <Tag className="w-3.5 h-3.5" /> Coupon (ELEVATE10)
+                        <Tag className="w-3.5 h-3.5" /> Mã giảm giá (ELEVATE10)
                       </span>
                       <span className="text-sm text-emerald-500 font-semibold">−10%</span>
                     </div>
@@ -256,7 +256,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                     <input
                       id="coupon-code-input"
                       type="text"
-                      placeholder="Coupon code (try ELEVATE10)"
+                      placeholder="Mã giảm giá (thử ELEVATE10)"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
                       disabled={couponApplied}
@@ -268,18 +268,18 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                       disabled={couponApplied || !couponCode.trim()}
                       className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all"
                     >
-                      {couponApplied ? "Applied ✓" : "Apply"}
+                      {couponApplied ? "Đã áp dụng ✓" : "Áp dụng"}
                     </button>
                   </div>
 
                   <div className={`border-t ${divider} pt-3`} />
 
                   <div className="flex justify-between items-center">
-                    <span className={`font-bold text-base ${text}`}>Total</span>
+                    <span className={`font-bold text-base ${text}`}>Tổng cộng</span>
                     <div className="text-right">
                       <span className={`text-2xl font-extrabold ${text}`}>${finalPrice}</span>
                       {couponApplied && (
-                        <div className="text-xs text-emerald-500 font-medium">You saved ${totalDiscount}!</div>
+                        <div className="text-xs text-emerald-500 font-medium">Bạn đã tiết kiệm ${totalDiscount}!</div>
                       )}
                     </div>
                   </div>
@@ -288,10 +288,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                 {/* Features */}
                 <div className={`border-t ${divider} pt-5 space-y-2.5`}>
                   {[
-                    { icon: RefreshCw, label: "Lifetime access to course content" },
-                    { icon: Award, label: "Certificate of completion" },
-                    { icon: Shield, label: "30-day money-back guarantee" },
-                    { icon: Smartphone, label: "Access on mobile & desktop" },
+                    { icon: RefreshCw, label: "Truy cập trọn đời nội dung khóa học" },
+                    { icon: Award, label: "Chứng chỉ hoàn thành" },
+                    { icon: Shield, label: "Cam kết hoàn tiền trong 30 ngày" },
+                    { icon: Smartphone, label: "Truy cập trên điện thoại & máy tính" },
                   ].map(({ icon: Icon, label }, i) => (
                     <div key={i} className={`flex items-center gap-3 text-sm ${muted}`}>
                       <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -305,7 +305,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                 <div className={`flex items-center justify-center gap-2 pt-2 border-t ${divider}`}>
                   <Shield className="w-3.5 h-3.5 text-emerald-500" />
                   <span className={`text-xs font-medium ${subtle}`}>
-                    Secure checkout · SSL encrypted · PCI compliant
+                    Thanh toán an toàn · Mã hóa SSL · Tuân thủ PCI
                   </span>
                 </div>
               </div>
@@ -316,7 +316,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
           <div className="w-full lg:w-[420px] shrink-0 space-y-5">
             <div className={`border ${divider} rounded-2xl overflow-hidden ${sectionBg}`}>
               <div className={`px-6 py-4 border-b ${divider}`}>
-                <h2 className={`font-bold text-base ${text}`}>Select Payment Method</h2>
+                <h2 className={`font-bold text-base ${text}`}>Chọn phương thức thanh toán</h2>
               </div>
 
               <div className="p-6 space-y-6">
@@ -350,7 +350,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                 }`}>
                   <TimerIcon className={`w-4 h-4 ${timeLeft < 60 ? "text-rose-500" : "text-amber-500"}`} />
                   <span className={`text-sm font-bold ${timeLeft < 60 ? "text-rose-500" : "text-amber-500"}`}>
-                    Payment expires in {formatTime(timeLeft)}
+                    Thanh toán hết hạn trong {formatTime(timeLeft)}
                   </span>
                   {timeLeft === 0 && (
                     <button
@@ -358,41 +358,39 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                       onClick={() => setTimeLeft(900)}
                       className="ml-1 text-xs text-amber-500 underline"
                     >
-                      Refresh
+                      Làm mới
                     </button>
                   )}
                 </div>
 
-                {/* QR Code */}
                 <div className="flex flex-col items-center gap-4">
                   <QRCodeVisual method={selectedMethod} />
                   <p className={`text-xs text-center ${muted} max-w-[200px]`}>
-                    Scan with your{" "}
+                    Quét bằng ứng dụng{" "}
                     <span className="font-bold">
                       {selectedMethod === "vnpay" ? "VNPay" : "MoMo"}
                     </span>{" "}
-                    app to complete payment
+                    của bạn để hoàn tất thanh toán
                   </p>
                 </div>
 
-                {/* Bank Details */}
                 <div className={`space-y-2.5 p-4 rounded-xl border ${divider} ${isDark ? "bg-[#0d0f1a]" : "bg-slate-50"}`}>
                   <h4 className={`text-xs font-bold uppercase tracking-wide ${subtle} mb-3`}>
-                    {selectedMethod === "vnpay" ? "Bank Transfer Details" : "MoMo Details"}
+                    {selectedMethod === "vnpay" ? "Chi tiết chuyển khoản ngân hàng" : "Chi tiết MoMo"}
                   </h4>
                   {[
                     {
-                      label: selectedMethod === "vnpay" ? "Bank" : "Wallet",
+                      label: selectedMethod === "vnpay" ? "Ngân hàng" : "Ví",
                       value: selectedMethod === "vnpay" ? "VietcomBank" : "MoMo Wallet",
                       key: "bank",
                     },
                     {
-                      label: selectedMethod === "vnpay" ? "Account No." : "Phone",
+                      label: selectedMethod === "vnpay" ? "Số tài khoản" : "Số điện thoại",
                       value: selectedMethod === "vnpay" ? "1234567890" : "0901234567",
                       key: "account",
                     },
-                    { label: "Amount", value: `${finalPrice} USD`, key: "amount" },
-                    { label: "Content / Note", value: orderRef, key: "ref" },
+                    { label: "Số tiền", value: `${finalPrice} USD`, key: "amount" },
+                    { label: "Nội dung / Ghi chú", value: orderRef, key: "ref" },
                   ].map(({ label, value, key }) => (
                     <div key={key} className="flex items-center justify-between gap-2">
                       <span className={`text-xs ${subtle} w-24 shrink-0`}>{label}</span>
@@ -417,14 +415,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                   ))}
                 </div>
 
-                {/* Confirm Button */}
                 <button
                   id="confirm-payment-btn"
                   onClick={() => setPaid(true)}
                   className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-base transition-all shadow-md shadow-emerald-600/25 hover:shadow-emerald-600/40 flex items-center justify-center gap-2"
                 >
                   <CheckCircle className="w-5 h-5" />
-                  I&apos;ve Completed Payment
+                  Tôi đã hoàn tất thanh toán
                 </button>
 
                 <div className="text-center">
@@ -433,25 +430,24 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                     id="cancel-order-link"
                     className={`text-sm ${subtle} hover:${muted} transition-colors underline underline-offset-2`}
                   >
-                    Cancel Order
+                    Hủy đơn hàng
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* Security Badges */}
             <div className={`flex items-center justify-center gap-4 text-xs ${subtle}`}>
               <div className="flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                SSL Encrypted
+                Mã hóa SSL
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                Instant Access
+                Truy cập ngay lập tức
               </div>
               <div className="flex items-center gap-1.5">
                 <Award className="w-3.5 h-3.5 text-amber-400" />
-                Certified
+                Được chứng nhận
               </div>
             </div>
           </div>

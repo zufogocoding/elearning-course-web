@@ -111,7 +111,7 @@ export default function AdminUsersPage() {
           window.location.href = "/auth/login";
           return;
         }
-        throw new Error("Failed to fetch users");
+        throw new Error("Lỗi tải dữ liệu");
       }
       const data = await res.json();
 
@@ -119,14 +119,14 @@ export default function AdminUsersPage() {
         id: u.id.toString(),
         name: u.username || "Unknown",
         email: u.email,
-        joined: new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        joined: new Date(u.createdAt).toLocaleDateString("vi-VN", { month: "short", day: "numeric", year: "numeric" }),
         courses: 0,
         status: u.isActive ? "Active" : "Banned",
         role: u.role === "admin" ? "Admin" : "User",
         color: getColor(u.id),
-        bio: u.bio || "No bio available.",
+        bio: u.bio || "Chưa có thông tin.",
         totalSpent: "$0.00",
-        lastActive: "Unknown",
+        lastActive: "Không rõ",
         enrolledCourses: [],
         purchases: []
       }));
@@ -135,7 +135,7 @@ export default function AdminUsersPage() {
       setPagination(data.pagination);
     } catch (error) {
       console.error(error);
-      showToast("error", "Failed to load users");
+      showToast("error", "Lỗi tải danh sách người dùng");
     } finally {
       setIsLoading(false);
     }
@@ -167,15 +167,15 @@ export default function AdminUsersPage() {
       if (selectedUser?.id === id) {
         setSelectedUser((prev) => (prev ? { ...prev, status: newStatus } : null));
       }
-      showToast("success", newIsActive ? "User unbanned successfully" : "User banned successfully");
+      showToast("success", newIsActive ? "Mở khóa người dùng thành công" : "Khoá người dùng thành công");
     } catch (error: any) {
       console.error(error);
-      showToast("error", error.message || "Failed to update user status");
+      showToast("error", error.message || "Lỗi cập nhật trạng thái người dùng");
     }
   };
 
   const deleteUser = (id: string) => {
-    showToast("info", "Delete functionality not connected to API yet.");
+    showToast("info", "Chức năng xoá chưa được kết nối API.");
     setDeleteConfirmId(null);
   };
 
@@ -186,8 +186,8 @@ export default function AdminUsersPage() {
         {/* ── Header ────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Users</h1>
-            <p className={`text-sm mt-0.5 ${muted}`}>{users.length} registered users</p>
+            <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Người dùng</h1>
+            <p className={`text-sm mt-0.5 ${muted}`}>{users.length} người dùng đã đăng ký</p>
           </div>
           <button
             id="export-users-csv"
@@ -197,7 +197,7 @@ export default function AdminUsersPage() {
                 : "border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-slate-50"
             }`}
           >
-            <Download className="w-4 h-4" /> Export CSV
+            <Download className="w-4 h-4" /> Xuất CSV
           </button>
         </div>
 
@@ -208,15 +208,15 @@ export default function AdminUsersPage() {
             <input
               id="user-search"
               type="text"
-              placeholder="Search by name or email..."
+              placeholder="Tìm theo tên hoặc email..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className={`w-full pl-10 pr-4 py-2.5 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
             />
           </div>
           {[
-            { id: "role-filter", value: roleFilter, setter: setRoleFilter, options: ["All", "Admin", "User"], label: "All Roles" },
-            { id: "status-filter", value: statusFilter, setter: setStatusFilter, options: ["All", "Active", "Banned"], label: "All Status" },
+            { id: "role-filter", value: roleFilter, setter: setRoleFilter, options: ["All", "Admin", "User"], label: "Tất cả vai trò" },
+            { id: "status-filter", value: statusFilter, setter: setStatusFilter, options: ["All", "Active", "Banned"], label: "Tất cả trạng thái" },
           ].map(({ id, value, setter, options, label }) => (
             <div key={id} className="relative">
               <select
@@ -238,7 +238,7 @@ export default function AdminUsersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className={`border-b ${divider} ${sectionHdr}`}>
-                  {["User", "Email", "Joined", "Courses", "Status", "Actions"].map((h) => (
+                  {["Người dùng", "Email", "Ngày tham gia", "Khóa học", "Trạng thái", "Hành động"].map((h) => (
                     <th key={h} className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>{h}</th>
                   ))}
                 </tr>
@@ -247,7 +247,7 @@ export default function AdminUsersPage() {
                 {isLoading ? (
                   <tr>
                     <td colSpan={6} className={`px-4 py-12 text-center text-sm ${muted}`}>
-                      Loading users...
+                      Đang tải dữ liệu...
                     </td>
                   </tr>
                 ) : users.map((user) => (
@@ -297,7 +297,7 @@ export default function AdminUsersPage() {
                       {deleteConfirmId === user.id ? (
                         <div className="flex items-center gap-2">
                           <span className={`text-xs flex items-center gap-1 ${isDark ? "text-rose-400" : "text-rose-600"}`}>
-                            <AlertTriangle className="w-3 h-3" /> Delete?
+                            <AlertTriangle className="w-3 h-3" /> Xoá?
                           </span>
                           <button
                             id={`confirm-delete-user-${user.id}`}
@@ -318,7 +318,7 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-1.5">
                           <button
                             id={`view-user-${user.id}`}
-                            title="View Details"
+                            title="Xem chi tiết"
                             onClick={() => setSelectedUser(user)}
                             className={`p-1.5 rounded-lg transition-all ${iconBtn}`}
                           >
@@ -326,7 +326,7 @@ export default function AdminUsersPage() {
                           </button>
                           <button
                             id={`ban-user-${user.id}`}
-                            title={user.status === "Active" ? "Ban User" : "Unban User"}
+                            title={user.status === "Active" ? "Khoá người dùng" : "Mở khoá người dùng"}
                             onClick={() => toggleBan(user.id)}
                             className={`p-1.5 rounded-lg transition-all ${
                               user.status === "Active"
@@ -338,7 +338,7 @@ export default function AdminUsersPage() {
                           </button>
                           <button
                             id={`delete-user-${user.id}`}
-                            title="Delete User"
+                            title="Xoá người dùng"
                             onClick={() => setDeleteConfirmId(user.id)}
                             className={`p-1.5 rounded-lg transition-all ${isDark ? "bg-[#22263a] hover:bg-rose-500/20 text-[#a0aec0] hover:text-rose-400" : "bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-500"}`}
                           >
@@ -352,7 +352,7 @@ export default function AdminUsersPage() {
                 {!isLoading && users.length === 0 && (
                   <tr>
                     <td colSpan={6} className={`px-4 py-12 text-center text-sm ${muted}`}>
-                      No users match your filters.
+                      Không có dữ liệu
                     </td>
                   </tr>
                 )}
@@ -365,7 +365,7 @@ export default function AdminUsersPage() {
         {!isLoading && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between pt-4">
             <span className={`text-sm ${muted}`}>
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+              Hiển thị {((pagination.page - 1) * pagination.limit) + 1} đến {Math.min(pagination.page * pagination.limit, pagination.total)} trong tổng số {pagination.total} kết quả
             </span>
             <div className="flex gap-2">
               <button
@@ -377,7 +377,7 @@ export default function AdminUsersPage() {
                     : isDark ? "bg-[#22263a] hover:bg-[#2a2d3e] text-[#e2e8f0]" : "bg-white border border-slate-200 hover:bg-slate-50 text-slate-700"
                 }`}
               >
-                Previous
+                Trước
               </button>
               <button
                 onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
@@ -388,7 +388,7 @@ export default function AdminUsersPage() {
                     : isDark ? "bg-[#22263a] hover:bg-[#2a2d3e] text-[#e2e8f0]" : "bg-white border border-slate-200 hover:bg-slate-50 text-slate-700"
                 }`}
               >
-                Next
+                Tiếp
               </button>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function AdminUsersPage() {
           <>
             {/* Panel Header */}
             <div className={`flex items-center justify-between px-5 py-4 border-b ${divider}`}>
-              <h3 className={`text-sm font-bold ${text}`}>User Details</h3>
+              <h3 className={`text-sm font-bold ${text}`}>Chi tiết người dùng</h3>
               <button
                 id="close-user-panel"
                 onClick={() => setSelectedUser(null)}
@@ -459,10 +459,10 @@ export default function AdminUsersPage() {
               <div className={`border rounded-xl p-4 space-y-3 ${card}`}>
                 {[
                   { icon: Mail, label: "Email", value: selectedUser.email },
-                  { icon: Calendar, label: "Joined", value: selectedUser.joined },
-                  { icon: UserCircle, label: "Last Active", value: selectedUser.lastActive },
-                  { icon: BookOpen, label: "Courses", value: `${selectedUser.courses} enrolled` },
-                  { icon: DollarSign, label: "Total Spent", value: selectedUser.totalSpent },
+                  { icon: Calendar, label: "Ngày tham gia", value: selectedUser.joined },
+                  { icon: UserCircle, label: "Truy cập lần cuối", value: selectedUser.lastActive },
+                  { icon: BookOpen, label: "Khóa học", value: `${selectedUser.courses} đã đăng ký` },
+                  { icon: DollarSign, label: "Tổng chi tiêu", value: selectedUser.totalSpent },
                 ].map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex items-center gap-3">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-[#22263a]" : "bg-slate-100"}`}>
@@ -479,7 +479,7 @@ export default function AdminUsersPage() {
               {/* Enrolled Courses */}
               {selectedUser.enrolledCourses.length > 0 && (
                 <div>
-                  <h5 className={`text-xs font-bold mb-2 ${muted}`}>ENROLLED COURSES</h5>
+                  <h5 className={`text-xs font-bold mb-2 ${muted}`}>CÁC KHÓA ĐÃ ĐĂNG KÝ</h5>
                   <div className="space-y-2">
                     {selectedUser.enrolledCourses.map((c) => (
                       <div key={c.title} className={`border rounded-xl p-3 ${card}`}>
@@ -504,7 +504,7 @@ export default function AdminUsersPage() {
               {/* Purchase History */}
               {selectedUser.purchases.length > 0 && (
                 <div>
-                  <h5 className={`text-xs font-bold mb-2 ${muted}`}>PURCHASE HISTORY</h5>
+                  <h5 className={`text-xs font-bold mb-2 ${muted}`}>LỊCH SỬ MUA HÀNG</h5>
                   <div className="space-y-2">
                     {selectedUser.purchases.map((p, i) => (
                       <div key={i} className={`flex items-center justify-between border rounded-xl p-3 ${card}`}>
@@ -536,9 +536,9 @@ export default function AdminUsersPage() {
                 }`}
               >
                 {selectedUser.status === "Active" ? (
-                  <><ShieldOff className="w-4 h-4" /> Ban User</>
+                  <><ShieldOff className="w-4 h-4" /> Khoá người dùng</>
                 ) : (
-                  <><ShieldCheck className="w-4 h-4" /> Unban User</>
+                  <><ShieldCheck className="w-4 h-4" /> Mở khoá người dùng</>
                 )}
               </button>
               <button

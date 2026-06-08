@@ -101,8 +101,8 @@ export default function LoginPage() {
 
         <div className={`border rounded-2xl shadow-xl p-8 ${card} transition-all`}>
           <div className="mb-6 text-center">
-            <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-1`}>Sign in to Elevate</h1>
-            <p className={`text-sm ${muted}`}>Welcome back! Please enter your details.</p>
+            <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-1`}>Đăng nhập vào Elevate</h1>
+            <p className={`text-sm ${muted}`}>Chào mừng trở lại! Vui lòng nhập thông tin của bạn.</p>
           </div>
 
           {error && (
@@ -113,14 +113,14 @@ export default function LoginPage() {
 
           <div className={`flex items-center gap-3 mb-5`}>
             <div className={`flex-1 border-t ${divider}`} />
-            <span className={`text-xs font-medium ${muted}`}>sign in with email</span>
+            <span className={`text-xs font-medium ${muted}`}>đăng nhập bằng email</span>
             <div className={`flex-1 border-t ${divider}`} />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div>
               <label htmlFor="login-email" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                Email address
+                Địa chỉ email
               </label>
               <div className="relative">
                 <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${iconColor}`} />
@@ -131,7 +131,7 @@ export default function LoginPage() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="ban@example.com"
                   className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
                     fieldErrors.email
                       ? 'border-rose-500 focus:ring-rose-500/20'
@@ -146,7 +146,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="login-password" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                Password
+                Mật khẩu
               </label>
               <div className="relative">
                 <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${iconColor}`} />
@@ -157,7 +157,7 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Nhập mật khẩu của bạn"
                   className={`w-full pl-10 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
                     fieldErrors.password
                       ? 'border-rose-500 focus:ring-rose-500/20'
@@ -187,14 +187,14 @@ export default function LoginPage() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
                 />
-                <span className={`text-sm ${muted}`}>Remember me</span>
+                <span className={`text-sm ${muted}`}>Ghi nhớ đăng nhập</span>
               </label>
               <Link
                 href="/auth/forgot-password"
                 id="login-forgot-link"
                 className="text-sm text-indigo-500 hover:text-indigo-400 font-medium transition-colors"
               >
-                Forgot password?
+                Quên mật khẩu?
               </Link>
             </div>
 
@@ -205,17 +205,17 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 mt-2 text-sm"
             >
               {isLoading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> Đang đăng nhập...</>
               ) : (
-                'Sign In'
+                'Đăng nhập'
               )}
             </button>
           </form>
 
           <p className={`mt-6 text-center text-sm ${muted}`}>
-            Don&apos;t have an account?{' '}
+            Chưa có tài khoản?{' '}
             <Link href="/auth/register" id="login-register-link" className="text-indigo-500 hover:text-indigo-400 font-semibold transition-colors">
-              Sign up
+              Đăng ký
             </Link>
           </p>
         </div>

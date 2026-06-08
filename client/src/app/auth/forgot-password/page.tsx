@@ -21,7 +21,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
       : /[A-Z]/.test(password) && /[0-9!@#]/.test(password)
       ? 4
       : 3;
-  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  const labels = ['', 'Yếu', 'Trung bình', 'Tốt', 'Mạnh'];
   const colors = ['', 'bg-rose-500', 'bg-amber-400', 'bg-yellow-400', 'bg-emerald-500'];
   const textColors = ['', 'text-rose-500', 'text-amber-400', 'text-yellow-500', 'text-emerald-500'];
   if (!password) return null;
@@ -203,8 +203,8 @@ export default function ForgotPasswordPage() {
   // Step indicator
   const steps = [
     { num: 1, label: 'Email' },
-    { num: 2, label: 'Verify' },
-    { num: 3, label: 'Reset' },
+    { num: 2, label: 'Xác minh' },
+    { num: 3, label: 'Đặt lại' },
   ];
 
   return (
@@ -276,9 +276,9 @@ export default function ForgotPasswordPage() {
                 >
                   <Mail className="w-5 h-5 text-indigo-500" />
                 </div>
-                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Reset your password</h1>
+                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Đặt lại mật khẩu của bạn</h1>
                 <p className={`text-sm ${muted}`}>
-                  Enter your email and we&apos;ll send you a 6-digit verification code.
+                  Nhập email của bạn và chúng tôi sẽ gửi cho bạn mã xác minh gồm 6 chữ số.
                 </p>
               </div>
 
@@ -291,7 +291,7 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <div>
                   <label htmlFor="forgot-email" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                    Email address
+                    Địa chỉ email
                   </label>
                   <div className="relative">
                     <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${iconColor}`} />
@@ -300,7 +300,7 @@ export default function ForgotPasswordPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
+                      placeholder="ban@example.com"
                       required
                       className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
                     />
@@ -314,9 +314,9 @@ export default function ForgotPasswordPage() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 text-sm"
                 >
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Sending code...</>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Đang gửi mã...</>
                   ) : (
-                    'Send Verification Code'
+                    'Gửi mã xác minh'
                   )}
                 </button>
               </form>
@@ -328,7 +328,7 @@ export default function ForgotPasswordPage() {
                   className={`inline-flex items-center gap-1.5 text-sm font-medium ${muted} hover:text-indigo-500 transition-colors`}
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Back to sign in
+                  Quay lại đăng nhập
                 </Link>
               </div>
             </>
@@ -341,7 +341,7 @@ export default function ForgotPasswordPage() {
                 onClick={() => { setStep(1); setOtp(['', '', '', '', '', '']); setError(''); }}
                 className={`flex items-center gap-1.5 text-sm mb-6 ${muted} hover:text-indigo-500 transition-colors`}
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <ArrowLeft className="w-4 h-4" /> Quay lại
               </button>
 
               <div className="text-center mb-8">
@@ -352,9 +352,9 @@ export default function ForgotPasswordPage() {
                 >
                   <ShieldCheck className="w-8 h-8 text-indigo-500" />
                 </div>
-                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Check your email</h1>
+                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Kiểm tra email của bạn</h1>
                 <p className={`text-sm ${muted}`}>
-                  We sent a 6-digit code to{' '}
+                  Chúng tôi đã gửi mã gồm 6 chữ số đến{' '}
                   <span className={`font-semibold ${isDark ? 'text-[#e2e8f0]' : 'text-slate-700'}`}>{email}</span>
                 </p>
               </div>
@@ -373,11 +373,11 @@ export default function ForgotPasswordPage() {
                     onClick={handleResend}
                     className="text-indigo-500 hover:text-indigo-400 font-semibold transition-colors"
                   >
-                    Resend code
+                    Gửi lại mã
                   </button>
                 ) : (
                   <>
-                    Resend code in{' '}
+                    Gửi lại mã trong{' '}
                     <span className={`font-bold ${isDark ? 'text-[#e2e8f0]' : 'text-slate-700'}`}>{countdown}s</span>
                   </>
                 )}
@@ -390,9 +390,9 @@ export default function ForgotPasswordPage() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 mt-6 text-sm"
               >
                 {loading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Đang xác minh...</>
                 ) : (
-                  'Verify Code'
+                  'Xác minh mã'
                 )}
               </button>
             </>
@@ -409,8 +409,8 @@ export default function ForgotPasswordPage() {
                 >
                   <Lock className="w-8 h-8 text-indigo-500" />
                 </div>
-                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Create new password</h1>
-                <p className={`text-sm ${muted}`}>Your identity is verified. Set your new password below.</p>
+                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Tạo mật khẩu mới</h1>
+                <p className={`text-sm ${muted}`}>Danh tính của bạn đã được xác minh. Đặt mật khẩu mới của bạn bên dưới.</p>
               </div>
 
               {error && (
@@ -422,7 +422,7 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div>
                   <label htmlFor="reset-new-password" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                    New Password
+                    Mật khẩu mới
                   </label>
                   <div className="relative">
                     <input
@@ -431,7 +431,7 @@ export default function ForgotPasswordPage() {
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Create a strong password"
+                      placeholder="Tạo một mật khẩu mạnh"
                       required
                       minLength={6}
                       className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
@@ -450,7 +450,7 @@ export default function ForgotPasswordPage() {
 
                 <div>
                   <label htmlFor="reset-confirm-password" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                    Confirm Password
+                    Xác nhận mật khẩu
                   </label>
                   <div className="relative">
                     <input
@@ -459,7 +459,7 @@ export default function ForgotPasswordPage() {
                       autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat your new password"
+                      placeholder="Nhập lại mật khẩu mới của bạn"
                       required
                       className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input} ${
                         confirmPassword && confirmPassword !== newPassword
@@ -477,11 +477,11 @@ export default function ForgotPasswordPage() {
                     </button>
                   </div>
                   {confirmPassword && confirmPassword !== newPassword && (
-                    <p className="text-xs text-rose-500 mt-1">Passwords do not match</p>
+                    <p className="text-xs text-rose-500 mt-1">Mật khẩu không khớp</p>
                   )}
                   {confirmPassword && confirmPassword === newPassword && (
                     <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Passwords match
+                      <CheckCircle2 className="w-3 h-3" /> Mật khẩu khớp
                     </p>
                   )}
                 </div>
@@ -493,9 +493,9 @@ export default function ForgotPasswordPage() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 mt-2 text-sm"
                 >
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Resetting password...</>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Đang đặt lại mật khẩu...</>
                   ) : (
-                    'Reset Password'
+                    'Đặt lại mật khẩu'
                   )}
                 </button>
               </form>

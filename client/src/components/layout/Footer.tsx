@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useTheme } from "@/components/ui/ThemeProvider";
 
 const LINKS = [
-  { href: "/courses", label: "Courses" },
-  { href: "/profile", label: "My Learning" },
-  { href: "/auth/login", label: "Log in" },
-  { href: "/auth/register", label: "Sign up" },
+  { href: "/courses", label: "Khóa học" },
+  { href: "/profile", label: "Khóa học của tôi" },
+  { href: "/auth/login", label: "Đăng nhập" },
+  { href: "/auth/register", label: "Đăng ký" },
 ];
 
 export default function Footer() {
@@ -42,7 +42,7 @@ export default function Footer() {
                 isDark ? "text-[#4a5568]" : "text-slate-400"
               }`}
             >
-              A distraction-free platform for ambitious learners.
+              Nền tảng học tập tập trung dành cho những học viên đầy tham vọng.
             </p>
           </div>
 

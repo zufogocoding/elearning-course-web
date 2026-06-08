@@ -52,9 +52,9 @@ const defaultForm: CourseForm = {
 };
 
 const LEVELS = [
-  { value: "beginner", label: "Beginner" },
-  { value: "intermediate", label: "Intermediate" },
-  { value: "advanced", label: "Advanced" },
+  { value: "beginner", label: "Cơ bản" },
+  { value: "intermediate", label: "Trung bình" },
+  { value: "advanced", label: "Nâng cao" },
 ];
 
 function slugify(text: string) {
@@ -91,7 +91,7 @@ export default function AdminCoursesPage() {
 
       const res = await api.get(`/api/courses/admin/all?${params}`);
       if (!res.ok) {
-        setError("Failed to load courses");
+        setError("Lỗi tải khóa học");
         setCourses([]);
         return;
       }
@@ -100,7 +100,7 @@ export default function AdminCoursesPage() {
       setPagination(data.pagination || { page: 1, total: 0, totalPages: 0 });
       setError("");
     } catch {
-      setError("Network error. Could not load courses.");
+      setError("Lỗi mạng. Không thể tải khóa học.");
     } finally {
       setLoading(false);
     }
@@ -166,7 +166,7 @@ export default function AdminCoursesPage() {
 
   const handleSave = async () => {
     setFormErrors("");
-    if (!form.title.trim()) { setFormErrors("Course title is required"); return; }
+    if (!form.title.trim()) { setFormErrors("Vui lòng nhập tên khóa học"); return; }
 
     setSaving(true);
     try {
@@ -195,7 +195,7 @@ export default function AdminCoursesPage() {
       closeModal();
       fetchCourses();
     } catch {
-      setFormErrors("Network error.");
+      setFormErrors("Lỗi mạng.");
     } finally {
       setSaving(false);
     }
@@ -245,7 +245,7 @@ export default function AdminCoursesPage() {
       <AdminLayout>
         <div className="p-12 text-center">
           <p className={`text-lg font-semibold ${isDark ? "text-[#7a87a1]" : "text-slate-500"}`}>
-            You need admin access to view this page.
+            Bạn cần quyền quản trị để xem trang này.
           </p>
         </div>
       </AdminLayout>
@@ -258,8 +258,8 @@ export default function AdminCoursesPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Courses</h1>
-            <p className={`text-sm mt-0.5 ${muted}`}>{pagination.total} total courses</p>
+            <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Khóa học</h1>
+            <p className={`text-sm mt-0.5 ${muted}`}>{pagination.total} khóa học</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={fetchCourses} className={`p-2.5 rounded-xl border text-sm transition-all ${iconBtn}`} title="Refresh">
@@ -267,7 +267,7 @@ export default function AdminCoursesPage() {
             </button>
             <button id="open-add-course-modal" onClick={openAddModal}
               className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20">
-              <Plus className="w-4 h-4" /> Add Course
+              <Plus className="w-4 h-4" /> Thêm khóa học
             </button>
           </div>
         </div>
@@ -275,7 +275,7 @@ export default function AdminCoursesPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${muted}`} />
-            <input id="course-search" type="text" placeholder="Search courses by title..."
+            <input id="course-search" type="text" placeholder="Tìm kiếm khóa học theo tên..."
               value={search} onChange={(e) => setSearch(e.target.value)}
               className={`w-full pl-10 pr-4 py-2.5 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
           </div>
@@ -283,10 +283,10 @@ export default function AdminCoursesPage() {
             <select id="course-status-filter" value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
               className={`appearance-none px-4 py-2.5 pr-9 border rounded-xl outline-none focus:ring-2 transition-all text-sm font-medium ${input}`}>
-              <option value="All">All Status</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-              <option value="archived">Archived</option>
+              <option value="All">Tất cả trạng thái</option>
+              <option value="published">Đã xuất bản</option>
+              <option value="draft">Bản nháp</option>
+              <option value="archived">Lưu trữ</option>
             </select>
             <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${muted}`} />
           </div>
@@ -300,7 +300,7 @@ export default function AdminCoursesPage() {
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-              <span className={`ml-3 text-sm font-medium ${muted}`}>Loading courses...</span>
+              <span className={`ml-3 text-sm font-medium ${muted}`}>Đang tải dữ liệu...</span>
             </div>
           ) : (
             <>
@@ -308,12 +308,12 @@ export default function AdminCoursesPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className={`border-b ${divider} ${sectionHdr}`}>
-                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Course</th>
-                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Level</th>
-                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Price</th>
-                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Enrolled</th>
-                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Status</th>
-                      <th className={`text-right px-4 py-3 text-xs font-semibold ${muted}`}>Actions</th>
+                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Khóa học</th>
+                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Cấp độ</th>
+                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Giá</th>
+                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Đã đăng ký</th>
+                      <th className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>Trạng thái</th>
+                      <th className={`text-right px-4 py-3 text-xs font-semibold ${muted}`}>Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -322,9 +322,9 @@ export default function AdminCoursesPage() {
                         <td colSpan={6} className={`px-4 py-16 text-center text-sm ${muted}`}>
                           <div className="flex flex-col items-center gap-2">
                             <BookOpen className="w-10 h-10 opacity-30" />
-                            <p>No courses found.</p>
+                            <p>Không có dữ liệu</p>
                             <button onClick={openAddModal} className="text-indigo-500 hover:text-indigo-400 font-semibold text-xs">
-                              Create your first course
+                              Tạo khóa học đầu tiên
                             </button>
                           </div>
                         </td>
@@ -348,14 +348,14 @@ export default function AdminCoursesPage() {
                             <div>
                               <p className={`font-semibold text-sm leading-tight ${text}`}>{course.title}</p>
                               <p className={`text-xs mt-0.5 ${muted}`}>
-                                {course.category?.name || "Uncategorized"} · {course._count.sections} sections
+                                {course.category?.name || "Chưa phân loại"} · {course._count.sections} chương
                               </p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${levelBadge(course.level)}`}>
-                            {course.level.charAt(0).toUpperCase() + course.level.slice(1)}
+                            {course.level === "beginner" ? "Cơ bản" : course.level === "intermediate" ? "Trung bình" : "Nâng cao"}
                           </span>
                         </td>
                         <td className={`px-4 py-3.5 font-semibold ${text}`}>
@@ -367,14 +367,14 @@ export default function AdminCoursesPage() {
                         <td className={`px-4 py-3.5 ${text}`}>{course._count.enrollments}</td>
                         <td className="px-4 py-3.5">
                           <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${statusBadge(course.status)}`}>
-                            {course.status.charAt(0).toUpperCase() + course.status.slice(1)}
+                            {course.status === "published" ? "Đã xuất bản" : course.status === "draft" ? "Bản nháp" : "Lưu trữ"}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
                           {deleteConfirmId === course.id ? (
                             <div className="flex items-center justify-end gap-2">
                               <span className={`text-xs flex items-center gap-1 ${isDark ? "text-rose-400" : "text-rose-600"}`}>
-                                <AlertTriangle className="w-3 h-3" /> Delete?
+                                <AlertTriangle className="w-3 h-3" /> Xoá?
                               </span>
                               <button id={`confirm-delete-${course.id}`} onClick={() => handleDelete(course.id)}
                                 className="p-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white transition-all">
@@ -420,12 +420,12 @@ export default function AdminCoursesPage() {
 
               {pagination.totalPages > 1 && (
                 <div className={`flex items-center justify-between px-4 py-3 border-t ${divider} ${sectionHdr}`}>
-                  <span className={`text-xs ${muted}`}>Page {pagination.page} of {pagination.totalPages}</span>
+                  <span className={`text-xs ${muted}`}>Trang {pagination.page} / {pagination.totalPages}</span>
                   <div className="flex gap-1">
                     <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${page <= 1 ? "opacity-40 cursor-not-allowed" : iconBtn}`}>Previous</button>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${page <= 1 ? "opacity-40 cursor-not-allowed" : iconBtn}`}>Trước</button>
                     <button disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${page >= pagination.totalPages ? "opacity-40 cursor-not-allowed" : iconBtn}`}>Next</button>
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${page >= pagination.totalPages ? "opacity-40 cursor-not-allowed" : iconBtn}`}>Tiếp</button>
                   </div>
                 </div>
               )}
@@ -441,7 +441,7 @@ export default function AdminCoursesPage() {
             isDark ? "bg-[#13151f] border-[#252840]" : "bg-white border-slate-200"
           }`}>
             <div className={`flex items-center justify-between px-6 py-4 border-b ${divider}`}>
-              <h3 className={`text-base font-bold ${text}`}>{editCourse ? "Edit Course" : "Add New Course"}</h3>
+              <h3 className={`text-base font-bold ${text}`}>{editCourse ? "Sửa khóa học" : "Thêm khóa học mới"}</h3>
               <button id="close-add-modal" onClick={closeModal} className={`p-1.5 rounded-lg transition-all ${iconBtn}`}>
                 <X className="w-4 h-4" />
               </button>
@@ -454,16 +454,16 @@ export default function AdminCoursesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="course-title" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Course Title *</label>
-                  <input id="course-title" type="text" placeholder="e.g. Complete JavaScript Bootcamp"
+                  <label htmlFor="course-title" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Tên khóa học *</label>
+                  <input id="course-title" type="text" placeholder="VD: Khóa học JavaScript toàn diện"
                     value={form.title} onChange={(e) => autoSlug(e.target.value)}
                     className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
                 </div>
                 <div>
                   <label htmlFor="course-slug" className={`block text-xs font-semibold mb-1.5 ${muted}`}>
-                    Slug {editCourse && <span className="text-amber-400">(read-only)</span>}
+                    Đường dẫn {editCourse && <span className="text-amber-400">(chỉ đọc)</span>}
                   </label>
-                  <input id="course-slug" type="text" placeholder="auto-generated"
+                  <input id="course-slug" type="text" placeholder="tự động tạo"
                     value={form.slug}
                     onChange={(e) => !editCourse && setForm((p) => ({ ...p, slug: e.target.value }))}
                     readOnly={!!editCourse}
@@ -472,27 +472,27 @@ export default function AdminCoursesPage() {
               </div>
 
               <div>
-                <label htmlFor="course-short-desc" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Short Description</label>
-                <textarea id="course-short-desc" rows={2} placeholder="Brief description for course cards..."
+                <label htmlFor="course-short-desc" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Mô tả ngắn</label>
+                <textarea id="course-short-desc" rows={2} placeholder="Mô tả ngắn hiển thị trên thẻ khóa học..."
                   value={form.shortDescription} onChange={(e) => setForm((p) => ({ ...p, shortDescription: e.target.value }))}
                   className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm resize-none ${input}`} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="course-category" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Category</label>
+                  <label htmlFor="course-category" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Danh mục</label>
                   <div className="relative">
                     <select id="course-category" value={form.categoryId}
                       onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}
                       className={`w-full appearance-none px-4 py-3 pr-9 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}>
-                      <option value="">No category</option>
+                      <option value="">Không có danh mục</option>
                       {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                     <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${muted}`} />
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="course-level" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Level</label>
+                  <label htmlFor="course-level" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Cấp độ</label>
                   <div className="relative">
                     <select id="course-level" value={form.level}
                       onChange={(e) => setForm((p) => ({ ...p, level: e.target.value }))}
@@ -506,28 +506,28 @@ export default function AdminCoursesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="course-price" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Price ($)</label>
+                  <label htmlFor="course-price" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Giá ($)</label>
                   <input id="course-price" type="number" step="0.01" min="0" placeholder="0.00"
                     value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
                     className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
                 </div>
                 <div>
-                  <label htmlFor="course-discount" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Discount Price ($)</label>
-                  <input id="course-discount" type="number" step="0.01" min="0" placeholder="Optional"
+                  <label htmlFor="course-discount" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Giá khuyến mãi ($)</label>
+                  <input id="course-discount" type="number" step="0.01" min="0" placeholder="Tùy chọn"
                     value={form.discountPrice} onChange={(e) => setForm((p) => ({ ...p, discountPrice: e.target.value }))}
                     className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="course-thumbnail" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Thumbnail URL</label>
+                <label htmlFor="course-thumbnail" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Ảnh bìa URL</label>
                 <input id="course-thumbnail" type="text" placeholder="https://example.com/thumbnail.jpg"
                   value={form.thumbnailUrl} onChange={(e) => setForm((p) => ({ ...p, thumbnailUrl: e.target.value }))}
                   className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
               </div>
 
               <div>
-                <label className={`block text-xs font-semibold mb-2 ${muted}`}>Status</label>
+                <label className={`block text-xs font-semibold mb-2 ${muted}`}>Trạng thái</label>
                 <div className="flex gap-2">
                   {["draft", "published"].map((opt) => (
                     <button key={opt} type="button"
@@ -540,7 +540,7 @@ export default function AdminCoursesPage() {
                           : isDark ? "border-[#252840] text-[#7a87a1] hover:border-[#3a3f55]"
                             : "border-slate-200 text-slate-600 hover:border-slate-300"
                       }`}>
-                      {opt === "published" ? "Published" : "Draft"}
+                      {opt === "published" ? "Đã xuất bản" : "Bản nháp"}
                     </button>
                   ))}
                 </div>
@@ -552,11 +552,11 @@ export default function AdminCoursesPage() {
                 className={`px-4 py-2.5 border rounded-xl text-sm font-semibold transition-all ${
                   isDark ? "border-[#252840] text-[#e2e8f0] hover:bg-[#1a1d2e]"
                     : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}>Cancel</button>
+                }`}>Hủy</button>
               <button id="submit-add-course" onClick={handleSave} disabled={saving}
                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editCourse ? "Save Changes" : "Create Course"}
+                {editCourse ? "Lưu thay đổi" : "Tạo khóa học"}
               </button>
             </div>
           </div>

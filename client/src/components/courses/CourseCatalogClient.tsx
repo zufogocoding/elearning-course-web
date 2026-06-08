@@ -91,12 +91,12 @@ const categories = ["IT & Software", "Business", "Design", "Marketing", "Photogr
 const levels = ["All", "Beginner", "Intermediate", "Advanced"];
 const prices = ["All", "Free", "Paid", "Under $50", "$50-$100", "Over $100"];
 const ratings = [
-  { label: "4.5 & up", value: 4.5 },
-  { label: "4.0 & up", value: 4.0 },
-  { label: "3.5 & up", value: 3.5 },
-  { label: "Any Rating", value: 0 },
+  { label: "Từ 4.5 sao", value: 4.5 },
+  { label: "Từ 4.0 sao", value: 4.0 },
+  { label: "Từ 3.5 sao", value: 3.5 },
+  { label: "Mọi đánh giá", value: 0 },
 ];
-const sortOptions = ["Most Popular", "Newest", "Price: Low→High", "Price: High→Low", "Highest Rated"];
+const sortOptions = ["Phổ biến nhất", "Mới nhất", "Giá: Thấp→Cao", "Giá: Cao→Thấp", "Đánh giá cao nhất"];
 
 function StarRow({ rating }: { rating: number }) {
   return (
@@ -138,7 +138,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
   const [selectedPrice, setSelectedPrice] = useState("All");
   const [selectedRating, setSelectedRating] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("Most Popular");
+  const [sortBy, setSortBy] = useState("Phổ biến nhất");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -198,10 +198,10 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
 
   // Sorting logic
   const sortedCourses = [...filteredCourses].sort((a, b) => {
-    if (sortBy === "Price: Low→High") return a.price - b.price;
-    if (sortBy === "Price: High→Low") return b.price - a.price;
-    if (sortBy === "Highest Rated") return b.rating - a.rating;
-    return b.reviews - a.reviews; // Default: Most Popular / Newest
+    if (sortBy === "Giá: Thấp→Cao") return a.price - b.price;
+    if (sortBy === "Giá: Cao→Thấp") return b.price - a.price;
+    if (sortBy === "Đánh giá cao nhất") return b.rating - a.rating;
+    return b.reviews - a.reviews; // Default: Phổ biến nhất / Mới nhất
   });
 
   const toggleCategory = (cat: string) => {
@@ -230,21 +230,21 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
     >
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className={`font-bold text-base ${text}`}>Filters</h2>
+        <h2 className={`font-bold text-base ${text}`}>Bộ lọc</h2>
         {hasActiveFilters && (
           <button
             id="clear-filters-btn"
             onClick={clearFilters}
             className="text-xs font-semibold text-indigo-500 hover:text-indigo-400 transition-colors"
           >
-            Clear All
+            Xóa tất cả
           </button>
         )}
       </div>
 
       {/* Category */}
       <div className={`border-t ${divider} pt-5`}>
-        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Category</h3>
+        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Danh mục</h3>
         <div className="space-y-2.5">
           {categories.map((cat) => (
             <label key={cat} className="flex items-center gap-2.5 cursor-pointer group">
@@ -265,7 +265,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
 
       {/* Level */}
       <div className={`border-t ${divider} pt-5`}>
-        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Level</h3>
+        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Trình độ</h3>
         <div className="space-y-2.5">
           {levels.map((lvl) => (
             <label key={lvl} className="flex items-center gap-2.5 cursor-pointer group">
@@ -287,7 +287,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
 
       {/* Price */}
       <div className={`border-t ${divider} pt-5`}>
-        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Price</h3>
+        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Giá</h3>
         <div className="space-y-2.5">
           {prices.map((p) => (
             <label key={p} className="flex items-center gap-2.5 cursor-pointer group">
@@ -309,7 +309,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
 
       {/* Rating */}
       <div className={`border-t ${divider} pt-5`}>
-        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Rating</h3>
+        <h3 className={`font-semibold text-sm mb-3 ${text}`}>Đánh giá</h3>
         <div className="space-y-2.5">
           {ratings.map((r) => (
             <label key={r.value} className="flex items-center gap-2.5 cursor-pointer group">
@@ -352,7 +352,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
           onClick={clearFilters}
           className={`w-full py-2.5 border ${divider} rounded-xl text-sm font-semibold ${muted} hover:${text} transition-all`}
         >
-          Clear All Filters
+          Xóa tất cả bộ lọc
         </button>
       </div>
     </aside>
@@ -365,7 +365,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Page Title */}
         <div className="mb-8">
-          <h1 className={`text-3xl font-extrabold tracking-tight ${text} mb-1`}>Course Catalog</h1>
+          <h1 className={`text-3xl font-extrabold tracking-tight ${text} mb-1`}>Danh mục khóa học</h1>
           <p className={`text-sm ${muted}`}>
             Khám phá hàng loạt khóa học hấp dẫn để nâng cao kỹ năng và trình độ của bạn ngay hôm nay.
           </p>
@@ -379,7 +379,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
             className={`flex items-center gap-2 px-4 py-2.5 border ${divider} rounded-xl text-sm font-semibold ${text} ${iconBtn} transition-all`}
           >
             <SlidersHorizontal className="w-4 h-4" />
-            Filters
+            Bộ lọc
             {hasActiveFilters && (
               <span className="ml-1 w-5 h-5 bg-indigo-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
                 {selectedCategories.length + (selectedLevel !== "All" ? 1 : 0) + (selectedPrice !== "All" ? 1 : 0) + (selectedRating > 0 ? 1 : 0)}
@@ -397,7 +397,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
             />
             <div className={`absolute left-0 top-0 h-full w-80 max-w-full ${sectionBg} overflow-y-auto p-5 shadow-2xl`}>
               <div className="flex items-center justify-between mb-4">
-                <span className={`font-bold text-base ${text}`}>Filters</span>
+                <span className={`font-bold text-base ${text}`}>Bộ lọc</span>
                 <button
                   id="close-sidebar-btn"
                   onClick={() => setSidebarOpen(false)}
@@ -426,7 +426,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
                 <input
                   id="course-search-input"
                   type="text"
-                  placeholder="Search courses..."
+                  placeholder="Tìm kiếm khóa học..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 text-sm transition-all ${input}`}
@@ -465,9 +465,9 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
             {/* Results Count */}
             <div className="mb-5">
               <p className={`text-sm font-medium ${muted}`}>
-                Showing <span className={`font-bold ${text}`}>{sortedCourses.length}</span> courses
+                Hiển thị <span className={`font-bold ${text}`}>{sortedCourses.length}</span> khóa học
                 {searchQuery && (
-                  <> for &quot;<span className={`font-bold ${text}`}>{searchQuery}</span>&quot;</>
+                  <> cho &quot;<span className={`font-bold ${text}`}>{searchQuery}</span>&quot;</>
                 )}
               </p>
             </div>
@@ -513,7 +513,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
                         <h3 className={`font-bold text-sm leading-snug line-clamp-2 ${text} group-hover:text-indigo-500 transition-colors h-10`}>
                           {course.title}
                         </h3>
-                        <p className={`text-xs mt-1 ${muted}`}>by {course.instructor}</p>
+                        <p className={`text-xs mt-1 ${muted}`}>bởi {course.instructor}</p>
                       </div>
 
                       {/* Rating */}
@@ -529,7 +529,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
                       <div className="flex items-center gap-3">
                         <div className={`flex items-center gap-1 text-xs ${muted}`}>
                           <Users className="w-3.5 h-3.5" />
-                          <span>{course.students} students</span>
+                          <span>{course.students} học viên</span>
                         </div>
                         <div className={`flex items-center gap-1 text-xs ${muted}`}>
                           <BarChart2 className="w-3.5 h-3.5" />
@@ -550,7 +550,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
                           id={`view-course-${course.id}`}
                           className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-all shadow-sm shadow-indigo-600/20"
                         >
-                          View Course
+                          Xem khóa học
                         </Link>
                       </div>
                     </div>
@@ -572,7 +572,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
                 }`}
               >
                 <ArrowLeft className="w-4 h-4" />
-                Previous
+                Trang trước
               </button>
 
               {[1, 2, 3].map((page) => (
@@ -602,7 +602,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
                     : `${muted} border-${divider} ${iconBtn}`
                 }`}
               >
-                Next
+                Trang sau
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
