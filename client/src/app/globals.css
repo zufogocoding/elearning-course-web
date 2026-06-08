@@ -79,3 +79,18 @@ body {
   background: rgba(79, 70, 229, 0.15);
   color: inherit;
 }
+
+/* ── Custom Utilities ── */
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 15s ease infinite;
+  background-size: 200% 200%;
+}
