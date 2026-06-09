@@ -145,7 +145,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
 
   const totalLessons = curriculumData.reduce((acc, curr) => acc + curr.lessons.length, 0);
 
-  const tabs = ["description", "curriculum", "reviews"];
+  const tabs = ["mô tả", "chương trình", "đánh giá"];
 
   return (
     <div className={`min-h-screen ${bg} font-sans`}>
@@ -168,20 +168,20 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                 <div className="flex items-center text-amber-400">
                   <Star className="w-5 h-5 fill-current mr-1.5" />
                   <span className={`font-bold ${text} mr-1`}>{rating}</span>
-                  <span className={subtle}>({reviewsCount} reviews)</span>
+                  <span className={subtle}>({reviewsCount} đánh giá)</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
                   <span className={`${text} font-semibold`}>{students}</span>
-                  <span>students</span>
+                  <span>học viên</span>
                 </div>
                 <div>
-                  Created by{" "}
+                  Được tạo bởi{" "}
                   <span className="text-indigo-500 font-semibold">{instructor}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  Level: {level}
+                  Trình độ: {level}
                 </div>
                 <div className="flex items-center gap-1">
                   <Globe className="w-4 h-4" />
@@ -210,7 +210,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                 </button>
               </div>
               <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center text-white text-sm font-medium">
-                <span className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg">Preview this course</span>
+                <span className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg">Xem trước khóa học này</span>
                 <span className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg">02:45</span>
               </div>
             </div>
@@ -239,17 +239,17 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
             <div className="py-2 min-h-[400px]">
 
               {/* Description Tab */}
-              {activeTab === "description" && (
+              {activeTab === "mô tả" && (
                 <div className="space-y-8">
                   <div className="space-y-3">
-                    <h3 className={`text-2xl font-bold ${text}`}>About this course</h3>
+                    <h3 className={`text-2xl font-bold ${text}`}>Về khóa học này</h3>
                     <p className={`${muted} leading-relaxed text-base whitespace-pre-line`}>
                       {fullDesc}
                     </p>
                   </div>
 
                   <div className={`${isDark ? "bg-indigo-500/10 border border-indigo-500/20" : "bg-indigo-50 border border-indigo-100"} rounded-2xl p-6 sm:p-8`}>
-                    <h4 className={`text-xl font-bold ${text} mb-6`}>What you&apos;ll learn</h4>
+                    <h4 className={`text-xl font-bold ${text} mb-6`}>Bạn sẽ học được gì</h4>
                     <div className="grid sm:grid-cols-2 gap-4">
                       {[
                         "Build wireframes, prototypes, and high-fidelity mockups.",
@@ -270,12 +270,12 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
               )}
 
               {/* Curriculum Tab */}
-              {activeTab === "curriculum" && (
+              {activeTab === "chương trình" && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <h3 className={`text-2xl font-bold ${text}`}>Course Curriculum</h3>
+                    <h3 className={`text-2xl font-bold ${text}`}>Chương trình khóa học</h3>
                     <span className={`text-sm font-medium ${subtle} hidden sm:block`}>
-                      {curriculumData.length} sections · {totalLessons} lessons total
+                      {curriculumData.length} phần · {totalLessons} bài học tổng cộng
                     </span>
                   </div>
 
@@ -319,10 +319,10 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                                     {lesson.title}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-4 ml-9 sm:ml-0">
+                                  <div className="flex items-center gap-4 ml-9 sm:ml-0">
                                   {lesson.isPreview && (
                                     <span className="text-xs font-bold uppercase tracking-wide text-indigo-500 bg-indigo-500/10 px-2 py-1 rounded-lg">
-                                      Preview
+                                      Xem trước
                                     </span>
                                   )}
                                   <span className={`text-sm font-medium ${subtle}`}>
@@ -340,9 +340,9 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
               )}
 
               {/* Reviews Tab */}
-              {activeTab === "reviews" && (
+              {activeTab === "đánh giá" && (
                 <div className="space-y-8">
-                  <h3 className={`text-2xl font-bold ${text}`}>Student Reviews</h3>
+                  <h3 className={`text-2xl font-bold ${text}`}>Đánh giá của học viên</h3>
 
                   {/* Rating Summary */}
                   <div className={`flex flex-col sm:flex-row items-center gap-6 p-6 border ${divider} rounded-2xl ${sectionBg}`}>
@@ -353,12 +353,12 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                           <Star key={i} className="w-4 h-4 fill-current" />
                         ))}
                       </div>
-                      <div className={`text-sm font-medium ${muted}`}>Course Rating</div>
+                      <div className={`text-sm font-medium ${muted}`}>Đánh giá khóa học</div>
                     </div>
                     <div className="flex-1 space-y-2 w-full">
                       {[5, 4, 3, 2, 1].map((star, i) => (
                         <div key={star} className={`flex items-center text-sm font-medium ${muted}`}>
-                          <span className="w-12">{star} stars</span>
+                          <span className="w-12">{star} sao</span>
                           <div className={`flex-1 h-2 mx-3 ${isDark ? "bg-[#1e2235]" : "bg-slate-100"} rounded-full overflow-hidden`}>
                             <div
                               className="h-full bg-amber-400 rounded-full"
@@ -420,7 +420,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full">
-                    40% off — limited time
+                    Giảm 40% — thời gian có hạn
                   </span>
                 </div>
               </div>
@@ -431,24 +431,24 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                   id="enroll-now-btn"
                   className="w-full block py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center text-base transition-all shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40"
                 >
-                  Enroll Now
+                  Đăng ký ngay
                 </button>
                 <p className={`text-center text-xs font-medium ${subtle}`}>
-                  30-Day Money-Back Guarantee
+                  Cam kết hoàn tiền trong 30 ngày
                 </p>
               </div>
 
               {/* Course Includes */}
               <div className="space-y-4 mb-8">
-                <h4 className={`font-bold text-sm ${text}`}>This course includes:</h4>
+                <h4 className={`font-bold text-sm ${text}`}>Khóa học này bao gồm:</h4>
                 <ul className="space-y-3">
                   {[
-                    { icon: MonitorPlay, label: "12 hours on-demand video" },
-                    { icon: FileText, label: "15 articles & resources" },
-                    { icon: RefreshCw, label: "Full lifetime access" },
-                    { icon: Smartphone, label: "Access on mobile & desktop" },
-                    { icon: ShieldCheck, label: "Certificate of completion" },
-                    { icon: CheckCircle, label: "30-day money-back guarantee" },
+                    { icon: MonitorPlay, label: "12 giờ video theo yêu cầu" },
+                    { icon: FileText, label: "15 bài viết & tài liệu" },
+                    { icon: RefreshCw, label: "Quyền truy cập trọn đời" },
+                    { icon: Smartphone, label: "Truy cập trên điện thoại & máy tính" },
+                    { icon: ShieldCheck, label: "Chứng chỉ hoàn thành" },
+                    { icon: CheckCircle, label: "Cam kết hoàn tiền trong 30 ngày" },
                   ].map(({ icon: Icon, label }, i) => (
                     <li key={i} className={`flex items-center gap-3 text-sm font-medium ${muted}`}>
                       <Icon className="w-4 h-4 text-indigo-500 shrink-0" />
@@ -464,13 +464,13 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                   htmlFor="coupon-input"
                   className={`block text-sm font-bold ${text} mb-2`}
                 >
-                  Apply Coupon
+                  Áp dụng mã giảm giá
                 </label>
                 <div className="flex gap-2">
                   <input
                     id="coupon-input"
                     type="text"
-                    placeholder="Enter code"
+                    placeholder="Nhập mã"
                     className={`flex-1 px-4 py-2.5 border rounded-xl text-sm outline-none focus:ring-2 transition-all uppercase placeholder:normal-case ${input}`}
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
@@ -479,7 +479,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                     id="apply-coupon-btn"
                     className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all"
                   >
-                    Apply
+                    Áp dụng
                   </button>
                 </div>
               </div>

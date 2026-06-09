@@ -24,7 +24,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
   };
 
   const strength = getStrength(password);
-  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  const labels = ['', 'Yếu', 'Trung bình', 'Tốt', 'Mạnh'];
   const colors = ['', 'bg-rose-500', 'bg-amber-400', 'bg-yellow-400', 'bg-emerald-500'];
   const textColors = ['', 'text-rose-500', 'text-amber-400', 'text-yellow-500', 'text-emerald-500'];
 
@@ -255,10 +255,10 @@ export default function RegisterPage() {
               <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full mb-3 ${
                 isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-700'
               }`}>
-                🎓 Join 50,000+ learners
+                🎓 Tham gia cùng 50.000+ học viên
               </span>
-              <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-1`}>Create your account</h1>
-              <p className={`text-sm ${muted}`}>Start your learning journey today.</p>
+              <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-1`}>Tạo tài khoản của bạn</h1>
+              <p className={`text-sm ${muted}`}>Bắt đầu hành trình học tập của bạn hôm nay.</p>
             </div>
 
             {error && (
@@ -271,7 +271,7 @@ export default function RegisterPage() {
               {/* Username */}
               <div>
                 <label htmlFor="register-username" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                  Username
+                  Tên người dùng
                 </label>
                 <div className="relative">
                   <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${iconColor}`} />
@@ -282,7 +282,7 @@ export default function RegisterPage() {
                     autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="johndoe"
+                    placeholder="nguyenvana"
                     className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
                       fieldErrors.username
                         ? 'border-rose-500 focus:ring-rose-500/20'
@@ -298,7 +298,7 @@ export default function RegisterPage() {
               {/* Email */}
               <div>
                 <label htmlFor="register-email" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                  Email address
+                  Địa chỉ email
                 </label>
                 <div className="relative">
                   <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${iconColor}`} />
@@ -309,7 +309,7 @@ export default function RegisterPage() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder="ban@example.com"
                     className={`w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
                       fieldErrors.email
                         ? 'border-rose-500 focus:ring-rose-500/20'
@@ -325,7 +325,7 @@ export default function RegisterPage() {
               {/* Password */}
               <div>
                 <label htmlFor="register-password" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                  Password
+                  Mật khẩu
                 </label>
                 <div className="relative">
                   <input
@@ -335,7 +335,7 @@ export default function RegisterPage() {
                     autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Create a strong password"
+                    placeholder="Tạo một mật khẩu mạnh"
                     className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
                       fieldErrors.password
                         ? 'border-rose-500 focus:ring-rose-500/20'
@@ -360,7 +360,7 @@ export default function RegisterPage() {
               {/* Confirm Password */}
               <div>
                 <label htmlFor="register-confirm-password" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                  Confirm Password
+                  Xác nhận mật khẩu
                 </label>
                 <div className="relative">
                   <input
@@ -369,7 +369,7 @@ export default function RegisterPage() {
                     autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat your password"
+                    placeholder="Nhập lại mật khẩu của bạn"
                     className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${
                       fieldErrors.confirmPassword
                         ? 'border-rose-500 focus:ring-rose-500/20'
@@ -390,7 +390,7 @@ export default function RegisterPage() {
                 )}
                 {!fieldErrors.confirmPassword && confirmPassword && confirmPassword === password && (
                   <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Passwords match
+                    <CheckCircle2 className="w-3 h-3" /> Mật khẩu khớp
                   </p>
                 )}
               </div>
@@ -406,13 +406,13 @@ export default function RegisterPage() {
                   className="w-4 h-4 mt-0.5 rounded accent-indigo-600 cursor-pointer flex-shrink-0"
                 />
                 <span className={`text-sm ${muted}`}>
-                  I agree to the{' '}
+                  Tôi đồng ý với{' '}
                   <Link href="/terms" className="text-indigo-500 hover:text-indigo-400 font-medium transition-colors">
-                    Terms of Service
+                    Điều khoản dịch vụ
                   </Link>{' '}
-                  and{' '}
+                  và{' '}
                   <Link href="/privacy" className="text-indigo-500 hover:text-indigo-400 font-medium transition-colors">
-                    Privacy Policy
+                    Chính sách bảo mật
                   </Link>
                 </span>
               </label>
@@ -425,17 +425,17 @@ export default function RegisterPage() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 mt-2 text-sm"
               >
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</>
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Đang tạo tài khoản...</>
                 ) : (
-                  'Create Account'
+                  'Tạo tài khoản'
                 )}
               </button>
             </form>
 
             <p className={`mt-6 text-center text-sm ${muted}`}>
-              Already have an account?{' '}
+              Đã có tài khoản?{' '}
               <Link href="/auth/login" id="register-login-link" className="text-indigo-500 hover:text-indigo-400 font-semibold transition-colors">
-                Sign in
+                Đăng nhập
               </Link>
             </p>
           </div>
@@ -449,7 +449,7 @@ export default function RegisterPage() {
               onClick={() => { setStep('form'); setOtp(['', '', '', '', '', '']); setOtpError(''); }}
               className={`flex items-center gap-1.5 text-sm mb-6 ${muted} hover:text-indigo-500 transition-colors`}
             >
-              <ArrowLeft className="w-4 h-4" /> Back to registration
+              <ArrowLeft className="w-4 h-4" /> Quay lại đăng ký
             </button>
 
             <div className="text-center mb-8">
@@ -458,12 +458,12 @@ export default function RegisterPage() {
               }`}>
                 <ShieldCheck className="w-8 h-8 text-indigo-500" />
               </div>
-              <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Verify your email</h1>
+              <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Xác minh email của bạn</h1>
               <p className={`text-sm ${muted}`}>
-                We sent a 6-digit code to{' '}
+                Chúng tôi đã gửi mã gồm 6 chữ số đến{' '}
                 <span className={`font-semibold ${isDark ? 'text-[#e2e8f0]' : 'text-slate-700'}`}>{email}</span>
               </p>
-              <p className={`text-xs mt-1 ${muted}`}>Check your server console if email is not configured.</p>
+              <p className={`text-xs mt-1 ${muted}`}>Kiểm tra console server nếu email chưa được cấu hình.</p>
             </div>
 
             {otpError && (
@@ -481,10 +481,10 @@ export default function RegisterPage() {
                   onClick={handleResendOtp}
                   className="text-indigo-500 hover:text-indigo-400 font-semibold transition-colors"
                 >
-                  Resend OTP
+                  Gửi lại OTP
                 </button>
               ) : (
-                <>Resend code in <span className={`font-bold ${ isDark ? 'text-[#e2e8f0]' : 'text-slate-700'}`}>{countdown}s</span></>
+                <>Gửi lại mã trong <span className={`font-bold ${ isDark ? 'text-[#e2e8f0]' : 'text-slate-700'}`}>{countdown}s</span></>
               )}
             </p>
 
@@ -495,9 +495,9 @@ export default function RegisterPage() {
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 mt-6 text-sm"
             >
               {otpLoading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> Đang xác minh...</>
               ) : (
-                'Verify & Sign In'
+                'Xác minh & Đăng nhập'
               )}
             </button>
           </div>

@@ -64,16 +64,16 @@ export default function ResetPasswordPage() {
               <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ${successBg} border mb-5 mx-auto`}>
                 <CheckCircle2 className="w-8 h-8 text-emerald-500" />
               </div>
-              <h2 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Password updated!</h2>
+              <h2 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Mật khẩu đã được cập nhật!</h2>
               <p className={`text-sm ${muted} mb-8`}>
-                Your password has been successfully reset. You can now sign in with your new password.
+                Mật khẩu của bạn đã được đặt lại thành công. Bây giờ bạn có thể đăng nhập bằng mật khẩu mới của mình.
               </p>
               <Link
                 href="/auth/login"
                 id="reset-success-login-link"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/30 text-sm"
               >
-                Sign in to Elevate
+                Đăng nhập vào Elevate
               </Link>
             </div>
           ) : (
@@ -84,9 +84,9 @@ export default function ResetPasswordPage() {
                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4 ${isDark ? "bg-indigo-500/20" : "bg-indigo-50"}`}>
                   <ShieldCheck className="w-5 h-5 text-indigo-500" />
                 </div>
-                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Set new password</h1>
+                <h1 className={`text-2xl font-extrabold tracking-tight ${text} mb-2`}>Đặt mật khẩu mới</h1>
                 <p className={`text-sm ${muted}`}>
-                  Choose a strong password for your account.
+                  Chọn một mật khẩu mạnh cho tài khoản của bạn.
                 </p>
               </div>
 
@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
                 {/* New Password */}
                 <div>
                   <label htmlFor="reset-new-password" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                    New Password
+                    Mật khẩu mới
                   </label>
                   <div className="relative">
                     <input
@@ -103,7 +103,7 @@ export default function ResetPasswordPage() {
                       type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter your new password"
+                      placeholder="Nhập mật khẩu mới của bạn"
                       required
                       minLength={8}
                       className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`}
@@ -118,14 +118,14 @@ export default function ResetPasswordPage() {
                     </button>
                   </div>
                   {newPassword && newPassword.length < 8 && (
-                    <p className="text-xs text-amber-400 mt-1">Password must be at least 8 characters</p>
+                    <p className="text-xs text-amber-400 mt-1">Mật khẩu phải có ít nhất 8 ký tự</p>
                   )}
                 </div>
 
                 {/* Confirm New Password */}
                 <div>
                   <label htmlFor="reset-confirm-password" className={`block text-sm font-medium mb-1.5 ${labelColor}`}>
-                    Confirm New Password
+                    Xác nhận mật khẩu mới
                   </label>
                   <div className="relative">
                     <input
@@ -133,7 +133,7 @@ export default function ResetPasswordPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat your new password"
+                      placeholder="Nhập lại mật khẩu mới của bạn"
                       required
                       className={`w-full pl-4 pr-11 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input} ${
                         passwordsDontMatch ? "border-rose-400 focus:ring-rose-400/30" : ""
@@ -149,22 +149,22 @@ export default function ResetPasswordPage() {
                     </button>
                   </div>
                   {passwordsDontMatch && (
-                    <p className="text-xs text-rose-500 mt-1">Passwords do not match</p>
+                    <p className="text-xs text-rose-500 mt-1">Mật khẩu không khớp</p>
                   )}
                   {passwordsMatch && (
                     <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Passwords match
+                      <CheckCircle2 className="w-3 h-3" /> Mật khẩu khớp
                     </p>
                   )}
                 </div>
 
                 {/* Password requirements hint */}
                 <div className={`rounded-xl p-3 ${isDark ? "bg-[#22263a] border border-[#252840]" : "bg-slate-50 border border-slate-200"}`}>
-                  <p className={`text-xs font-medium mb-2 ${labelColor}`}>Password requirements:</p>
+                  <p className={`text-xs font-medium mb-2 ${labelColor}`}>Yêu cầu mật khẩu:</p>
                   <ul className="space-y-1">
                     {[
-                      { label: "At least 8 characters", met: newPassword.length >= 8 },
-                      { label: "Mix of letters and numbers", met: /[a-zA-Z]/.test(newPassword) && /[0-9]/.test(newPassword) },
+                      { label: "Ít nhất 8 ký tự", met: newPassword.length >= 8 },
+                      { label: "Kết hợp chữ cái và số", met: /[a-zA-Z]/.test(newPassword) && /[0-9]/.test(newPassword) },
                     ].map((req, i) => (
                       <li key={i} className="flex items-center gap-2">
                         <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${req.met ? "bg-emerald-500" : isDark ? "bg-[#4a5568]" : "bg-slate-300"}`} />
@@ -184,12 +184,12 @@ export default function ResetPasswordPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Resetting password...
+                      Đang đặt lại mật khẩu...
                     </>
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      Reset Password
+                      Đặt lại mật khẩu
                     </>
                   )}
                 </button>
@@ -203,7 +203,7 @@ export default function ResetPasswordPage() {
                   className={`inline-flex items-center gap-1.5 text-sm font-medium ${muted} hover:text-indigo-500 transition-colors`}
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Back to sign in
+                  Quay lại đăng nhập
                 </Link>
               </div>
             </>

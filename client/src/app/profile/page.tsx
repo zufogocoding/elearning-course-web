@@ -137,7 +137,7 @@ export default function ProfilePage() {
     return (
       <div className={`min-h-screen flex flex-col justify-center items-center ${isDark ? "bg-[#0d0f1a]" : "bg-slate-50"}`}>
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-        <p className={`mt-4 text-sm font-semibold ${isDark ? "text-[#7a87a1]" : "text-slate-500"}`}>Loading your profile...</p>
+        <p className={`mt-4 text-sm font-semibold ${isDark ? "text-[#7a87a1]" : "text-slate-500"}`}>Đang tải dữ liệu...</p>
       </div>
     );
   }
@@ -250,16 +250,16 @@ export default function ProfilePage() {
                     <Mail className="w-3.5 h-3.5" /> {user.email}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" /> Role: {user.role}
+                    <Calendar className="w-3.5 h-3.5" /> Vai trò: {user.role}
                   </span>
                 </div>
 
                 {/* Stats */}
                 <div className="flex flex-wrap justify-center sm:justify-start gap-4 mt-4">
                   {[
-                    { icon: BookOpen, label: "Courses Enrolled", value: "3" },
-                    { icon: Award, label: "Certificates Earned", value: "1" },
-                    { icon: Star, label: "Avg Rating Given", value: "4.8" },
+                    { icon: BookOpen, label: "Khóa học đã đăng ký", value: "3" },
+                    { icon: Award, label: "Chứng chỉ đạt được", value: "1" },
+                    { icon: Star, label: "Đánh giá trung bình", value: "4.8" },
                   ].map(({ icon: Icon, label, value }) => (
                     <div
                       key={label}
@@ -292,13 +292,13 @@ export default function ProfilePage() {
             {/* Tabs */}
             <div className="flex gap-2 mt-8 overflow-x-auto pb-px">
               <button id="tab-learning" onClick={() => setActiveTab("learning")} className={tabBtnClass("learning")}>
-                My Learning
+                Việc học của tôi
               </button>
               <button id="tab-settings" onClick={() => setActiveTab("settings")} className={tabBtnClass("settings")}>
-                Account Settings
+                Cài đặt tài khoản
               </button>
               <button id="tab-purchases" onClick={() => setActiveTab("purchases")} className={tabBtnClass("purchases")}>
-                Purchase History
+                Lịch sử mua hàng
               </button>
             </div>
           </div>
@@ -311,9 +311,9 @@ export default function ProfilePage() {
           {activeTab === "learning" && (
             <div>
               <div className="flex items-center justify-between mb-5">
-                <h2 className={`text-lg font-bold ${text}`}>Enrolled Courses</h2>
+                <h2 className={`text-lg font-bold ${text}`}>Khóa học đã đăng ký</h2>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${pill}`}>
-                  {ENROLLED_COURSES.length} courses
+                  {ENROLLED_COURSES.length} khóa học
                 </span>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -336,12 +336,12 @@ export default function ProfilePage() {
 
                     <div className="p-4">
                       <h3 className={`text-sm font-bold leading-snug mb-1 ${text}`}>{course.title}</h3>
-                      <p className={`text-xs mb-3 ${muted}`}>by {course.instructor}</p>
+                      <p className={`text-xs mb-3 ${muted}`}>bởi {course.instructor}</p>
 
                       {/* Progress */}
                       <div className="mb-3">
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs ${muted}`}>{course.completedLessons}/{course.totalLessons} lessons</span>
+                          <span className={`text-xs ${muted}`}>{course.completedLessons}/{course.totalLessons} bài học</span>
                           <span className={`text-xs font-bold ${course.completed ? "text-emerald-500" : "text-indigo-500"}`}>
                             {course.progress}%
                           </span>
@@ -360,11 +360,11 @@ export default function ProfilePage() {
                         </span>
                         {course.completed ? (
                           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
-                            <Award className="w-3 h-3" /> Completed
+                            <Award className="w-3 h-3" /> Đã hoàn thành
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-xs font-semibold text-indigo-500">
-                            <Play className="w-3 h-3" /> In Progress
+                            <Play className="w-3 h-3" /> Đang tiến hành
                           </span>
                         )}
                       </div>
@@ -381,11 +381,11 @@ export default function ProfilePage() {
               {/* Personal Info */}
               <div className={`border rounded-2xl p-5 ${card}`}>
                 <h3 className={`text-sm font-bold mb-4 flex items-center gap-2 ${text}`}>
-                  <User className="w-4 h-4 text-indigo-500" /> Personal Information
+                  <User className="w-4 h-4 text-indigo-500" /> Thông tin cá nhân
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label htmlFor="profile-username" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Username</label>
+                    <label htmlFor="profile-username" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Tên người dùng</label>
                     <input
                       id="profile-username"
                       type="text"
@@ -402,7 +402,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div>
-                    <label htmlFor="profile-email" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Email Address</label>
+                    <label htmlFor="profile-email" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Địa chỉ Email</label>
                     <input
                       id="profile-email"
                       type="email"
@@ -412,7 +412,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="profile-avatar" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Avatar Image URL</label>
+                    <label htmlFor="profile-avatar" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Đường dẫn ảnh đại diện (URL)</label>
                     <input
                       id="profile-avatar"
                       type="text"
@@ -430,13 +430,13 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div>
-                    <label htmlFor="profile-bio" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Bio</label>
+                    <label htmlFor="profile-bio" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Tiểu sử</label>
                     <textarea
                       id="profile-bio"
                       rows={3}
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
-                      placeholder="Add a bio..."
+                      placeholder="Thêm tiểu sử..."
                       className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm resize-none ${
                         fieldErrors.bio
                           ? "border-rose-500 focus:ring-rose-500/20"
@@ -453,11 +453,11 @@ export default function ProfilePage() {
               {/* Change Password */}
               <div className={`border rounded-2xl p-5 ${card}`}>
                 <h3 className={`text-sm font-bold mb-4 flex items-center gap-2 ${text}`}>
-                  <Lock className="w-4 h-4 text-indigo-500" /> Change Password
+                  <Lock className="w-4 h-4 text-indigo-500" /> Đổi mật khẩu
                 </h3>
                 <div className="space-y-4">
                   <div className="relative">
-                    <label htmlFor="current-password" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Current Password</label>
+                    <label htmlFor="current-password" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Mật khẩu hiện tại</label>
                     <input
                       id="current-password"
                       type={showPassword ? "text" : "password"}
@@ -483,7 +483,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div className="relative">
-                    <label htmlFor="new-password" className={`block text-xs font-semibold mb-1.5 ${muted}`}>New Password</label>
+                    <label htmlFor="new-password" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Mật khẩu mới</label>
                     <input
                       id="new-password"
                       type={showNewPassword ? "text" : "password"}
@@ -514,15 +514,15 @@ export default function ProfilePage() {
               {/* Notifications */}
               <div className={`border rounded-2xl p-5 ${card}`}>
                 <h3 className={`text-sm font-bold mb-4 flex items-center gap-2 ${text}`}>
-                  <Bell className="w-4 h-4 text-indigo-500" /> Notification Preferences
+                  <Bell className="w-4 h-4 text-indigo-500" /> Tùy chọn thông báo
                 </h3>
                 <div className="space-y-3">
                   {(Object.entries(notifications) as [keyof typeof notifications, boolean][]).map(([key, value]) => {
                     const labels: Record<keyof typeof notifications, string> = {
-                      courseUpdates: "Course Updates",
-                      promotions: "Promotions & Deals",
-                      newsletter: "Weekly Newsletter",
-                      achievements: "Achievement Alerts",
+                      courseUpdates: "Cập nhật khóa học",
+                      promotions: "Khuyến mãi & Ưu đãi",
+                      newsletter: "Bản tin hàng tuần",
+                      achievements: "Thông báo thành tích",
                     };
                     return (
                       <label
@@ -572,7 +572,7 @@ export default function ProfilePage() {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                <span>Save Changes</span>
+                <span>Lưu thay đổi</span>
               </button>
             </div>
           )}
@@ -581,9 +581,9 @@ export default function ProfilePage() {
           {activeTab === "purchases" && (
             <div>
               <div className="flex items-center justify-between mb-5">
-                <h2 className={`text-lg font-bold ${text}`}>Purchase History</h2>
+                <h2 className={`text-lg font-bold ${text}`}>Lịch sử mua hàng</h2>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${pill}`}>
-                  {PURCHASE_HISTORY.length} transactions
+                  {PURCHASE_HISTORY.length} giao dịch
                 </span>
               </div>
               <div className={`border rounded-2xl overflow-hidden ${card}`}>
@@ -591,7 +591,7 @@ export default function ProfilePage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className={`border-b ${divider} ${isDark ? "bg-[#13151f]" : "bg-slate-50"}`}>
-                        {["Date", "Course", "Amount", "Status", "Invoice"].map((h) => (
+                        {["Ngày", "Khóa học", "Số tiền", "Trạng thái", "Hóa đơn"].map((h) => (
                           <th key={h} className={`text-left px-4 py-3 text-xs font-semibold ${muted}`}>{h}</th>
                         ))}
                       </tr>
@@ -616,7 +616,7 @@ export default function ProfilePage() {
                               }`}
                             >
                               <span className="flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> {row.status}
+                                <CheckCircle className="w-3 h-3" /> {row.status === "Completed" ? "Đã hoàn thành" : row.status}
                               </span>
                             </span>
                           </td>

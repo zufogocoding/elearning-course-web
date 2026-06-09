@@ -11,19 +11,21 @@ import {
   LogOut,
   GraduationCap,
   BarChart3,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useTheme } from "@/components/ui/ThemeProvider";
 
 const NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
-  { href: "/admin/courses", label: "Courses", Icon: BookOpen },
-  { href: "/admin/users", label: "Users", Icon: Users },
-  { href: "/admin/coupons", label: "Coupons", Icon: Tag },
-  { href: "/admin/reports", label: "Reports", Icon: BarChart3 },
+  { href: "/admin", label: "Bảng điều khiển", Icon: LayoutDashboard },
+  { href: "/admin/courses", label: "Khóa học", Icon: BookOpen },
+  { href: "/admin/users", label: "Người dùng", Icon: Users },
+  { href: "/admin/coupons", label: "Mã giảm giá", Icon: Tag },
+  { href: "/admin/reports", label: "Báo cáo", Icon: BarChart3 },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { isDark } = useTheme();
+  const { isDark, toggle } = useTheme();
   const pathname = usePathname();
 
   const sidebar = isDark
@@ -58,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 : "bg-indigo-50 text-indigo-600"
             }`}
           >
-            ADMIN
+            QUẢN TRỊ
           </span>
         </div>
 
@@ -84,12 +86,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Bottom Actions */}
         <div className={`p-3 border-t ${isDark ? "border-[#1e2235]" : "border-slate-200"} space-y-0.5`}>
+          <button
+            onClick={toggle}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${inactiveLink}`}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isDark ? "Chế độ sáng" : "Chế độ tối"}
+          </button>
           <Link
             href="/admin/settings"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${inactiveLink}`}
           >
             <Settings className="w-4 h-4" />
-            Settings
+            Cài đặt
           </Link>
           <Link
             href="/"
@@ -98,7 +107,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }`}
           >
             <LogOut className="w-4 h-4" />
-            Log out
+            Đăng xuất
           </Link>
         </div>
       </aside>

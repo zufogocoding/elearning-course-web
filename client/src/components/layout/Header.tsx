@@ -8,8 +8,8 @@ import { useTheme } from "@/components/ui/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_LINKS = [
-  { href: "/courses", label: "Courses" },
-  { href: "/profile", label: "My Learning" },
+  { href: "/courses", label: "Khóa học" },
+  { href: "/profile", label: "Khóa học của tôi" },
 ];
 
 export default function Header() {
@@ -69,7 +69,7 @@ export default function Header() {
           <button
             id="global-theme-toggle"
             onClick={toggle}
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            title={isDark ? "Chuyển sang nền sáng" : "Chuyển sang nền tối"}
             className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${iconBtn}`}
           >
             {isDark ? (
@@ -119,13 +119,13 @@ export default function Header() {
                       : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
                   }`}
                 >
-                  Log in
+                  Đăng nhập
                 </Link>
                 <Link
                   href="/auth/register"
                   className="text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95 shadow-sm shadow-indigo-600/20"
                 >
-                  Sign up
+                  Đăng ký
                 </Link>
               </>
             )}
@@ -208,14 +208,14 @@ export default function Header() {
                       : "border-slate-200 text-slate-700 hover:bg-slate-50"
                   }`}
                 >
-                  Log in
+                  Đăng nhập
                 </Link>
                 <Link
                   href="/auth/register"
                   onClick={() => setMobileOpen(false)}
                   className="flex-1 text-center text-sm font-semibold py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
                 >
-                  Sign up
+                  Đăng ký
                 </Link>
               </>
             )}

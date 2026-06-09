@@ -20,9 +20,9 @@ import {
 const STATS = [
   {
     id: "stat-revenue",
-    label: "Total Revenue",
+    label: "Tổng doanh thu",
     value: "$48,392",
-    trend: "+12.5% this month",
+    trend: "+12.5% tháng này",
     trendUp: true,
     icon: DollarSign,
     iconBg: "bg-emerald-500/15",
@@ -30,9 +30,9 @@ const STATS = [
   },
   {
     id: "stat-students",
-    label: "Total Students",
+    label: "Tổng số học viên",
     value: "1,284",
-    trend: "+8.3% this month",
+    trend: "+8.3% tháng này",
     trendUp: true,
     icon: Users,
     iconBg: "bg-indigo-500/15",
@@ -40,9 +40,9 @@ const STATS = [
   },
   {
     id: "stat-courses",
-    label: "Active Courses",
+    label: "Khóa học hoạt động",
     value: "24",
-    trend: "+2 new this week",
+    trend: "+2 mới tuần này",
     trendUp: true,
     icon: BookOpen,
     iconBg: "bg-violet-500/15",
@@ -50,9 +50,9 @@ const STATS = [
   },
   {
     id: "stat-rating",
-    label: "Avg. Rating",
+    label: "Đánh giá trung bình",
     value: "4.8",
-    trend: "⭐ Excellent",
+    trend: "⭐ Xuất sắc",
     trendUp: true,
     icon: Star,
     iconBg: "bg-amber-500/15",
@@ -61,20 +61,20 @@ const STATS = [
 ];
 
 const REVENUE_BARS = [
-  { month: "Jan", value: 6200, height: 55 },
-  { month: "Feb", value: 5800, height: 50 },
-  { month: "Mar", value: 7900, height: 70 },
-  { month: "Apr", value: 8400, height: 74 },
-  { month: "May", value: 9100, height: 80 },
-  { month: "Jun", value: 11100, height: 100 },
+  { month: "Tháng 1", value: 6200, height: 55 },
+  { month: "Tháng 2", value: 5800, height: 50 },
+  { month: "Tháng 3", value: 7900, height: 70 },
+  { month: "Tháng 4", value: 8400, height: 74 },
+  { month: "Tháng 5", value: 9100, height: 80 },
+  { month: "Tháng 6", value: 11100, height: 100 },
 ];
 
 const ENROLLMENTS = [
-  { date: "Jun 12", student: "Alice Wang", course: "UI/UX Design Masterclass", amount: "$89.99", status: "Completed" },
-  { date: "Jun 11", student: "Brian Torres", course: "Advanced React Patterns", amount: "$74.99", status: "Completed" },
-  { date: "Jun 11", student: "Clara Singh", course: "Digital Marketing Strategy", amount: "$59.99", status: "Pending" },
-  { date: "Jun 10", student: "David Kim", course: "Python for Data Science", amount: "$99.99", status: "Completed" },
-  { date: "Jun 09", student: "Emma Davis", course: "Intro to AI & ML", amount: "$89.99", status: "Refunded" },
+  { date: "12 Thg 6", student: "Alice Wang", course: "UI/UX Design Masterclass", amount: "$89.99", status: "Hoàn thành" },
+  { date: "11 Thg 6", student: "Brian Torres", course: "Advanced React Patterns", amount: "$74.99", status: "Hoàn thành" },
+  { date: "11 Thg 6", student: "Clara Singh", course: "Digital Marketing Strategy", amount: "$59.99", status: "Chờ xử lý" },
+  { date: "10 Thg 6", student: "David Kim", course: "Python for Data Science", amount: "$99.99", status: "Hoàn thành" },
+  { date: "09 Thg 6", student: "Emma Davis", course: "Intro to AI & ML", amount: "$89.99", status: "Hoàn tiền" },
 ];
 
 const TOP_COURSES = [
@@ -96,8 +96,8 @@ export default function AdminDashboardPage() {
   const sectionHdr = isDark ? "bg-[#13151f]" : "bg-slate-50";
 
   const statusBadge = (status: string) => {
-    if (status === "Completed") return "bg-emerald-500/15 text-emerald-500";
-    if (status === "Pending") return "bg-amber-400/15 text-amber-400";
+    if (status === "Hoàn thành") return "bg-emerald-500/15 text-emerald-500";
+    if (status === "Chờ xử lý") return "bg-amber-400/15 text-amber-400";
     return "bg-rose-500/15 text-rose-500";
   };
 
@@ -108,16 +108,16 @@ export default function AdminDashboardPage() {
         {/* ── Header Row ────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Dashboard</h1>
+            <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>Bảng điều khiển</h1>
             <p className={`text-sm mt-0.5 ${muted}`}>
-              {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+              {new Date().toLocaleDateString("vi-VN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
             </p>
           </div>
           <button
             id="export-report-btn"
             className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20"
           >
-            <Download className="w-4 h-4" /> Export Report
+            <Download className="w-4 h-4" /> Xuất báo cáo
           </button>
         </div>
 
@@ -145,10 +145,10 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-indigo-500" />
-              <h2 className={`text-sm font-bold ${text}`}>Monthly Revenue</h2>
+              <h2 className={`text-sm font-bold ${text}`}>Doanh thu hàng tháng</h2>
             </div>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isDark ? "bg-indigo-500/20 text-indigo-300" : "bg-indigo-50 text-indigo-700"}`}>
-              Jan – Jun 2024
+              Tháng 1 – Tháng 6 2024
             </span>
           </div>
           <div className="flex items-end gap-3 h-40 px-2">
@@ -178,16 +178,16 @@ export default function AdminDashboardPage() {
           {/* Recent Enrollments */}
           <div className={`border rounded-2xl overflow-hidden ${card}`}>
             <div className={`px-5 py-4 border-b flex items-center justify-between ${divider} ${sectionHdr}`}>
-              <h2 className={`text-sm font-bold ${text}`}>Recent Enrollments</h2>
+              <h2 className={`text-sm font-bold ${text}`}>Đăng ký gần đây</h2>
               <a href="#" className="text-xs font-semibold text-indigo-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
-                View all <Eye className="w-3 h-3" />
+                Xem tất cả <Eye className="w-3 h-3" />
               </a>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className={`border-b ${divider}`}>
-                    {["Date", "Student", "Course", "Amount", "Status"].map((h) => (
+                    {["Ngày", "Học viên", "Khóa học", "Số tiền", "Trạng thái"].map((h) => (
                       <th key={h} className={`text-left px-4 py-3 font-semibold ${muted}`}>{h}</th>
                     ))}
                   </tr>
@@ -217,9 +217,9 @@ export default function AdminDashboardPage() {
           {/* Top Courses */}
           <div className={`border rounded-2xl overflow-hidden ${card}`}>
             <div className={`px-5 py-4 border-b flex items-center justify-between ${divider} ${sectionHdr}`}>
-              <h2 className={`text-sm font-bold ${text}`}>Top Courses</h2>
+              <h2 className={`text-sm font-bold ${text}`}>Khóa học tiêu biểu</h2>
               <a href="/admin/courses" className="text-xs font-semibold text-indigo-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
-                Manage <Eye className="w-3 h-3" />
+                Quản lý <Eye className="w-3 h-3" />
               </a>
             </div>
             <div className="p-2">
@@ -235,7 +235,7 @@ export default function AdminDashboardPage() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-semibold truncate ${text}`}>{course.title}</p>
-                    <p className={`text-[10px] mt-0.5 ${muted}`}>{course.students} students</p>
+                    <p className={`text-[10px] mt-0.5 ${muted}`}>{course.students} học viên</p>
                   </div>
                   <span className={`text-xs font-bold text-emerald-500 shrink-0`}>{course.revenue}</span>
                 </div>
@@ -246,14 +246,14 @@ export default function AdminDashboardPage() {
 
         {/* ── Quick Actions ─────────────────────────────────────────── */}
         <div className={`border rounded-2xl p-5 ${card}`}>
-          <h2 className={`text-sm font-bold mb-4 ${text}`}>Quick Actions</h2>
+          <h2 className={`text-sm font-bold mb-4 ${text}`}>Thao tác nhanh</h2>
           <div className="flex flex-wrap gap-3">
             <a
               id="quick-add-course"
               href="/admin/courses"
               className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20"
             >
-              <Plus className="w-4 h-4" /> Add New Course
+              <Plus className="w-4 h-4" /> Thêm khóa học mới
             </a>
             <a
               id="quick-create-coupon"
@@ -264,7 +264,7 @@ export default function AdminDashboardPage() {
                   : "border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-slate-50"
               }`}
             >
-              <Tag className="w-4 h-4" /> Create Coupon
+              <Tag className="w-4 h-4" /> Tạo mã giảm giá
             </a>
             <a
               id="quick-view-users"
@@ -275,7 +275,7 @@ export default function AdminDashboardPage() {
                   : "border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-slate-50"
               }`}
             >
-              <Users className="w-4 h-4" /> View All Users
+              <Users className="w-4 h-4" /> Xem tất cả người dùng
             </a>
           </div>
         </div>
