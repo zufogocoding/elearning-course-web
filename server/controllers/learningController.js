@@ -936,22 +936,33 @@ const submitQuizAttempt = async (req, res) => {
     );
 
     let correctAnswers = 0;
-    const userAnswersData = questions.map((question) => {
+    const userAnswersData = [];
+
+    for (const question of questions) {
       const selectedOptionId = answerMap.get(question.id) || null;
+
       const selectedOption = selectedOptionId
         ? question.questionOptions.find((option) => option.id === selectedOptionId)
         : null;
 
+      if (selectedOptionId && !selectedOption) {
+        return error(
+          res,
+          400,
+          `Đáp án đã chọn không hợp lệ cho câu hỏi ${question.id}.`
+        );
+      }
+
       const isCorrect = !!selectedOption?.isCorrect;
       if (isCorrect) correctAnswers += 1;
 
-      return {
+      userAnswersData.push({
         attemptId,
         questionId: question.id,
         selectedOptionId: selectedOption ? selectedOption.id : null,
         isCorrect,
-      };
-    });
+      });
+    }
 
     const score = Math.round((correctAnswers / questions.length) * 100);
     const passed = score >= checked.attempt.quiz.passingScore;
