@@ -510,9 +510,150 @@ const getQuestionsByQuiz = async (req, res) => {
 };
 
 // [POST] /api/content/questions
-// Tạo câu hỏi kèm options
+// Tạo câu hỏi kèm danh sách đáp án
 const createQuestion = async (req, res) => {
-  return error(res, 501, 'API tạo câu hỏi chưa được triển khai.');
+  try {
+    const {
+      quizId,
+      questionText,
+      questionType,
+      orderIndex,
+      options,
+    } = req.body;
+
+    const parsedQuizId = Number(quizId);
+    const parsedOrderIndex =
+      orderIndex === null || orderIndex === undefined || orderIndex === ''
+        ? 0
+        : Number(orderIndex);
+
+    const allowedQuestionTypes = ['single_choice', 'multiple_choice', 'true_false'];
+    const finalQuestionType = questionType || 'single_choice';
+
+    if (!Number.isInteger(parsedQuizId) || parsedQuizId <= 0) {
+      return error(res, 400, 'quizId không hợp lệ.');
+    }
+
+    if (!questionText || typeof questionText !== 'string' || questionText.trim().length === 0) {
+      return error(res, 400, 'Nội dung câu hỏi không được để trống.');
+    }
+
+    if (!allowedQuestionTypes.includes(finalQuestionType)) {
+      return error(
+        res,
+        400,
+        'Loại câu hỏi không hợp lệ. Chỉ hỗ trợ single_choice, multiple_choice hoặc true_false.'
+      );
+    }
+
+    if (!Number.isInteger(parsedOrderIndex) || parsedOrderIndex < 0) {
+      return error(res, 400, 'Thứ tự câu hỏi phải là số nguyên không âm.');
+    }
+
+    if (!Array.isArray(options) || options.length < 2) {
+      return error(res, 400, 'Câu hỏi phải có ít nhất 2 đáp án.');
+    }
+
+    const normalizedOptions = options.map((option, index) => {
+      const optionText = option?.optionText;
+      const optionOrderIndex =
+        option?.orderIndex === null ||
+        option?.orderIndex === undefined ||
+        option?.orderIndex === ''
+          ? index
+          : Number(option.orderIndex);
+
+      return {
+        optionText: typeof optionText === 'string' ? optionText.trim() : '',
+        isCorrect: Boolean(option?.isCorrect),
+        orderIndex: Number.isInteger(optionOrderIndex) && optionOrderIndex >= 0
+          ? optionOrderIndex
+          : index,
+      };
+    });
+
+    const hasInvalidOptionText = normalizedOptions.some(
+      (option) => option.optionText.length === 0
+    );
+
+    if (hasInvalidOptionText) {
+      return error(res, 400, 'Nội dung đáp án không được để trống.');
+    }
+
+    const correctOptionCount = normalizedOptions.filter((option) => option.isCorrect).length;
+
+    if (correctOptionCount === 0) {
+      return error(res, 400, 'Câu hỏi phải có ít nhất 1 đáp án đúng.');
+    }
+
+    if (finalQuestionType === 'single_choice' && correctOptionCount !== 1) {
+      return error(res, 400, 'Câu hỏi single_choice chỉ được có 1 đáp án đúng.');
+    }
+
+    if (finalQuestionType === 'true_false') {
+      if (normalizedOptions.length !== 2) {
+        return error(res, 400, 'Câu hỏi true_false phải có đúng 2 đáp án.');
+      }
+
+      if (correctOptionCount !== 1) {
+        return error(res, 400, 'Câu hỏi true_false phải có đúng 1 đáp án đúng.');
+      }
+    }
+
+    const quiz = await prisma.quiz.findUnique({
+      where: {
+        id: parsedQuizId,
+      },
+      include: {
+        lesson: {
+          include: {
+            section: {
+              include: {
+                course: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (
+      !quiz ||
+      quiz.deletedAt ||
+      !quiz.lesson ||
+      quiz.lesson.deletedAt ||
+      !quiz.lesson.section ||
+      quiz.lesson.section.deletedAt ||
+      !quiz.lesson.section.course ||
+      quiz.lesson.section.course.deletedAt
+    ) {
+      return error(res, 404, 'Quiz không tồn tại hoặc đã bị xóa.');
+    }
+
+    const question = await prisma.question.create({
+      data: {
+        quizId: parsedQuizId,
+        questionText: questionText.trim(),
+        questionType: finalQuestionType,
+        orderIndex: parsedOrderIndex,
+        questionOptions: {
+          create: normalizedOptions,
+        },
+      },
+      include: {
+        questionOptions: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+        },
+      },
+    });
+
+    return created(res, question, 'Tạo câu hỏi thành công.');
+  } catch (err) {
+    console.error('Lỗi createQuestion:', err);
+    return error(res, 500, 'Lỗi server khi tạo câu hỏi.');
+  }
 };
 
 // [PUT] /api/content/questions/:id
