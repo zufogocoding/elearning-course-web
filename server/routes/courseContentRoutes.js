@@ -18,4 +18,9 @@ router.post('/lessons', courseContentController.createLesson);
 router.put('/lessons/:id', courseContentController.updateLesson);
 router.delete('/lessons/:id', courseContentController.deleteLesson);
 
+// Routes cho Quiz
+router.get('/quizzes/:lessonId', quizController.getQuizzesByLesson);
+router.post('/quizzes', quizController.createQuiz);
+router.put('/quizzes/:id', quizController.updateQuiz);
+router.delete('/quizzes/:id', quizController.deleteQuiz);
 module.exports = router;
