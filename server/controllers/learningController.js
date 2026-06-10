@@ -151,6 +151,14 @@ const checkLessonAccess = async (userId, lesson) => {
     return { allowed: false, status: 404, message: 'Bài học không tồn tại hoặc đã bị xóa.' };
   }
 
+  if (lesson.section.course.status !== PUBLISHED_COURSE_STATUS) {
+    return {
+      allowed: false,
+      status: 403,
+      message: 'Khóa học chưa được xuất bản nên chưa thể truy cập bài học.',
+    };
+  }
+
   const courseId = lesson.section.course.id;
 
   if (lesson.isPreview) {
@@ -203,8 +211,10 @@ const getMyLearningCourses = async (req, res) => {
       },
     });
 
+    const activeEnrollments = enrollments.filter(isEnrollmentActive);
+
     const data = await Promise.all(
-      enrollments.map(async (enrollment) => {
+      activeEnrollments.map(async (enrollment) => {
         const progress = await getCourseProgressData(userId, enrollment.courseId);
 
         return {
@@ -286,6 +296,10 @@ const getLearningCourse = async (req, res) => {
 
     if (!course || course.deletedAt) {
       return error(res, 404, 'Khóa học không tồn tại hoặc đã bị xóa.');
+    }
+    
+    if (course.status !== PUBLISHED_COURSE_STATUS) {
+      return error(res, 403, 'Khóa học chưa được xuất bản nên chưa thể học.');
     }
 
     const enrollment = await findActiveEnrollment(userId, courseId);
@@ -719,17 +733,36 @@ const startQuiz = async (req, res) => {
             },
           },
         },
-        _count: { select: { questions: true } },
       },
     });
 
-    if (!quiz || quiz.deletedAt || quiz.lesson.deletedAt || quiz.lesson.section.deletedAt || quiz.lesson.section.course.deletedAt) {
+    if (
+      !quiz ||
+      !quiz.lesson ||
+      !quiz.lesson.section ||
+      !quiz.lesson.section.course ||
+      quiz.deletedAt ||
+      quiz.lesson.deletedAt ||
+      quiz.lesson.section.deletedAt ||
+      quiz.lesson.section.course.deletedAt
+    ) {
       return error(res, 404, 'Quiz không tồn tại hoặc đã bị xóa.');
     }
 
     const access = await checkLessonAccess(userId, quiz.lesson);
     if (!access.allowed) {
       return error(res, access.status, access.message);
+    }
+
+    const totalQuestions = await prisma.question.count({
+      where: {
+        quizId,
+        deletedAt: null,
+      },
+    });
+
+    if (totalQuestions === 0) {
+      return error(res, 400, 'Quiz chưa có câu hỏi nên chưa thể bắt đầu làm bài.');
     }
 
     const inProgressAttempt = await prisma.userQuizAttempt.findFirst({
@@ -748,6 +781,7 @@ const startQuiz = async (req, res) => {
         attemptNumber: inProgressAttempt.attemptNumber,
         startedAt: inProgressAttempt.startedAt,
         expiredAt,
+        totalQuestions,
         reused: true,
       }, 'Bạn đang có một lượt làm quiz chưa nộp, hệ thống trả lại lượt làm cũ');
     }
@@ -776,7 +810,7 @@ const startQuiz = async (req, res) => {
       attemptNumber: attempt.attemptNumber,
       startedAt: attempt.startedAt,
       expiredAt,
-      totalQuestions: quiz._count.questions,
+      totalQuestions,
     }, 'Bắt đầu làm quiz thành công');
   } catch (err) {
     console.error('Lỗi startQuiz:', err);
@@ -914,22 +948,33 @@ const submitQuizAttempt = async (req, res) => {
     );
 
     let correctAnswers = 0;
-    const userAnswersData = questions.map((question) => {
+    const userAnswersData = [];
+
+    for (const question of questions) {
       const selectedOptionId = answerMap.get(question.id) || null;
+
       const selectedOption = selectedOptionId
         ? question.questionOptions.find((option) => option.id === selectedOptionId)
         : null;
 
+      if (selectedOptionId && !selectedOption) {
+        return error(
+          res,
+          400,
+          `Đáp án đã chọn không hợp lệ cho câu hỏi ${question.id}.`
+        );
+      }
+
       const isCorrect = !!selectedOption?.isCorrect;
       if (isCorrect) correctAnswers += 1;
 
-      return {
+      userAnswersData.push({
         attemptId,
         questionId: question.id,
         selectedOptionId: selectedOption ? selectedOption.id : null,
         isCorrect,
-      };
-    });
+      });
+    }
 
     const score = Math.round((correctAnswers / questions.length) * 100);
     const passed = score >= checked.attempt.quiz.passingScore;
