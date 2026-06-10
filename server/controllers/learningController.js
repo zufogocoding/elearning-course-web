@@ -151,6 +151,14 @@ const checkLessonAccess = async (userId, lesson) => {
     return { allowed: false, status: 404, message: 'Bài học không tồn tại hoặc đã bị xóa.' };
   }
 
+  if (lesson.section.course.status !== PUBLISHED_COURSE_STATUS) {
+    return {
+      allowed: false,
+      status: 403,
+      message: 'Khóa học chưa được xuất bản nên chưa thể truy cập bài học.',
+    };
+  }
+
   const courseId = lesson.section.course.id;
 
   if (lesson.isPreview) {
