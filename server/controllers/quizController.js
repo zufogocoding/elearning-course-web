@@ -216,9 +216,129 @@ const createQuiz = async (req, res) => {
 };
 
 // [PUT] /api/content/quizzes/:id
-// Cập nhật quiz
+// Cập nhật thông tin quiz
 const updateQuiz = async (req, res) => {
-  return error(res, 501, 'API cập nhật quiz chưa được triển khai.');
+  try {
+    const quizId = getParamId(req, 'id');
+
+    if (!quizId) {
+      return error(res, 400, 'quizId không hợp lệ.');
+    }
+
+    const {
+      title,
+      description,
+      passingScore,
+      timeLimitMinutes,
+      maxAttempts,
+    } = req.body;
+
+    const existingQuiz = await prisma.quiz.findUnique({
+      where: {
+        id: quizId,
+      },
+      include: {
+        lesson: {
+          include: {
+            section: {
+              include: {
+                course: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (
+      !existingQuiz ||
+      existingQuiz.deletedAt ||
+      !existingQuiz.lesson ||
+      existingQuiz.lesson.deletedAt ||
+      !existingQuiz.lesson.section ||
+      existingQuiz.lesson.section.deletedAt ||
+      !existingQuiz.lesson.section.course ||
+      existingQuiz.lesson.section.course.deletedAt
+    ) {
+      return error(res, 404, 'Quiz không tồn tại hoặc đã bị xóa.');
+    }
+
+    const updateData = {};
+
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim().length === 0) {
+        return error(res, 400, 'Tiêu đề quiz không được để trống.');
+      }
+
+      updateData.title = title.trim();
+    }
+
+    if (description !== undefined) {
+      updateData.description =
+        description === null || description === ''
+          ? null
+          : String(description).trim();
+    }
+
+    if (passingScore !== undefined) {
+      const parsedPassingScore = Number(passingScore);
+
+      if (
+        !Number.isFinite(parsedPassingScore) ||
+        parsedPassingScore < 0 ||
+        parsedPassingScore > 100
+      ) {
+        return error(res, 400, 'Điểm đạt phải nằm trong khoảng từ 0 đến 100.');
+      }
+
+      updateData.passingScore = parsedPassingScore;
+    }
+
+    if (timeLimitMinutes !== undefined) {
+      const parsedTimeLimitMinutes =
+        timeLimitMinutes === null || timeLimitMinutes === ''
+          ? null
+          : Number(timeLimitMinutes);
+
+      if (
+        parsedTimeLimitMinutes !== null &&
+        (!Number.isInteger(parsedTimeLimitMinutes) || parsedTimeLimitMinutes <= 0)
+      ) {
+        return error(res, 400, 'Thời gian làm bài phải là số nguyên lớn hơn 0.');
+      }
+
+      updateData.timeLimitMinutes = parsedTimeLimitMinutes;
+    }
+
+    if (maxAttempts !== undefined) {
+      const parsedMaxAttempts =
+        maxAttempts === null || maxAttempts === ''
+          ? 0
+          : Number(maxAttempts);
+
+      if (!Number.isInteger(parsedMaxAttempts) || parsedMaxAttempts < 0) {
+        return error(res, 400, 'Số lượt làm tối đa phải là số nguyên không âm.');
+      }
+
+      updateData.maxAttempts = parsedMaxAttempts;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return error(res, 400, 'Không có dữ liệu để cập nhật.');
+    }
+
+    const updatedQuiz = await prisma.quiz.update({
+      where: {
+        id: quizId,
+      },
+      data: updateData,
+    });
+
+    return success(res, updatedQuiz, 'Cập nhật quiz thành công.');
+  } catch (err) {
+    console.error('Lỗi updateQuiz:', err);
+    return error(res, 500, 'Lỗi server khi cập nhật quiz.');
+  }
 };
 
 // [DELETE] /api/content/quizzes/:id
