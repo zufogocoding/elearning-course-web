@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const courseContentController = require('../controllers/courseContentController');
+const quizController = require('../controllers/quizController');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
+
 
 // Áp dụng middleware Admin cho TOÀN BỘ file này
 router.use(verifyToken, verifyAdmin);
