@@ -721,17 +721,36 @@ const startQuiz = async (req, res) => {
             },
           },
         },
-        _count: { select: { questions: true } },
       },
     });
 
-    if (!quiz || quiz.deletedAt || quiz.lesson.deletedAt || quiz.lesson.section.deletedAt || quiz.lesson.section.course.deletedAt) {
+    if (
+      !quiz ||
+      !quiz.lesson ||
+      !quiz.lesson.section ||
+      !quiz.lesson.section.course ||
+      quiz.deletedAt ||
+      quiz.lesson.deletedAt ||
+      quiz.lesson.section.deletedAt ||
+      quiz.lesson.section.course.deletedAt
+    ) {
       return error(res, 404, 'Quiz không tồn tại hoặc đã bị xóa.');
     }
 
     const access = await checkLessonAccess(userId, quiz.lesson);
     if (!access.allowed) {
       return error(res, access.status, access.message);
+    }
+
+    const totalQuestions = await prisma.question.count({
+      where: {
+        quizId,
+        deletedAt: null,
+      },
+    });
+
+    if (totalQuestions === 0) {
+      return error(res, 400, 'Quiz chưa có câu hỏi nên chưa thể bắt đầu làm bài.');
     }
 
     const inProgressAttempt = await prisma.userQuizAttempt.findFirst({
@@ -750,6 +769,7 @@ const startQuiz = async (req, res) => {
         attemptNumber: inProgressAttempt.attemptNumber,
         startedAt: inProgressAttempt.startedAt,
         expiredAt,
+        totalQuestions,
         reused: true,
       }, 'Bạn đang có một lượt làm quiz chưa nộp, hệ thống trả lại lượt làm cũ');
     }
@@ -778,7 +798,7 @@ const startQuiz = async (req, res) => {
       attemptNumber: attempt.attemptNumber,
       startedAt: attempt.startedAt,
       expiredAt,
-      totalQuestions: quiz._count.questions,
+      totalQuestions,
     }, 'Bắt đầu làm quiz thành công');
   } catch (err) {
     console.error('Lỗi startQuiz:', err);
