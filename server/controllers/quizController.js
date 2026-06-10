@@ -123,9 +123,96 @@ const getQuizzesByLesson = async (req, res) => {
 };
 
 // [POST] /api/content/quizzes
-// Tạo quiz mới
+// Tạo quiz mới cho một bài học
 const createQuiz = async (req, res) => {
-  return error(res, 501, 'API tạo quiz chưa được triển khai.');
+  try {
+    const {
+      lessonId,
+      title,
+      description,
+      passingScore,
+      timeLimitMinutes,
+      maxAttempts,
+    } = req.body;
+
+    const parsedLessonId = Number(lessonId);
+    const parsedPassingScore = Number(passingScore);
+    const parsedTimeLimitMinutes =
+      timeLimitMinutes === null || timeLimitMinutes === undefined || timeLimitMinutes === ''
+        ? null
+        : Number(timeLimitMinutes);
+    const parsedMaxAttempts =
+      maxAttempts === null || maxAttempts === undefined || maxAttempts === ''
+        ? 0
+        : Number(maxAttempts);
+
+    if (!Number.isInteger(parsedLessonId) || parsedLessonId <= 0) {
+      return error(res, 400, 'lessonId không hợp lệ.');
+    }
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return error(res, 400, 'Tiêu đề quiz không được để trống.');
+    }
+
+    if (
+      !Number.isFinite(parsedPassingScore) ||
+      parsedPassingScore < 0 ||
+      parsedPassingScore > 100
+    ) {
+      return error(res, 400, 'Điểm đạt phải nằm trong khoảng từ 0 đến 100.');
+    }
+
+    if (
+      parsedTimeLimitMinutes !== null &&
+      (!Number.isInteger(parsedTimeLimitMinutes) || parsedTimeLimitMinutes <= 0)
+    ) {
+      return error(res, 400, 'Thời gian làm bài phải là số nguyên lớn hơn 0.');
+    }
+
+    if (!Number.isInteger(parsedMaxAttempts) || parsedMaxAttempts < 0) {
+      return error(res, 400, 'Số lượt làm tối đa phải là số nguyên không âm.');
+    }
+
+    const lesson = await prisma.lesson.findUnique({
+      where: {
+        id: parsedLessonId,
+      },
+      include: {
+        section: {
+          include: {
+            course: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !lesson ||
+      lesson.deletedAt ||
+      !lesson.section ||
+      lesson.section.deletedAt ||
+      !lesson.section.course ||
+      lesson.section.course.deletedAt
+    ) {
+      return error(res, 404, 'Bài học không tồn tại hoặc đã bị xóa.');
+    }
+
+    const quiz = await prisma.quiz.create({
+      data: {
+        lessonId: parsedLessonId,
+        title: title.trim(),
+        description: description ? description.trim() : null,
+        passingScore: parsedPassingScore,
+        timeLimitMinutes: parsedTimeLimitMinutes,
+        maxAttempts: parsedMaxAttempts,
+      },
+    });
+
+    return created(res, quiz, 'Tạo quiz thành công.');
+  } catch (err) {
+    console.error('Lỗi createQuiz:', err);
+    return error(res, 500, 'Lỗi server khi tạo quiz.');
+  }
 };
 
 // [PUT] /api/content/quizzes/:id
