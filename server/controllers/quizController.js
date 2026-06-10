@@ -431,9 +431,82 @@ const deleteQuiz = async (req, res) => {
 // =====================================================
 
 // [GET] /api/content/quizzes/:id/questions
-// Lấy danh sách câu hỏi theo quiz
+// Lấy danh sách câu hỏi và đáp án theo quiz
 const getQuestionsByQuiz = async (req, res) => {
-  return error(res, 501, 'API lấy danh sách câu hỏi chưa được triển khai.');
+  try {
+    const quizId = getParamId(req, 'id');
+
+    if (!quizId) {
+      return error(res, 400, 'quizId không hợp lệ.');
+    }
+
+    const quiz = await prisma.quiz.findUnique({
+      where: {
+        id: quizId,
+      },
+      include: {
+        lesson: {
+          include: {
+            section: {
+              include: {
+                course: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (
+      !quiz ||
+      quiz.deletedAt ||
+      !quiz.lesson ||
+      quiz.lesson.deletedAt ||
+      !quiz.lesson.section ||
+      quiz.lesson.section.deletedAt ||
+      !quiz.lesson.section.course ||
+      quiz.lesson.section.course.deletedAt
+    ) {
+      return error(res, 404, 'Quiz không tồn tại hoặc đã bị xóa.');
+    }
+
+    const questions = await prisma.question.findMany({
+      where: {
+        quizId,
+        deletedAt: null,
+      },
+      orderBy: {
+        orderIndex: 'asc',
+      },
+      include: {
+        questionOptions: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+        },
+      },
+    });
+
+    return success(
+      res,
+      {
+        quiz: {
+          id: quiz.id,
+          lessonId: quiz.lessonId,
+          title: quiz.title,
+          description: quiz.description,
+          passingScore: quiz.passingScore,
+          timeLimitMinutes: quiz.timeLimitMinutes,
+          maxAttempts: quiz.maxAttempts,
+        },
+        questions,
+      },
+      'Lấy danh sách câu hỏi của quiz thành công.'
+    );
+  } catch (err) {
+    console.error('Lỗi getQuestionsByQuiz:', err);
+    return error(res, 500, 'Lỗi server khi lấy danh sách câu hỏi của quiz.');
+  }
 };
 
 // [POST] /api/content/questions
