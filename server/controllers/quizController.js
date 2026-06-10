@@ -344,7 +344,86 @@ const updateQuiz = async (req, res) => {
 // [DELETE] /api/content/quizzes/:id
 // Xóa mềm quiz
 const deleteQuiz = async (req, res) => {
-  return error(res, 501, 'API xóa quiz chưa được triển khai.');
+  try {
+    const quizId = getParamId(req, 'id');
+
+    if (!quizId) {
+      return error(res, 400, 'quizId không hợp lệ.');
+    }
+
+    const existingQuiz = await prisma.quiz.findUnique({
+      where: {
+        id: quizId,
+      },
+      include: {
+        lesson: {
+          include: {
+            section: {
+              include: {
+                course: true,
+              },
+            },
+          },
+        },
+        questions: {
+          where: {
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !existingQuiz ||
+      existingQuiz.deletedAt ||
+      !existingQuiz.lesson ||
+      existingQuiz.lesson.deletedAt ||
+      !existingQuiz.lesson.section ||
+      existingQuiz.lesson.section.deletedAt ||
+      !existingQuiz.lesson.section.course ||
+      existingQuiz.lesson.section.course.deletedAt
+    ) {
+      return error(res, 404, 'Quiz không tồn tại hoặc đã bị xóa.');
+    }
+
+    const now = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.question.updateMany({
+        where: {
+          quizId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: now,
+        },
+      });
+
+      await tx.quiz.update({
+        where: {
+          id: quizId,
+        },
+        data: {
+          deletedAt: now,
+        },
+      });
+    });
+
+    return success(
+      res,
+      {
+        id: quizId,
+        deletedQuestionCount: existingQuiz.questions.length,
+      },
+      'Xóa quiz thành công.'
+    );
+  } catch (err) {
+    console.error('Lỗi deleteQuiz:', err);
+    return error(res, 500, 'Lỗi server khi xóa quiz.');
+  }
 };
 
 // =====================================================
