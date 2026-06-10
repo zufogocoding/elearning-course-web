@@ -203,8 +203,10 @@ const getMyLearningCourses = async (req, res) => {
       },
     });
 
+    const activeEnrollments = enrollments.filter(isEnrollmentActive);
+
     const data = await Promise.all(
-      enrollments.map(async (enrollment) => {
+      activeEnrollments.map(async (enrollment) => {
         const progress = await getCourseProgressData(userId, enrollment.courseId);
 
         return {
