@@ -289,6 +289,10 @@ const getLearningCourse = async (req, res) => {
     if (!course || course.deletedAt) {
       return error(res, 404, 'Khóa học không tồn tại hoặc đã bị xóa.');
     }
+    
+    if (course.status !== PUBLISHED_COURSE_STATUS) {
+      return error(res, 403, 'Khóa học chưa được xuất bản nên chưa thể học.');
+    }
 
     const enrollment = await findActiveEnrollment(userId, courseId);
     if (!enrollment) {
