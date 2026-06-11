@@ -866,7 +866,84 @@ const updateQuestion = async (req, res) => {
 // [DELETE] /api/content/questions/:id
 // Xóa mềm câu hỏi
 const deleteQuestion = async (req, res) => {
-  return error(res, 501, 'API xóa câu hỏi chưa được triển khai.');
+  try {
+    const questionId = getParamId(req, 'id');
+
+    if (!questionId) {
+      return error(res, 400, 'questionId không hợp lệ.');
+    }
+
+    const existingQuestion = await prisma.question.findUnique({
+      where: {
+        id: questionId,
+      },
+      include: {
+        quiz: {
+          include: {
+            lesson: {
+              include: {
+                section: {
+                  include: {
+                    course: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        questionOptions: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !existingQuestion ||
+      existingQuestion.deletedAt ||
+      !existingQuestion.quiz ||
+      existingQuestion.quiz.deletedAt ||
+      !existingQuestion.quiz.lesson ||
+      existingQuestion.quiz.lesson.deletedAt ||
+      !existingQuestion.quiz.lesson.section ||
+      existingQuestion.quiz.lesson.section.deletedAt ||
+      !existingQuestion.quiz.lesson.section.course ||
+      existingQuestion.quiz.lesson.section.course.deletedAt
+    ) {
+      return error(res, 404, 'Câu hỏi không tồn tại hoặc đã bị xóa.');
+    }
+
+    const deletedQuestion = await prisma.question.update({
+      where: {
+        id: questionId,
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+      include: {
+        questionOptions: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+        },
+      },
+    });
+
+    return success(
+      res,
+      {
+        id: deletedQuestion.id,
+        quizId: deletedQuestion.quizId,
+        deletedAt: deletedQuestion.deletedAt,
+        optionCount: existingQuestion.questionOptions.length,
+      },
+      'Xóa câu hỏi thành công.'
+    );
+  } catch (err) {
+    console.error('Lỗi deleteQuestion:', err);
+    return error(res, 500, 'Lỗi server khi xóa câu hỏi.');
+  }
 };
 
 module.exports = {
