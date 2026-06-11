@@ -657,9 +657,210 @@ const createQuestion = async (req, res) => {
 };
 
 // [PUT] /api/content/questions/:id
-// Cập nhật câu hỏi kèm options
+// Cập nhật câu hỏi kèm danh sách đáp án
 const updateQuestion = async (req, res) => {
-  return error(res, 501, 'API cập nhật câu hỏi chưa được triển khai.');
+  try {
+    const questionId = getParamId(req, 'id');
+
+    if (!questionId) {
+      return error(res, 400, 'questionId không hợp lệ.');
+    }
+
+    const {
+      questionText,
+      questionType,
+      orderIndex,
+      options,
+    } = req.body;
+
+    const existingQuestion = await prisma.question.findUnique({
+      where: {
+        id: questionId,
+      },
+      include: {
+        quiz: {
+          include: {
+            lesson: {
+              include: {
+                section: {
+                  include: {
+                    course: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        questionOptions: {
+          orderBy: {
+            orderIndex: 'asc',
+          },
+        },
+      },
+    });
+
+    if (
+      !existingQuestion ||
+      existingQuestion.deletedAt ||
+      !existingQuestion.quiz ||
+      existingQuestion.quiz.deletedAt ||
+      !existingQuestion.quiz.lesson ||
+      existingQuestion.quiz.lesson.deletedAt ||
+      !existingQuestion.quiz.lesson.section ||
+      existingQuestion.quiz.lesson.section.deletedAt ||
+      !existingQuestion.quiz.lesson.section.course ||
+      existingQuestion.quiz.lesson.section.course.deletedAt
+    ) {
+      return error(res, 404, 'Câu hỏi không tồn tại hoặc đã bị xóa.');
+    }
+
+    const updateData = {};
+    const allowedQuestionTypes = ['single_choice', 'multiple_choice', 'true_false'];
+
+    if (questionText !== undefined) {
+      if (
+        typeof questionText !== 'string' ||
+        questionText.trim().length === 0
+      ) {
+        return error(res, 400, 'Nội dung câu hỏi không được để trống.');
+      }
+
+      updateData.questionText = questionText.trim();
+    }
+
+    const finalQuestionType =
+      questionType !== undefined ? questionType : existingQuestion.questionType;
+
+    if (questionType !== undefined) {
+      if (!allowedQuestionTypes.includes(questionType)) {
+        return error(
+          res,
+          400,
+          'Loại câu hỏi không hợp lệ. Chỉ hỗ trợ single_choice, multiple_choice hoặc true_false.'
+        );
+      }
+
+      updateData.questionType = questionType;
+    }
+
+    if (orderIndex !== undefined) {
+      const parsedOrderIndex =
+        orderIndex === null || orderIndex === ''
+          ? 0
+          : Number(orderIndex);
+
+      if (!Number.isInteger(parsedOrderIndex) || parsedOrderIndex < 0) {
+        return error(res, 400, 'Thứ tự câu hỏi phải là số nguyên không âm.');
+      }
+
+      updateData.orderIndex = parsedOrderIndex;
+    }
+
+    let normalizedOptions = null;
+
+    if (options !== undefined) {
+      if (!Array.isArray(options) || options.length < 2) {
+        return error(res, 400, 'Câu hỏi phải có ít nhất 2 đáp án.');
+      }
+
+      normalizedOptions = options.map((option, index) => {
+        const optionText = option?.optionText;
+        const optionOrderIndex =
+          option?.orderIndex === null ||
+          option?.orderIndex === undefined ||
+          option?.orderIndex === ''
+            ? index
+            : Number(option.orderIndex);
+
+        return {
+          optionText: typeof optionText === 'string' ? optionText.trim() : '',
+          isCorrect: Boolean(option?.isCorrect),
+          orderIndex:
+            Number.isInteger(optionOrderIndex) && optionOrderIndex >= 0
+              ? optionOrderIndex
+              : index,
+        };
+      });
+
+      const hasInvalidOptionText = normalizedOptions.some(
+        (option) => option.optionText.length === 0
+      );
+
+      if (hasInvalidOptionText) {
+        return error(res, 400, 'Nội dung đáp án không được để trống.');
+      }
+
+      const correctOptionCount = normalizedOptions.filter(
+        (option) => option.isCorrect
+      ).length;
+
+      if (correctOptionCount === 0) {
+        return error(res, 400, 'Câu hỏi phải có ít nhất 1 đáp án đúng.');
+      }
+
+      if (finalQuestionType === 'single_choice' && correctOptionCount !== 1) {
+        return error(res, 400, 'Câu hỏi single_choice chỉ được có 1 đáp án đúng.');
+      }
+
+      if (finalQuestionType === 'true_false') {
+        if (normalizedOptions.length !== 2) {
+          return error(res, 400, 'Câu hỏi true_false phải có đúng 2 đáp án.');
+        }
+
+        if (correctOptionCount !== 1) {
+          return error(res, 400, 'Câu hỏi true_false phải có đúng 1 đáp án đúng.');
+        }
+      }
+    }
+
+    if (Object.keys(updateData).length === 0 && normalizedOptions === null) {
+      return error(res, 400, 'Không có dữ liệu để cập nhật.');
+    }
+
+    const updatedQuestion = await prisma.$transaction(async (tx) => {
+      const question = await tx.question.update({
+        where: {
+          id: questionId,
+        },
+        data: updateData,
+      });
+
+      if (normalizedOptions !== null) {
+        await tx.questionOption.deleteMany({
+          where: {
+            questionId,
+          },
+        });
+
+        await tx.questionOption.createMany({
+          data: normalizedOptions.map((option) => ({
+            questionId,
+            optionText: option.optionText,
+            isCorrect: option.isCorrect,
+            orderIndex: option.orderIndex,
+          })),
+        });
+      }
+
+      return tx.question.findUnique({
+        where: {
+          id: questionId,
+        },
+        include: {
+          questionOptions: {
+            orderBy: {
+              orderIndex: 'asc',
+            },
+          },
+        },
+      });
+    });
+
+    return success(res, updatedQuestion, 'Cập nhật câu hỏi thành công.');
+  } catch (err) {
+    console.error('Lỗi updateQuestion:', err);
+    return error(res, 500, 'Lỗi server khi cập nhật câu hỏi.');
+  }
 };
 
 // [DELETE] /api/content/questions/:id
