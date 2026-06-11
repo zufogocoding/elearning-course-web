@@ -23,4 +23,11 @@ router.get('/quizzes/:lessonId', quizController.getQuizzesByLesson);
 router.post('/quizzes', quizController.createQuiz);
 router.put('/quizzes/:id', quizController.updateQuiz);
 router.delete('/quizzes/:id', quizController.deleteQuiz);
+
+// Routes cho Question
+router.get('/quizzes/:id/questions', quizController.getQuestionsByQuiz);
+router.post('/questions', quizController.createQuestion);
+router.put('/questions/:id', quizController.updateQuestion);
+router.delete('/questions/:id', quizController.deleteQuestion);
+
 module.exports = router;
