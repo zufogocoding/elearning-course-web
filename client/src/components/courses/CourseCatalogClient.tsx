@@ -107,6 +107,15 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
   const [currentPage, setCurrentPage] = useState(1);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
+  // Keep state in sync if initialCategory prop changes (client-side navigation)
+  useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategories([initialCategory]);
+    } else {
+      setSelectedCategories([]);
+    }
+  }, [initialCategory]);
+
   const coursesToUse = initialCourses || [];
 
   useEffect(() => {

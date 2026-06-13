@@ -16,11 +16,10 @@ async function fetchCourses() {
   }
 }
 
-export default async function CourseCatalogPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
+export default async function CourseCatalogPage(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const searchParams = await props.searchParams;
   const courses = await fetchCourses();
   const categoryParam = searchParams?.category;
   const initialCategory = typeof categoryParam === 'string' ? categoryParam : undefined;
