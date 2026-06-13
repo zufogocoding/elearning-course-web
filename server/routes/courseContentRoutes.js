@@ -16,4 +16,10 @@ router.post('/lessons', courseContentController.createLesson);
 router.put('/lessons/:id', courseContentController.updateLesson);
 router.delete('/lessons/:id', courseContentController.deleteLesson);
 
+// Routes cho Curriculum (Giáo trình tổng quan)
+router.get('/courses/:courseId/curriculum', courseContentController.getCourseCurriculum);
+
+// Routes cho Quiz Builder
+router.post('/lessons/:lessonId/quiz', courseContentController.saveLessonQuiz);
+
 module.exports = router;

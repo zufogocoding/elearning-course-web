@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+import { calculateCoursePricing } from "@/lib/pricing";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -86,12 +90,29 @@ function QRCodeVisual({ method }: { method: "vnpay" | "momo" }) {
 
 /* ─── Main Page ────────────────────────────────────────────── */
 export default function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+  const { id } = use(params); // id is the slug
   const { isDark } = useTheme();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const course = coursesMap[id] ?? defaultCourse;
-  const discount = parseFloat((course.originalPrice - course.price).toFixed(2));
-  const orderRef = `ORDER-${id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const [courseDetail, setCourseDetail] = useState<any>(null);
+  const [loadingCourse, setLoadingCourse] = useState(true);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+
+  const [selectedMethod, setSelectedMethod] = useState<"vnpay" | "momo">("vnpay");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [discountType, setDiscountType] = useState<string | null>(null);
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+
+  const [timeLeft, setTimeLeft] = useState(900); // 15 minutes
+  const [paid, setPaid] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [orderRef, setOrderRef] = useState("");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const bg = isDark ? "bg-[#0d0f1a]" : "bg-slate-50";
   const sectionBg = isDark ? "bg-[#13151f]" : "bg-white";
@@ -104,17 +125,72 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
     ? "bg-[#22263a] border-[#252840] text-[#e2e8f0] placeholder-[#4a5568] focus:ring-indigo-500/40"
     : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:ring-indigo-500/40";
 
-  const [selectedMethod, setSelectedMethod] = useState<"vnpay" | "momo">("vnpay");
-  const [couponCode, setCouponCode] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(900); // 15 minutes
-  const [paid, setPaid] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push(`/auth/login?redirect=/checkout/${id}`);
+      return;
+    }
 
-  const finalPrice = couponApplied ? parseFloat((course.price * 0.9).toFixed(2)) : course.price;
-  const totalDiscount = couponApplied
-    ? parseFloat((course.originalPrice - finalPrice).toFixed(2))
-    : discount;
+    const loadData = async () => {
+      try {
+        // 1. Fetch course details
+        const res = await api.get(`/api/courses/${id}`);
+        if (!res.ok) {
+          router.push("/courses");
+          return;
+        }
+        const data = await res.json();
+        setCourseDetail(data);
+        setOrderRef(`ORDER-${data.id}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`);
+
+        // 2. Check if user is already enrolled
+        const myRes = await api.get("/api/learning/my-courses");
+        if (myRes.ok) {
+          const myData = await myRes.json();
+          const coursesList = myData.data || [];
+          const enrolled = coursesList.some((c: any) => c.courseId === data.id);
+          if (enrolled) {
+            setIsEnrolled(true);
+            router.push(`/courses/${id}/learn`);
+            return;
+          }
+        }
+
+        // 3. Auto-apply coupon from URL if present
+        const urlCoupon = searchParams.get("coupon");
+        if (urlCoupon) {
+          setCouponCode(urlCoupon);
+          const couponRes = await api.get(`/api/enrollments/coupon/${urlCoupon.trim()}`);
+          if (couponRes.ok) {
+            const cResult = await couponRes.json();
+            const { discountType: type, discountValue: val } = cResult.coupon;
+            setDiscountType(type);
+            setDiscountValue(Number(val));
+            setCouponApplied(true);
+            setCouponSuccess(`Áp dụng mã ${urlCoupon.toUpperCase()} thành công!`);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading checkout details", err);
+      } finally {
+        setLoadingCourse(false);
+      }
+    };
+
+    if (user) {
+      loadData();
+    }
+  }, [user, authLoading, id, router, searchParams]);
+
+  const {
+    rawOriginalPrice,
+    originalPrice,
+    basePrice,
+    couponDiscount,
+    finalPrice,
+    totalDiscount,
+    discount
+  } = calculateCoursePricing(courseDetail, discountType, discountValue, couponApplied, 0);
 
   useEffect(() => {
     if (paid) return;
@@ -142,13 +218,81 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const handleApplyCoupon = () => {
-    if (couponCode.trim().toLowerCase() === "elevate10") {
-      setCouponApplied(true);
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponError(null);
+    setCouponSuccess(null);
+    try {
+      const res = await api.get(`/api/enrollments/coupon/${couponCode.trim()}`);
+      if (res.ok) {
+        const result = await res.json();
+        const { discountType: type, discountValue: val } = result.coupon;
+        setDiscountType(type);
+        setDiscountValue(Number(val));
+        setCouponApplied(true);
+        setCouponSuccess(`Áp dụng mã ${couponCode.toUpperCase()} thành công!`);
+      } else {
+        const errorData = await res.json();
+        setCouponError(errorData.error || "Mã giảm giá không hợp lệ.");
+      }
+    } catch {
+      setCouponError("Lỗi kết nối khi kiểm tra mã giảm giá.");
     }
   };
 
+  const handleCheckout = async () => {
+    if (!courseDetail) return;
+    setCheckoutLoading(true);
+    try {
+      const res = await api.post('/api/enrollments/checkout', {
+        courseId: courseDetail.id,
+        couponCode: couponApplied ? couponCode.trim() : undefined,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.isFree) {
+          setPaid(true);
+        } else if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+        }
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || "Giao dịch thanh toán thất bại.");
+      }
+    } catch (err) {
+      console.error("Error creating payment transaction", err);
+      alert("Lỗi kết nối server khi khởi tạo thanh toán.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const mockGradients = [
+    "from-violet-500 via-purple-500 to-indigo-600",
+    "from-cyan-500 via-blue-500 to-indigo-600",
+    "from-rose-500 via-pink-500 to-fuchsia-600",
+    "from-emerald-500 via-teal-500 to-cyan-600",
+    "from-amber-500 via-orange-500 to-red-500",
+    "from-sky-500 via-blue-400 to-indigo-500",
+  ];
+  const gradient = courseDetail?.id ? mockGradients[courseDetail.id % mockGradients.length] : "from-violet-500 via-purple-500 to-indigo-600";
+
+  if (authLoading || loadingCourse) {
+    return (
+      <div className={`min-h-screen ${bg} font-sans`}>
+        <Header />
+        <main className="max-w-6xl mx-auto px-4 py-24 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className={`${muted} text-sm font-semibold`}>Đang tải thông tin thanh toán...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   /* ── Success Screen ── */
+
   if (paid) {
     return (
       <div className={`min-h-screen ${bg} font-sans`}>
@@ -167,11 +311,11 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
           <div className={`border ${divider} rounded-2xl p-6 ${sectionBg} mb-8 text-left space-y-3`}>
             <div className="flex justify-between items-center">
               <span className={`text-sm ${muted}`}>Khóa học</span>
-              <span className={`text-sm font-semibold ${text}`}>{course.title}</span>
+              <span className={`text-sm font-semibold ${text}`}>{courseDetail?.title}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className={`text-sm ${muted}`}>Số tiền đã thanh toán</span>
-              <span className="text-sm font-bold text-emerald-500">${finalPrice}</span>
+              <span className="text-sm font-bold text-emerald-500">${finalPrice.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className={`text-sm ${muted}`}>Mã đơn hàng</span>
@@ -219,14 +363,22 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
               <div className="p-6 space-y-5">
                 {/* Course Card */}
                 <div className="flex gap-4">
-                  <div className={`w-24 h-16 bg-gradient-to-br ${course.gradient} rounded-xl shrink-0 shadow-md`} />
+                  {courseDetail?.thumbnailUrl ? (
+                    <img
+                      src={courseDetail.thumbnailUrl}
+                      alt={courseDetail.title}
+                      className="w-24 h-16 object-cover rounded-xl shrink-0 shadow-md"
+                    />
+                  ) : (
+                    <div className={`w-24 h-16 bg-gradient-to-br ${gradient} rounded-xl shrink-0 shadow-md`} />
+                  )}
                   <div className="flex-1 min-w-0">
                     <h3 className={`font-bold text-sm leading-snug ${text} line-clamp-2`}>
-                      {course.title}
+                      {courseDetail?.title}
                     </h3>
-                    <p className={`text-xs mt-1 ${muted}`}>{course.instructor}</p>
+                    <p className={`text-xs mt-1 ${muted}`}>bởi {courseDetail?.creator?.username || "Admin"}</p>
                     <div className="flex items-center gap-1 mt-1">
-                      <span className="text-amber-400 text-xs font-bold">{course.rating}</span>
+                      <span className="text-amber-400 text-xs font-bold">4.8</span>
                       <span className="text-amber-400 text-xs">★★★★★</span>
                     </div>
                   </div>
@@ -236,40 +388,52 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                 <div className={`space-y-3 border-t ${divider} pt-5`}>
                   <div className="flex justify-between items-center">
                     <span className={`text-sm ${muted}`}>Giá gốc</span>
-                    <span className={`text-sm line-through ${subtle}`}>${course.originalPrice}</span>
+                    <span className={`text-sm line-through ${subtle}`}>${originalPrice.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-emerald-500 font-medium">Giảm giá</span>
-                    <span className="text-sm text-emerald-500 font-semibold">−${discount}</span>
-                  </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-emerald-500 font-medium">Giảm giá khóa học</span>
+                      <span className="text-sm text-emerald-500 font-semibold">−${discount.toFixed(2)}</span>
+                    </div>
+                  )}
                   {couponApplied && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-emerald-500 font-medium flex items-center gap-1">
-                        <Tag className="w-3.5 h-3.5" /> Mã giảm giá (ELEVATE10)
+                        <Tag className="w-3.5 h-3.5" /> Mã giảm giá ({couponCode.toUpperCase()})
                       </span>
-                      <span className="text-sm text-emerald-500 font-semibold">−10%</span>
+                      <span className="text-sm text-emerald-500 font-semibold">
+                        {discountType?.toLowerCase() === 'percent' ? `−${discountValue}%` : `−$${discountValue}`}
+                      </span>
                     </div>
                   )}
 
                   {/* Coupon Input */}
-                  <div className="flex gap-2 pt-1">
-                    <input
-                      id="coupon-code-input"
-                      type="text"
-                      placeholder="Mã giảm giá (thử ELEVATE10)"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      disabled={couponApplied}
-                      className={`flex-1 px-3 py-2 border rounded-xl text-xs outline-none focus:ring-2 transition-all ${input} ${couponApplied ? "opacity-50 cursor-not-allowed" : ""}`}
-                    />
-                    <button
-                      id="apply-coupon-checkout-btn"
-                      onClick={handleApplyCoupon}
-                      disabled={couponApplied || !couponCode.trim()}
-                      className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all"
-                    >
-                      {couponApplied ? "Đã áp dụng ✓" : "Áp dụng"}
-                    </button>
+                  <div className="space-y-1">
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        id="coupon-code-input"
+                        type="text"
+                        placeholder="Mã giảm giá (ví dụ SUMMER2026)"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        disabled={couponApplied}
+                        className={`flex-1 px-3 py-2 border rounded-xl text-xs outline-none focus:ring-2 transition-all ${input} ${couponApplied ? "opacity-50 cursor-not-allowed" : ""}`}
+                      />
+                      <button
+                        id="apply-coupon-checkout-btn"
+                        onClick={handleApplyCoupon}
+                        disabled={couponApplied || !couponCode.trim()}
+                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all"
+                      >
+                        {couponApplied ? "Đã áp dụng ✓" : "Áp dụng"}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-[11px] text-rose-500 font-medium mt-1">{couponError}</p>
+                    )}
+                    {couponSuccess && (
+                      <p className="text-[11px] text-emerald-500 font-medium mt-1">{couponSuccess}</p>
+                    )}
                   </div>
 
                   <div className={`border-t ${divider} pt-3`} />
@@ -277,9 +441,9 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                   <div className="flex justify-between items-center">
                     <span className={`font-bold text-base ${text}`}>Tổng cộng</span>
                     <div className="text-right">
-                      <span className={`text-2xl font-extrabold ${text}`}>${finalPrice}</span>
+                      <span className={`text-2xl font-extrabold ${text}`}>${finalPrice.toFixed(2)}</span>
                       {couponApplied && (
-                        <div className="text-xs text-emerald-500 font-medium">Bạn đã tiết kiệm ${totalDiscount}!</div>
+                        <div className="text-xs text-emerald-500 font-medium">Bạn đã tiết kiệm ${totalDiscount.toFixed(2)}!</div>
                       )}
                     </div>
                   </div>
@@ -417,11 +581,16 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
 
                 <button
                   id="confirm-payment-btn"
-                  onClick={() => setPaid(true)}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-base transition-all shadow-md shadow-emerald-600/25 hover:shadow-emerald-600/40 flex items-center justify-center gap-2"
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading || timeLeft === 0}
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-base transition-all shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CheckCircle className="w-5 h-5" />
-                  Tôi đã hoàn tất thanh toán
+                  {checkoutLoading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white" />
+                  ) : (
+                    <CheckCircle className="w-5 h-5" />
+                  )}
+                  {selectedMethod === "vnpay" ? "Thanh toán qua VNPAY Sandbox" : "Thanh toán ngay"}
                 </button>
 
                 <div className="text-center">

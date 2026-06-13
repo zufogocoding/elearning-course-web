@@ -13,8 +13,11 @@ import {
   BarChart3,
   Moon,
   Sun,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useTheme } from "@/components/ui/ThemeProvider";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Bảng điều khiển", Icon: LayoutDashboard },
@@ -27,6 +30,29 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isDark, toggle } = useTheme();
   const pathname = usePathname();
+  const { user, login, isLoading } = useAuth();
+
+  const handleAdminAutoLogin = async () => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: "admin@email.com", password: "password123" }),
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        login(data.accessToken, data.user);
+        window.location.reload();
+      } else {
+        alert("Đăng nhập tự động thất bại.");
+      }
+    } catch {
+      alert("Lỗi kết nối server.");
+    }
+  };
 
   const sidebar = isDark
     ? "bg-[#13151f] border-[#1e2235]"
@@ -36,6 +62,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const inactiveLink = isDark
     ? "text-[#7a87a1] hover:bg-[#1a1d2e] hover:text-[#e2e8f0]"
     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900";
+
+  if (isLoading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? "bg-[#0d0f1a]" : "bg-[#f4f6fb]"}`}>
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "admin") {
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-6 ${isDark ? "bg-[#0d0f1a]" : "bg-[#f4f6fb]"}`}>
+        <div className={`w-full max-w-md border rounded-2xl p-8 text-center shadow-xl ${isDark ? "bg-[#1a1d2e] border-[#252840]" : "bg-white border-slate-200"}`}>
+          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+          <h2 className={`text-lg font-bold mb-2 ${isDark ? "text-white" : "text-slate-900"}`}>Yêu cầu quyền truy cập</h2>
+          <p className={`text-sm mb-6 ${isDark ? "text-[#7a87a1]" : "text-slate-500"}`}>
+            Bạn cần quyền quản trị viên (Admin) để truy cập Bảng điều khiển này.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleAdminAutoLogin}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-indigo-600/20"
+            >
+              Đăng nhập nhanh với tài khoản Admin
+            </button>
+            <Link
+              href="/"
+              className={`w-full py-2.5 border rounded-xl text-sm font-semibold transition-all ${
+                isDark ? "border-[#252840] text-[#e2e8f0] hover:bg-[#22263a]" : "border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              Quay lại Trang chủ
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex h-screen overflow-hidden font-sans transition-colors duration-300 ${root}`}>

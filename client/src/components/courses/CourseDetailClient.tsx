@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+import { calculateCoursePricing } from "@/lib/pricing";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -106,6 +110,78 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
   const [couponCode, setCouponCode] = useState("");
   const [expandedModules, setExpandedModules] = useState<number[]>([0]);
 
+  const { user } = useAuth();
+  const router = useRouter();
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
+  const [discountType, setDiscountType] = useState<string | null>(null);
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkEnrollment = async () => {
+      if (!user || !courseDetail) {
+        setIsEnrolled(false);
+        setCheckingEnrollment(false);
+        return;
+      }
+      try {
+        const res = await api.get('/api/learning/my-courses');
+        if (res.ok) {
+          const result = await res.json();
+          const coursesList = result.data || [];
+          const enrolled = coursesList.some((c: any) => c.courseId === courseDetail.id);
+          setIsEnrolled(enrolled);
+        }
+      } catch (err) {
+        console.error("Error checking enrollment status", err);
+      } finally {
+        setCheckingEnrollment(false);
+      }
+    };
+
+    checkEnrollment();
+  }, [user, courseDetail]);
+
+  const handleEnrollClick = () => {
+    if (!user) {
+      router.push(`/auth/login?redirect=/courses/${courseDetail?.slug || ""}`);
+      return;
+    }
+    if (isEnrolled) {
+      router.push(`/courses/${courseDetail?.slug}/learn`);
+    } else {
+      const couponQuery = couponSuccess ? `?coupon=${couponCode}` : "";
+      router.push(`/checkout/${courseDetail?.slug}${couponQuery}`);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    if (!user) {
+      setCouponError("Vui lòng đăng nhập để áp dụng mã giảm giá.");
+      return;
+    }
+    setCouponError(null);
+    setCouponSuccess(null);
+    try {
+      const res = await api.get(`/api/enrollments/coupon/${couponCode.trim()}`);
+      if (res.ok) {
+        const result = await res.json();
+        const { discountType: type, discountValue: val } = result.coupon;
+        setDiscountType(type);
+        setDiscountValue(Number(val));
+        setCouponSuccess(`Áp dụng mã ${couponCode.toUpperCase()} thành công!`);
+      } else {
+        const errorData = await res.json();
+        setCouponError(errorData.error || "Mã giảm giá không hợp lệ.");
+      }
+    } catch {
+      setCouponError("Lỗi kết nối khi kiểm tra mã giảm giá.");
+    }
+  };
+
   const toggleModule = (idx: number) => {
     setExpandedModules((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
@@ -117,9 +193,11 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
   const subtitle = courseDetail?.shortDescription || "Learn how to design beautiful, engaging user interfaces and experiences with Figma.";
   const fullDesc = courseDetail?.fullDescription || "Dive into the world of User Interface and User Experience design. This comprehensive masterclass will take you from complete beginner to confident designer. You'll learn the core principles of visual design, color theory, typography, and how to create intuitive user flows that solve real problems.";
   const instructor = courseDetail?.creator?.username || "Jane Doe";
-  const rawPrice = courseDetail?.price || 89.99;
-  const price = courseDetail?.discountPrice ? courseDetail?.discountPrice : rawPrice;
-  const originalPrice = courseDetail?.discountPrice ? rawPrice : rawPrice * 1.5;
+  const {
+    rawOriginalPrice: rawPrice,
+    originalPrice,
+    finalPrice: price
+  } = calculateCoursePricing(courseDetail, discountType, discountValue, !!discountType, 89.99);
   const level = courseDetail?.level ? courseDetail.level.charAt(0).toUpperCase() + courseDetail.level.slice(1) : "Beginner";
   const rating = 4.8;
   const reviewsCount = 1254;
@@ -429,9 +507,11 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
               <div className="space-y-3 mb-8">
                 <button
                   id="enroll-now-btn"
-                  className="w-full block py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center text-base transition-all shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40"
+                  onClick={handleEnrollClick}
+                  disabled={!courseDetail && !checkingEnrollment}
+                  className="w-full block py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center text-base transition-all shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Đăng ký ngay
+                  {checkingEnrollment ? "Đang tải..." : isEnrolled ? "Vào học ngay" : "Đăng ký ngay"}
                 </button>
                 <p className={`text-center text-xs font-medium ${subtle}`}>
                   Cam kết hoàn tiền trong 30 ngày
@@ -474,14 +554,23 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                     className={`flex-1 px-4 py-2.5 border rounded-xl text-sm outline-none focus:ring-2 transition-all uppercase placeholder:normal-case ${input}`}
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
+                    disabled={!!couponSuccess}
                   />
                   <button
                     id="apply-coupon-btn"
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim() || !!couponSuccess}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
                   >
                     Áp dụng
                   </button>
                 </div>
+                {couponError && (
+                  <p className="text-xs text-rose-500 mt-2 font-medium">{couponError}</p>
+                )}
+                {couponSuccess && (
+                  <p className="text-xs text-emerald-500 mt-2 font-medium">{couponSuccess}</p>
+                )}
               </div>
             </div>
           </div>
