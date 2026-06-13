@@ -160,7 +160,7 @@ export default function Home() {
                     className="group relative flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg transition-all active:scale-95 shadow-[0_0_20px_-5px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_-5px_rgba(79,70,229,0.6)] overflow-hidden w-full sm:w-auto justify-center"
                   >
                     <span className="relative z-10 flex items-center gap-2">
-                      Vào trang cá nhân
+                      Khóa học của tôi
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </span>
                     <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
@@ -188,7 +188,7 @@ export default function Home() {
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isDark ? "bg-[#22263a] group-hover:bg-indigo-500/20 group-hover:text-indigo-400" : "bg-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-600"}`}>
                     <Play className="w-4 h-4 fill-current ml-0.5" />
                   </div>
-                  Duyệt khóa học
+                  Khám phá khóa học
                 </Link>
               </div>
             </div>
@@ -470,7 +470,7 @@ export default function Home() {
                   href="/profile"
                   className="px-8 py-4 bg-white text-indigo-700 rounded-xl font-extrabold text-lg hover:scale-105 transition-transform shadow-xl shadow-black/10"
                 >
-                  Vào trang cá nhân
+                  Khóa học của tôi
                 </Link>
               ) : (
                 <Link
@@ -484,7 +484,7 @@ export default function Home() {
                 href="/courses"
                 className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 rounded-xl font-bold text-lg hover:scale-105 transition-transform"
               >
-                Duyệt toàn bộ khóa học
+                Khám phá khóa học
               </Link>
             </div>
           </div>
