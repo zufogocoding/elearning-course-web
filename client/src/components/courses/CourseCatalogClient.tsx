@@ -138,8 +138,10 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
 
   // Map database courses to structured UI courses (with visual gradients, mock ratings/reviews if blank)
   const mappedCourses = coursesToUse.map((c, index) => {
-    const originalPrice = c.discountPrice ? c.price : c.price * 1.5;
-    const finalPrice = c.discountPrice ? c.discountPrice : c.price;
+    const priceNum = parseFloat(c.price?.toString() || "0");
+    const discountPriceNum = c.discountPrice ? parseFloat(c.discountPrice.toString()) : null;
+    const originalPrice = discountPriceNum ? priceNum : priceNum * 1.5;
+    const finalPrice = discountPriceNum ? discountPriceNum : priceNum;
     return {
       id: c.id.toString(),
       slug: c.slug,
