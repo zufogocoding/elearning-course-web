@@ -563,53 +563,7 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
               </div>
             )}
 
-            {/* Pagination */}
-            <div className="flex items-center justify-center gap-2 mt-10">
-              <button
-                id="pagination-prev"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
-                  currentPage === 1
-                    ? `${subtle} border-transparent cursor-not-allowed opacity-40`
-                    : `${muted} border-${divider} ${iconBtn}`
-                }`}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Trang trước
-              </button>
 
-              {[1, 2, 3].map((page) => (
-                <button
-                  key={page}
-                  id={`pagination-page-${page}`}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 rounded-xl text-sm font-bold transition-all ${
-                    currentPage === page
-                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
-                      : `${muted} ${iconBtn} border ${divider}`
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <span className={`text-sm ${subtle}`}>...</span>
-
-              <button
-                id="pagination-next"
-                onClick={() => setCurrentPage((p) => Math.min(3, p + 1))}
-                disabled={currentPage === 3}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
-                  currentPage === 3
-                    ? `${subtle} border-transparent cursor-not-allowed opacity-40`
-                    : `${muted} border-${divider} ${iconBtn}`
-                }`}
-              >
-                Trang sau
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </div>
       </main>
