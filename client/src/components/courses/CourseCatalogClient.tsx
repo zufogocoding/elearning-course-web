@@ -36,48 +36,7 @@ interface CourseCatalogClientProps {
   initialCourses: DbCourse[];
 }
 
-const defaultMockDbCourses: DbCourse[] = [
-  {
-    id: 1,
-    title: "UI/UX Design Masterclass",
-    slug: "ui-ux-design-masterclass",
-    shortDescription: "Master UI/UX design with Figma, user research, and prototyping.",
-    price: 89.99,
-    level: "beginner",
-    creator: { username: "Jane Doe" },
-    category: { name: "Design" },
-  },
-  {
-    id: 2,
-    title: "Advanced React Patterns",
-    slug: "advanced-react-patterns",
-    shortDescription: "Build scalable and performant React applications using advanced patterns.",
-    price: 129.99,
-    level: "advanced",
-    creator: { username: "John Smith" },
-    category: { name: "IT & Software" },
-  },
-  {
-    id: 3,
-    title: "Digital Marketing 2026",
-    slug: "digital-marketing-2026",
-    shortDescription: "Complete digital marketing guide including SEO, SEM, and social media.",
-    price: 94.99,
-    level: "intermediate",
-    creator: { username: "Sarah Jenkins" },
-    category: { name: "Marketing" },
-  },
-  {
-    id: 4,
-    title: "Python for Data Science",
-    slug: "python-for-data-science",
-    shortDescription: "Master Python programming, machine learning, and data analysis.",
-    price: 74.99,
-    level: "beginner",
-    creator: { username: "Mike Chen" },
-    category: { name: "IT & Software" },
-  },
-];
+
 
 const mockGradients = [
   "from-violet-500 via-purple-500 to-indigo-600",
@@ -145,8 +104,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
   const [currentPage, setCurrentPage] = useState(1);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
-  // Robust Fallback to premium Mock Courses if the database courses list is empty (ensures stable presentation at all times)
-  const coursesToUse = initialCourses && initialCourses.length > 0 ? initialCourses : defaultMockDbCourses;
+  const coursesToUse = initialCourses || [];
 
   useEffect(() => {
     const fetchCategories = async () => {

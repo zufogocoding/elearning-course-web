@@ -8,7 +8,8 @@ async function fetchCourses() {
       cache: "no-store", // SSR: ensures request-time data fetching
     });
     if (!res.ok) return [];
-    return await res.json();
+    const json = await res.json();
+    return json.data || [];
   } catch (error) {
     console.error("Error fetching courses during SSR:", error);
     return [];
