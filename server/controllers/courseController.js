@@ -1,4 +1,6 @@
 const prisma = require('../lib/prisma');
+const fs = require('fs');
+const path = require('path');
 
 // [POST] Tạo khóa học mới (Yêu cầu quyền Admin)
 const createCourse = async (req, res) => {
@@ -270,11 +272,46 @@ const deleteCourse = async (req, res) => {
   }
 };
 
+// [POST] Upload hình ảnh dưới dạng Base64 (Admin)
+const uploadImage = async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: 'Không tìm thấy hình ảnh.' });
+    }
+
+    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: 'Định dạng hình ảnh Base64 không hợp lệ.' });
+    }
+
+    const type = matches[1];
+    const extension = type.split('/')[1] || 'png';
+    const buffer = Buffer.from(matches[2], 'base64');
+
+    const uploadsDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const filename = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
+    const filePath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+    res.status(200).json({ url: fileUrl });
+  } catch (error) {
+    console.error('Lỗi upload image:', error);
+    res.status(500).json({ error: 'Lỗi server khi upload ảnh.' });
+  }
+};
+
 module.exports = {
   createCourse,
   getAllCourses,
   getAdminCourses,
   getCourseBySlug, 
   updateCourse,    
-  deleteCourse    
+  deleteCourse,
+  uploadImage
 };

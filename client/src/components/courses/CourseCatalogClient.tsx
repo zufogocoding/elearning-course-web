@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -142,9 +143,40 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
   // Robust Fallback to premium Mock Courses if the database courses list is empty (ensures stable presentation at all times)
   const coursesToUse = initialCourses && initialCourses.length > 0 ? initialCourses : defaultMockDbCourses;
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await api.get('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          const names: string[] = [];
+          data.forEach((cat: any) => {
+            if (cat.name) names.push(cat.name);
+            cat.children?.forEach((child: any) => {
+              if (child.name) names.push(child.name);
+            });
+          });
+          if (names.length > 0) {
+            setCategoriesList(Array.from(new Set(names)));
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories", err);
+      }
+      
+      const courseCats = Array.from(new Set(coursesToUse.map(c => c.category?.name).filter(Boolean))) as string[];
+      setCategoriesList(courseCats.length > 0 ? courseCats : ["IT & Software", "Business", "Design", "Marketing", "Photography"]);
+    };
+    
+    fetchCategories();
+  }, [coursesToUse]);
+
 
   // Map database courses to structured UI courses (with visual gradients, mock ratings/reviews if blank)
   const mappedCourses = coursesToUse.map((c, index) => {
@@ -246,7 +278,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
       <div className={`border-t ${divider} pt-5`}>
         <h3 className={`font-semibold text-sm mb-3 ${text}`}>Danh mục</h3>
         <div className="space-y-2.5">
-          {categories.map((cat) => (
+          {categoriesList.map((cat) => (
             <label key={cat} className="flex items-center gap-2.5 cursor-pointer group">
               <input
                 id={`cat-${cat.replace(/\s/g, "-").toLowerCase()}`}

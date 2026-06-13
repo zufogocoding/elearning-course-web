@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   PlayCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight,
   Download, HelpCircle, Sun, Moon, X, FileText, BookOpen,
   Clock, Lock, Circle, SkipForward, SkipBack, Volume2,
   Maximize, Settings, MessageSquare, PanelRightClose, PanelRightOpen, Star,
+  AlertCircle, Trophy, ArrowRight
 } from "lucide-react";
 import { useTheme } from "@/components/ui/ThemeProvider";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+};
 
 /* ── Types ── */
 type LessonType = "video" | "quiz" | "document";
@@ -102,44 +112,396 @@ function buildTheme(dark: boolean) {
 /* ── Component ── */
 export default function LearnPage() {
   const { isDark, toggle } = useTheme(); // ← global theme context
+  const { id: courseSlug } = useParams() as { id: string };
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "attachments" | "quiz">("overview");
-  const [sections, setSections] = useState<Section[]>(INITIAL_SECTIONS);
-  const [currentLessonId, setCurrentLessonId] = useState(5);
+
+  const [courseDetail, setCourseDetail] = useState<any>(null);
+  const [loadingCourse, setLoadingCourse] = useState(true);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [currentLessonId, setCurrentLessonId] = useState<number | null>(null);
+  const [currentLessonDetail, setCurrentLessonDetail] = useState<any>(null);
+  const [loadingLesson, setLoadingLesson] = useState(false);
   const [newQuestion, setNewQuestion] = useState("");
+
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [completedN, setCompletedN] = useState(0);
+  const [totalN, setTotalN] = useState(0);
+
+  // Document Reading Timer
+  const [documentReadTime, setDocumentReadTime] = useState(0);
+  const [documentReadComplete, setDocumentReadComplete] = useState(false);
+
+  // Quiz Attempt States
+  const [quizAttempt, setQuizAttempt] = useState<any>(null);
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [quizResult, setQuizResult] = useState<any>(null);
+  const [quizTimeLeft, setQuizTimeLeft] = useState(0);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizSubmitting, setQuizSubmitting] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   const t = buildTheme(isDark);
 
+  // Load Course and Learning structure
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push(`/auth/login?redirect=/courses/${courseSlug}/learn`);
+      return;
+    }
+
+    const loadCourseData = async () => {
+      try {
+        const res = await api.get(`/api/courses/${courseSlug}`);
+        if (!res.ok) {
+          router.push("/courses");
+          return;
+        }
+        const basicCourse = await res.json();
+        setCourseDetail(basicCourse);
+
+        const structureRes = await api.get(`/api/learning/courses/${basicCourse.id}`);
+        if (!structureRes.ok) {
+          router.push(`/checkout/${courseSlug}`);
+          return;
+        }
+        const struct = await structureRes.json();
+        const data = struct.data;
+
+        setProgressPercent(data.course.progressPercent);
+        setCompletedN(data.course.completedLessons);
+        setTotalN(data.course.totalLessons);
+
+        const uiSections = data.sections.map((sec: any, sIdx: number) => ({
+          id: sec.id,
+          title: sec.title,
+          expanded: sIdx === 0,
+          lessons: sec.lessons.map((les: any) => ({
+            id: les.id,
+            title: les.title,
+            duration: les.durationSeconds
+              ? `${Math.floor(les.durationSeconds / 60)}:${(les.durationSeconds % 60).toString().padStart(2, "0")}`
+              : "05:00",
+            completed: les.isCompleted,
+            locked: false,
+            type: les.contentType === "video" ? "video" : les.contentType === "quiz" ? "quiz" : "document",
+            quizId: les.quizId
+          }))
+        }));
+        setSections(uiSections);
+
+        const allLes = uiSections.flatMap((s: any) => s.lessons);
+        const incomplete = allLes.find((l: any) => !l.completed);
+        const startLesson = incomplete || allLes[0];
+        if (startLesson) {
+          setCurrentLessonId(startLesson.id);
+        }
+      } catch (err) {
+        console.error("Error loading learning progress", err);
+      } finally {
+        setLoadingCourse(false);
+      }
+    };
+
+    if (user) {
+      loadCourseData();
+    }
+  }, [user, authLoading, courseSlug, router]);
+
+  // Load active lesson details
+  useEffect(() => {
+    if (!currentLessonId) return;
+    const loadLessonDetail = async () => {
+      setLoadingLesson(true);
+      setQuizAttempt(null);
+      setQuizQuestions([]);
+      setSelectedAnswers({});
+      setQuizResult(null);
+      setQuizError(null);
+      setDocumentReadTime(0);
+      setDocumentReadComplete(false);
+
+      try {
+        const res = await api.get(`/api/learning/lessons/${currentLessonId}`);
+        if (res.ok) {
+          const result = await res.json();
+          const detail = result.data.lesson;
+          setCurrentLessonDetail(detail);
+
+          if (detail.contentType === "quiz") {
+            setActiveTab("quiz");
+          } else {
+            setActiveTab("overview");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load lesson detail", err);
+      } finally {
+        setLoadingLesson(false);
+      }
+    };
+    loadLessonDetail();
+  }, [currentLessonId]);
+
+  // Document read time counter
+  useEffect(() => {
+    let timer: any = null;
+    if (currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document") {
+      timer = setInterval(() => {
+        setDocumentReadTime((prev) => {
+          if (prev >= 29) {
+            clearInterval(timer);
+            setDocumentReadComplete(true);
+            return 30;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [currentLessonDetail]);
+
+  const getYoutubeId = (url: string) => {
+    if (!url) return null;
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+    return match ? match[1] : null;
+  };
+  const videoId = currentLessonDetail?.contentType === "video" ? getYoutubeId(currentLessonDetail.contentUrl) : null;
+
+  // Poll progress checkpoints to database while video is playing
+  useEffect(() => {
+    let ytPlayer: any = null;
+    let pollInterval: any = null;
+
+    if (videoId && currentLessonId) {
+      const initPlayer = () => {
+        try {
+          ytPlayer = new (window as any).YT.Player("yt-player", {
+            events: {
+              onStateChange: (event: any) => {
+                if (event.data === 1) { // 1 = PLAYING
+                  pollInterval = setInterval(() => {
+                    if (ytPlayer && ytPlayer.getCurrentTime) {
+                      const curr = Math.floor(ytPlayer.getCurrentTime());
+                      api.post(`/api/learning/lessons/${currentLessonId}/progress`, {
+                        currentTime: curr
+                      }).catch(console.error);
+                    }
+                  }, 10000); // Send update every 10 seconds
+                } else {
+                  if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                  }
+                }
+              }
+            }
+          });
+        } catch (e) {
+          console.error("Failed to init YT player", e);
+        }
+      };
+
+      if ((window as any).YT && (window as any).YT.Player) {
+        initPlayer();
+      } else {
+        (window as any).onYouTubeIframeAPIReady = initPlayer;
+      }
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+      if (ytPlayer && ytPlayer.destroy) {
+        try {
+          ytPlayer.destroy();
+        } catch {}
+      }
+    };
+  }, [videoId, currentLessonId]);
+
+  const handleStartQuiz = async () => {
+    if (!currentLessonDetail?.quiz) return;
+    setQuizLoading(true);
+    setQuizError(null);
+    try {
+      const qId = currentLessonDetail.quiz.id;
+      const res = await api.post(`/api/learning/quizzes/${qId}/start`);
+      if (res.ok) {
+        const result = await res.json();
+        const attempt = result.data;
+        setQuizAttempt(attempt);
+
+        const qRes = await api.get(`/api/learning/quiz-attempts/${attempt.id}/questions`);
+        if (qRes.ok) {
+          const qData = await qRes.json();
+          setQuizQuestions(qData.data || []);
+          setSelectedAnswers({});
+          setQuizResult(null);
+
+          if (currentLessonDetail.quiz.timeLimitMinutes) {
+            setQuizTimeLeft(currentLessonDetail.quiz.timeLimitMinutes * 60);
+          } else {
+            setQuizTimeLeft(0);
+          }
+        }
+      } else {
+        const errData = await res.json();
+        setQuizError(errData.error || "Không thể bắt đầu làm quiz.");
+      }
+    } catch {
+      setQuizError("Lỗi kết nối khi bắt đầu làm quiz.");
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const handleSelectAnswer = (qId: number, oId: number) => {
+    setSelectedAnswers((prev) => ({ ...prev, [qId]: oId }));
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!quizAttempt) return;
+    setQuizSubmitting(true);
+    try {
+      const answersArray = Object.entries(selectedAnswers).map(([qId, oId]) => ({
+        questionId: parseInt(qId, 10),
+        selectedOptionId: oId
+      }));
+
+      const res = await api.post(`/api/learning/quiz-attempts/${quizAttempt.id}/submit`, {
+        answers: answersArray
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        setQuizResult(result.data);
+
+        if (result.data.passed) {
+          setSections((prev) =>
+            prev.map((s) => ({
+              ...s,
+              lessons: s.lessons.map((l) =>
+                l.id === currentLessonId ? { ...l, completed: true } : l
+              ),
+            }))
+          );
+          const total = sections.flatMap((s) => s.lessons).length;
+          const completed = sections.flatMap((s) => s.lessons).filter((l) => l.completed || l.id === currentLessonId).length;
+          setProgressPercent(Math.round((completed / total) * 100));
+          setCompletedN(completed);
+        }
+      } else {
+        const errData = await res.json();
+        alert(errData.error || "Nộp bài quiz thất bại.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối khi nộp bài quiz.");
+    } finally {
+      setQuizSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!quizAttempt || quizTimeLeft <= 0 || quizResult) return;
+    const timer = setInterval(() => {
+      setQuizTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleSubmitQuiz();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [quizAttempt, quizTimeLeft, quizResult]);
+
   /* helpers */
   const allLessons    = sections.flatMap((s) => s.lessons);
-  const completedN    = allLessons.filter((l) => l.completed).length;
-  const totalN        = allLessons.length;
-  const progress      = Math.round((completedN / totalN) * 100);
+  const progress      = progressPercent;
   const currentLesson = allLessons.find((l) => l.id === currentLessonId);
   const flatUnlocked  = allLessons.filter((l) => !l.locked);
   const curIdx        = flatUnlocked.findIndex((l) => l.id === currentLessonId);
 
   function goToLesson(id: number) { setCurrentLessonId(id); }
   function goPrev() { if (curIdx > 0) goToLesson(flatUnlocked[curIdx - 1].id); }
-  function goNextAndComplete() {
-    setSections((prev) =>
-      prev.map((s) => ({
-        ...s,
-        lessons: s.lessons.map((l) =>
-          l.id === currentLessonId ? { ...l, completed: true } : l
-        ),
-      }))
-    );
-    if (curIdx < flatUnlocked.length - 1) goToLesson(flatUnlocked[curIdx + 1].id);
-  }
+
+  const goNextAndComplete = async () => {
+    if (!currentLessonId) return;
+    try {
+      const res = await api.post(`/api/learning/lessons/${currentLessonId}/complete`);
+      if (res.ok) {
+        setSections((prev) =>
+          prev.map((s) => ({
+            ...s,
+            lessons: s.lessons.map((l) =>
+              l.id === currentLessonId ? { ...l, completed: true } : l
+            ),
+          }))
+        );
+
+        if (courseDetail) {
+          const progressRes = await api.get(`/api/learning/courses/${courseDetail.id}/progress`);
+          if (progressRes.ok) {
+            const result = await progressRes.json();
+            setProgressPercent(result.data.progressPercent);
+            setCompletedN(result.data.completedLessons);
+          }
+        }
+
+        const nextRes = await api.get(`/api/learning/lessons/${currentLessonId}/next`);
+        if (nextRes.ok) {
+          const nextData = await nextRes.json();
+          if (nextData.data.nextLesson) {
+            setCurrentLessonId(nextData.data.nextLesson.id);
+          } else {
+            alert("Chúc mừng! Bạn đã hoàn thành bài học cuối cùng của khóa học.");
+          }
+        }
+      } else {
+        const errData = await res.json();
+        alert(errData.error || "Không thể hoàn thành bài học. Vui lòng kiểm tra tiến độ xem video hoặc thời gian đọc bài viết!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối khi hoàn thành bài học.");
+    }
+  };
+
   function toggleSection(id: number) {
     setSections((prev) =>
       prev.map((s) => (s.id === id ? { ...s, expanded: !s.expanded } : s))
     );
   }
 
+  if (authLoading || loadingCourse) {
+    return (
+      <div className={`h-screen flex flex-col overflow-hidden font-sans transition-colors duration-300 ${t.root}`}>
+        <header className={`h-14 flex items-center px-4 gap-3 border-b shrink-0 z-50 ${t.header}`}>
+          <a href="/" className="flex items-center gap-2 shrink-0 group">
+            <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-600/30 group-hover:bg-indigo-500 transition-colors">
+              <span className="text-white font-extrabold text-sm leading-none">E</span>
+            </div>
+            <span className="font-bold text-sm hidden sm:block">Elevate</span>
+          </a>
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-3" />
+          <p className={`${t.muted} text-sm font-semibold`}>Đang tải nội dung học tập...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
+
     <div className={`h-screen flex flex-col overflow-hidden font-sans transition-colors duration-300 ${t.root}`}>
 
       {/* ── Minimal Header ── */}
@@ -154,7 +516,7 @@ export default function LearnPage() {
         <div className={`w-px h-5 shrink-0 ${isDark ? "bg-[#252840]" : "bg-slate-200"}`} />
 
         <div className="flex-1 min-w-0">
-          <p className={`text-[11px] leading-none mb-0.5 truncate ${t.muted}`}>UI/UX Design Masterclass</p>
+          <p className={`text-[11px] leading-none mb-0.5 truncate ${t.muted}`}>{courseDetail?.title || "Elevate Course"}</p>
           <p className="text-sm font-semibold leading-tight truncate">{currentLesson?.title ?? "—"}</p>
         </div>
 
@@ -196,68 +558,162 @@ export default function LearnPage() {
         {/* ── Main scroll area ── */}
         <div className="flex-1 flex flex-col overflow-y-auto min-w-0">
 
-          {/* Video Player */}
-          <div className="w-full bg-black shrink-0">
+          {/* Video / Document / Quiz Player */}
+          <div className="w-full bg-black shrink-0 relative">
             <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-              <div className="absolute inset-0 flex flex-col items-center justify-center select-none overflow-hidden bg-gradient-to-br from-[#0b0c18] via-[#0f1240] to-[#0b0c18]">
-
-                {/* Ambient glows */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                  <div className="absolute top-[20%] left-[15%] w-72 h-72 bg-indigo-700 rounded-full blur-[90px] opacity-25 animate-pulse" />
-                  <div className="absolute bottom-[15%] right-[10%] w-56 h-56 bg-indigo-600 rounded-full blur-[80px] opacity-20 animate-pulse [animation-delay:1.5s]" />
+              {loadingLesson ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
+                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500 mb-2" />
+                  <p className="text-slate-400 text-xs">Đang tải nội dung bài học...</p>
                 </div>
-
-                {/* Play button */}
-                <button
-                  id="video-play-btn"
-                  className="relative z-10 w-20 h-20 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all duration-300 hover:scale-110 group"
-                >
-                  <PlayCircle className="w-10 h-10 text-white/90 fill-white/20 group-hover:fill-white/40 transition-all" />
-                </button>
-                <p className="relative z-10 mt-3 text-white/50 text-sm font-medium tracking-wide">
-                  {currentLesson?.title}
-                </p>
-
-                {/* Player Controls Bar */}
-                <div className="absolute bottom-0 left-0 right-0 px-5 pb-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-12">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-white/60 text-xs font-mono tabular-nums">07:22</span>
-                    <div className="flex-1 group/seek h-1 bg-white/20 rounded-full cursor-pointer relative hover:h-[5px] transition-all duration-150">
-                      <div className="h-full w-[39%] bg-indigo-400 rounded-full relative">
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover/seek:opacity-100 transition-opacity" />
+              ) : currentLessonDetail?.contentType === "video" ? (
+                videoId ? (
+                  <div className="absolute inset-0 bg-black">
+                    <iframe
+                      id="yt-player"
+                      className="w-full h-full absolute inset-0 border-0"
+                      src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&rel=0`}
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
+                    <AlertCircle className="w-12 h-12 text-slate-500 mb-2" />
+                    <p className="text-slate-400 text-xs">Không thể load video. URL không hợp lệ.</p>
+                  </div>
+                )
+              ) : currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151f] text-white p-6">
+                  <FileText className="w-16 h-16 text-indigo-400 mb-4 animate-pulse" />
+                  <h3 className="text-base font-bold mb-2">Đang đọc bài viết tài liệu: {currentLessonDetail.title}</h3>
+                  <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
+                    Hệ thống yêu cầu bạn ở lại trang để đọc bài viết trong ít nhất 30 giây trước khi có thể đánh dấu hoàn thành.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-48 h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${(documentReadTime / 30) * 100}%` }} />
+                    </div>
+                    <span className="text-xs font-semibold tabular-nums">
+                      {documentReadTime}/30 giây
+                    </span>
+                  </div>
+                  {documentReadComplete && (
+                    <span className="mt-4 text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full animate-pulse">
+                      Bạn đã đạt yêu cầu thời gian đọc! Có thể nhấn "Mark Complete & Next".
+                    </span>
+                  )}
+                </div>
+              ) : currentLessonDetail?.contentType === "quiz" ? (
+                <div className="absolute inset-0 bg-[#0d0f1a] text-[#e2e8f0]">
+                  {!quizAttempt ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
+                      <Trophy className="w-14 h-14 text-amber-400 mb-4 animate-bounce" />
+                      <h3 className="text-base font-bold mb-2">{currentLessonDetail.quiz?.title || "Bài Quiz Kiểm Tra"}</h3>
+                      <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
+                        {currentLessonDetail.quiz?.description || "Kiểm tra lại kiến thức đã học trong chương này. Điểm đạt yêu cầu: " + (currentLessonDetail.quiz?.passingScore || 80) + "%"}
+                      </p>
+                      {quizError && <p className="text-xs text-rose-500 mb-4">{quizError}</p>}
+                      <button
+                        onClick={handleStartQuiz}
+                        disabled={quizLoading}
+                        className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 text-sm cursor-pointer"
+                      >
+                        {quizLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-slate-950" /> : <PlayCircle className="w-4 h-4" />}
+                        Bắt đầu làm bài Quiz
+                      </button>
+                    </div>
+                  ) : quizAttempt && quizQuestions.length > 0 && !quizResult ? (
+                    <div className="absolute inset-0 p-5 flex flex-col overflow-hidden select-text text-left">
+                      <div className="flex justify-between items-center border-b border-[#252840] pb-3 mb-3 shrink-0">
+                        <h3 className="font-bold text-xs text-amber-400 uppercase tracking-wider">ĐANG LÀM BÀI QUIZ: {currentLessonDetail.quiz?.title}</h3>
+                        {quizTimeLeft > 0 && (
+                          <span className="text-[11px] font-bold text-rose-400 bg-rose-400/15 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
+                            Còn lại: {formatTime(quizTimeLeft)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-5 overflow-y-auto pr-1">
+                        {quizQuestions.map((q: any, qIdx: number) => (
+                          <div key={q.id} className="space-y-2.5">
+                            <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
+                            <div className="grid grid-cols-1 gap-2 pl-2">
+                              {q.questionOptions?.map((opt: any) => (
+                                <label
+                                  key={opt.id}
+                                  className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
+                                    selectedAnswers[q.id] === opt.id
+                                      ? "border-amber-500 bg-amber-500/10 text-amber-300 font-bold"
+                                      : "border-[#252840] hover:bg-[#1a1d2e] text-[#a0aec0]"
+                                  }`}
+                                >
+                                  <input
+                                    type="radio"
+                                    name={`question-${q.id}`}
+                                    checked={selectedAnswers[q.id] === opt.id}
+                                    onChange={() => handleSelectAnswer(q.id, opt.id)}
+                                    className="accent-amber-500 cursor-pointer"
+                                  />
+                                  <span>{opt.optionText}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="border-t border-[#252840] pt-3 mt-3 shrink-0 flex justify-end">
+                        <button
+                          onClick={handleSubmitQuiz}
+                          disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
+                          className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-xs"
+                        >
+                          {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
+                        </button>
                       </div>
                     </div>
-                    <span className="text-white/60 text-xs font-mono tabular-nums">{currentLesson?.duration}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <button className="text-white/60 hover:text-white transition-colors">
-                        <SkipBack className="w-5 h-5" />
-                      </button>
-                      <button id="player-play" className="text-white hover:text-indigo-300 transition-colors">
-                        <PlayCircle className="w-7 h-7 fill-white/20" />
-                      </button>
-                      <button className="text-white/60 hover:text-white transition-colors">
-                        <SkipForward className="w-5 h-5" />
-                      </button>
-                      <button className="text-white/60 hover:text-white transition-colors">
-                        <Volume2 className="w-5 h-5" />
-                      </button>
+                  ) : quizResult ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
+                        quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-400" : "bg-rose-500/20 ring-rose-500/10 text-rose-400"
+                      }`}>
+                        {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+                      </div>
+                      <h3 className="text-xl font-extrabold mb-1">
+                        {quizResult.passed ? "Chúc mừng! Bạn đã Đạt" : "Rất tiếc! Bạn chưa đạt"}
+                      </h3>
+                      <p className="text-xs text-slate-400 mb-6">
+                        Điểm số: <span className="font-bold text-white">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleStartQuiz}
+                          className={`px-4 py-2 border border-slate-700 hover:bg-slate-800 text-[11px] font-bold rounded-xl transition-all cursor-pointer`}
+                        >
+                          Làm lại bài Quiz
+                        </button>
+                        {quizResult.passed && (
+                          <button
+                            onClick={goNextAndComplete}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            Bài tiếp theo
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <button className="text-white/60 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded border border-white/20 hover:border-white/40 transition-colors">
-                        1×
-                      </button>
-                      <button className="text-white/60 hover:text-white transition-colors">
-                        <Settings className="w-4 h-4" />
-                      </button>
-                      <button className="text-white/60 hover:text-white transition-colors">
-                        <Maximize className="w-4 h-4" />
-                      </button>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+                      Đang chuẩn bị câu hỏi...
                     </div>
-                  </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
+                  <BookOpen className="w-12 h-12 text-slate-600 mb-2" />
+                  <p className="text-slate-500 text-xs">Vui lòng chọn bài học bên tay phải.</p>
+                </div>
+              )}
             </div>
           </div>
 

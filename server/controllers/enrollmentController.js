@@ -63,7 +63,7 @@ const createPayment = async (req, res) => {
       }
 
       // Trừ tiền
-      if (appliedCoupon.discountType === 'percent') {
+      if (appliedCoupon.discountType.toLowerCase() === 'percent') {
         finalAmount -= (finalAmount * Number(appliedCoupon.discountValue)) / 100;
       } else {
         finalAmount -= Number(appliedCoupon.discountValue);
@@ -247,7 +247,44 @@ const vnpayIpn = async (req, res) => {
   }
 };
 
+// ============================================
+// API 3: KIỂM TRA MÃ GIẢM GIÁ (Validate Coupon)
+// ============================================
+const validateCoupon = async (req, res) => {
+  const { code } = req.params;
+
+  try {
+    const coupon = await prisma.coupon.findUnique({
+      where: { code: code.toUpperCase() }
+    });
+
+    const now = new Date();
+
+    if (!coupon || !coupon.isActive || (coupon.validTo && coupon.validTo < now)) {
+      return res.status(400).json({ error: 'Mã giảm giá không hợp lệ hoặc đã hết hạn.' });
+    }
+
+    if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+      return res.status(400).json({ error: 'Mã giảm giá đã hết lượt sử dụng.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      coupon: {
+        id: coupon.id,
+        code: coupon.code,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi kiểm tra mã giảm giá:', error);
+    return res.status(500).json({ error: 'Lỗi server khi kiểm tra mã giảm giá.' });
+  }
+};
+
 module.exports = {
   createPayment,
-  vnpayIpn
+  vnpayIpn,
+  validateCoupon
 };
