@@ -313,7 +313,7 @@ export default function Home() {
                 {categories.map((cat) => (
                   <Link
                     key={cat.id}
-                    href={`/courses?cat=${cat.slug}`}
+                    href={`/courses?category=${encodeURIComponent(cat.name)}`}
                     className={`group relative flex flex-col p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl overflow-hidden ${catCard}`}
                   >
                     <div className={`relative z-10 w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>

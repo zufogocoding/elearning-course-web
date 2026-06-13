@@ -16,7 +16,14 @@ async function fetchCourses() {
   }
 }
 
-export default async function CourseCatalogPage() {
+export default async function CourseCatalogPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const courses = await fetchCourses();
-  return <CourseCatalogClient initialCourses={courses} />;
+  const categoryParam = searchParams?.category;
+  const initialCategory = typeof categoryParam === 'string' ? categoryParam : undefined;
+
+  return <CourseCatalogClient initialCourses={courses} initialCategory={initialCategory} />;
 }

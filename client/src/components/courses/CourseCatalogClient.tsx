@@ -34,6 +34,7 @@ interface DbCourse {
 
 interface CourseCatalogClientProps {
   initialCourses: DbCourse[];
+  initialCategory?: string;
 }
 
 
@@ -73,7 +74,7 @@ function StarRow({ rating }: { rating: number }) {
   );
 }
 
-export default function CourseCatalogClient({ initialCourses }: CourseCatalogClientProps) {
+export default function CourseCatalogClient({ initialCourses, initialCategory }: CourseCatalogClientProps) {
   const { isDark } = useTheme();
 
   const bg = isDark ? "bg-[#0d0f1a]" : "bg-slate-50";
@@ -93,7 +94,9 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
     : "bg-slate-100 hover:bg-slate-200 text-slate-600";
 
   // Filter state
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialCategory ? [initialCategory] : []
+  );
   const [selectedLevel, setSelectedLevel] = useState("All");
   const [selectedPrice, setSelectedPrice] = useState("All");
   const [selectedRating, setSelectedRating] = useState(0);
