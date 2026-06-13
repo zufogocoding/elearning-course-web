@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Eye, EyeOff, Lock, Loader2 } from 'lucide-react';
@@ -11,7 +11,7 @@ import { loginSchema } from '@/lib/validation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-export default function LoginPage() {
+function LoginForm() {
   const { isDark } = useTheme();
   const { login } = useAuth();
   const { showToast } = useToast();
@@ -221,5 +221,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0d0f1a] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
