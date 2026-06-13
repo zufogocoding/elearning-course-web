@@ -7,6 +7,7 @@ const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 
 // Public
 router.get('/', courseController.getAllCourses);
+router.get('/stats', courseController.getPublicStats);
 
 // [Protected - Admin Only] Đặt TRƯỚC route /:slug để tránh xung đột
 router.get('/admin/all', verifyToken, verifyAdmin, courseController.getAdminCourses);

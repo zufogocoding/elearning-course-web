@@ -86,7 +86,7 @@ export default function Home() {
 
     // Fetch Stats
     // TODO: Check API URL
-    axios.get('http://localhost:5000/api/stats/overview')
+    axios.get('http://localhost:5000/api/courses/stats')
       .then(res => {
         setStats(res.data?.data || []);
       })

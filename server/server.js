@@ -3,7 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 const { initEmailTransporter } = require('./lib/email');
+const errorHandler = require('./middleware/errorMiddleware');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -19,11 +21,19 @@ const learningRoutes = require('./routes/learningRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Security: Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per windowMs
+  message: { success: false, error: 'Quá nhiều request từ IP này, vui lòng thử lại sau.' }
+});
+
 // Middleware
 app.use(cors({ 
   origin: process.env.CLIENT_URL || 'http://localhost:3000', 
   credentials: true 
 }));
+app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
@@ -48,7 +58,8 @@ app.use('/api/content', courseContentRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/learning', learningRoutes);
 
-
+// Global Error Handler (MUST BE THE LAST MIDDLEWARE)
+app.use(errorHandler);
 
 // Khởi động server
 app.listen(PORT, async () => {
