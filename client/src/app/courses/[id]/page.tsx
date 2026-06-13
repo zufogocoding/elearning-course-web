@@ -9,7 +9,8 @@ async function fetchCourseDetail(slug: string) {
       cache: "no-store", // SSR: ensures request-time data fetching
     });
     if (!res.ok) return null;
-    return await res.json();
+    const json = await res.json();
+    return json.data || null;
   } catch (error) {
     console.error("Error fetching course detail during SSR:", error);
     return null;
