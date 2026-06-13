@@ -70,18 +70,20 @@ export default function Header() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Admin Panel Dev Shortcut */}
-          <Link
-            href="/admin"
-            id="global-admin-shortcut"
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border rounded-xl transition-all shadow-sm ${
-              isDark
-                ? "border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-            }`}
-          >
-            Admin Panel
-          </Link>
+          {/* Admin Panel Link */}
+          {user?.role === "admin" && (
+            <Link
+              href="/admin"
+              id="global-admin-shortcut"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border rounded-xl transition-all shadow-sm ${
+                isDark
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                  : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+              }`}
+            >
+              Quản lý hệ thống
+            </Link>
+          )}
 
           {/* Theme Toggle */}
           <button

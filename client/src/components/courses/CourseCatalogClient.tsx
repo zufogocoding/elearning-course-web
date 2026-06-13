@@ -34,50 +34,10 @@ interface DbCourse {
 
 interface CourseCatalogClientProps {
   initialCourses: DbCourse[];
+  initialCategory?: string;
 }
 
-const defaultMockDbCourses: DbCourse[] = [
-  {
-    id: 1,
-    title: "UI/UX Design Masterclass",
-    slug: "ui-ux-design-masterclass",
-    shortDescription: "Master UI/UX design with Figma, user research, and prototyping.",
-    price: 89.99,
-    level: "beginner",
-    creator: { username: "Jane Doe" },
-    category: { name: "Design" },
-  },
-  {
-    id: 2,
-    title: "Advanced React Patterns",
-    slug: "advanced-react-patterns",
-    shortDescription: "Build scalable and performant React applications using advanced patterns.",
-    price: 129.99,
-    level: "advanced",
-    creator: { username: "John Smith" },
-    category: { name: "IT & Software" },
-  },
-  {
-    id: 3,
-    title: "Digital Marketing 2026",
-    slug: "digital-marketing-2026",
-    shortDescription: "Complete digital marketing guide including SEO, SEM, and social media.",
-    price: 94.99,
-    level: "intermediate",
-    creator: { username: "Sarah Jenkins" },
-    category: { name: "Marketing" },
-  },
-  {
-    id: 4,
-    title: "Python for Data Science",
-    slug: "python-for-data-science",
-    shortDescription: "Master Python programming, machine learning, and data analysis.",
-    price: 74.99,
-    level: "beginner",
-    creator: { username: "Mike Chen" },
-    category: { name: "IT & Software" },
-  },
-];
+
 
 const mockGradients = [
   "from-violet-500 via-purple-500 to-indigo-600",
@@ -114,7 +74,7 @@ function StarRow({ rating }: { rating: number }) {
   );
 }
 
-export default function CourseCatalogClient({ initialCourses }: CourseCatalogClientProps) {
+export default function CourseCatalogClient({ initialCourses, initialCategory }: CourseCatalogClientProps) {
   const { isDark } = useTheme();
 
   const bg = isDark ? "bg-[#0d0f1a]" : "bg-slate-50";
@@ -134,7 +94,9 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
     : "bg-slate-100 hover:bg-slate-200 text-slate-600";
 
   // Filter state
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialCategory ? [initialCategory] : []
+  );
   const [selectedLevel, setSelectedLevel] = useState("All");
   const [selectedPrice, setSelectedPrice] = useState("All");
   const [selectedRating, setSelectedRating] = useState(0);
@@ -145,8 +107,16 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
   const [currentPage, setCurrentPage] = useState(1);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
-  // Robust Fallback to premium Mock Courses if the database courses list is empty (ensures stable presentation at all times)
-  const coursesToUse = initialCourses && initialCourses.length > 0 ? initialCourses : defaultMockDbCourses;
+  // Keep state in sync if initialCategory prop changes (client-side navigation)
+  useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategories([initialCategory]);
+    } else {
+      setSelectedCategories([]);
+    }
+  }, [initialCategory]);
+
+  const coursesToUse = initialCourses || [];
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -180,8 +150,10 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
 
   // Map database courses to structured UI courses (with visual gradients, mock ratings/reviews if blank)
   const mappedCourses = coursesToUse.map((c, index) => {
-    const originalPrice = c.discountPrice ? c.price : c.price * 1.5;
-    const finalPrice = c.discountPrice ? c.discountPrice : c.price;
+    const priceNum = parseFloat(c.price?.toString() || "0");
+    const discountPriceNum = c.discountPrice ? parseFloat(c.discountPrice.toString()) : null;
+    const originalPrice = discountPriceNum ? priceNum : priceNum * 1.5;
+    const finalPrice = discountPriceNum ? discountPriceNum : priceNum;
     return {
       id: c.id.toString(),
       slug: c.slug,
