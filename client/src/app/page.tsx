@@ -27,6 +27,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { Spinner } from "@/components/ui/Spinner";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Interfaces
 interface Category {
@@ -56,6 +57,7 @@ interface Stat {
 
 export default function Home() {
   const { isDark } = useTheme();
+  const { user } = useAuth();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -152,16 +154,29 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-4 pt-4">
-                <Link
-                  href="/auth/register"
-                  className="group relative flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg transition-all active:scale-95 shadow-[0_0_20px_-5px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_-5px_rgba(79,70,229,0.6)] overflow-hidden w-full sm:w-auto justify-center"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    Bắt đầu học miễn phí
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                  <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-                </Link>
+                {user ? (
+                  <Link
+                    href="/profile"
+                    className="group relative flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg transition-all active:scale-95 shadow-[0_0_20px_-5px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_-5px_rgba(79,70,229,0.6)] overflow-hidden w-full sm:w-auto justify-center"
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      Vào trang cá nhân
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                    <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+                  </Link>
+                ) : (
+                  <Link
+                    href="/auth/register"
+                    className="group relative flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg transition-all active:scale-95 shadow-[0_0_20px_-5px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_-5px_rgba(79,70,229,0.6)] overflow-hidden w-full sm:w-auto justify-center"
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      Bắt đầu học miễn phí
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                    <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+                  </Link>
+                )}
                 <Link
                   href="/courses"
                   className={`group flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-lg transition-all border shadow-sm w-full sm:w-auto justify-center ${
@@ -450,12 +465,21 @@ export default function Home() {
               Tham gia cùng hàng ngàn học viên và bắt đầu hành trình của bạn ngay hôm nay. Truy cập trọn đời, học mọi lúc mọi nơi.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Link
-                href="/auth/register"
-                className="px-8 py-4 bg-white text-indigo-700 rounded-xl font-extrabold text-lg hover:scale-105 transition-transform shadow-xl shadow-black/10"
-              >
-                Bắt đầu học ngay – Miễn phí
-              </Link>
+              {user ? (
+                <Link
+                  href="/profile"
+                  className="px-8 py-4 bg-white text-indigo-700 rounded-xl font-extrabold text-lg hover:scale-105 transition-transform shadow-xl shadow-black/10"
+                >
+                  Vào trang cá nhân
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/register"
+                  className="px-8 py-4 bg-white text-indigo-700 rounded-xl font-extrabold text-lg hover:scale-105 transition-transform shadow-xl shadow-black/10"
+                >
+                  Bắt đầu học ngay – Miễn phí
+                </Link>
+              )}
               <Link
                 href="/courses"
                 className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 rounded-xl font-bold text-lg hover:scale-105 transition-transform"
