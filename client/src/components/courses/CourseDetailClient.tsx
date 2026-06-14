@@ -56,41 +56,7 @@ interface CourseDetailClientProps {
   courseDetail: DbCourseDetail | null;
 }
 
-const defaultMockCurriculum = [
-  {
-    module: "Module 1: Introduction to UI/UX",
-    lessons: [
-      { title: "What is UI/UX Design?", duration: "10:25", isPreview: true },
-      { title: "The Design Thinking Process", duration: "15:40", isPreview: true },
-    ],
-  },
-  {
-    module: "Module 2: Figma Basics",
-    lessons: [
-      { title: "Setting up your workspace", duration: "08:15", isPreview: false },
-      { title: "Frames, Shapes, and Colors", duration: "20:00", isPreview: false },
-    ],
-  },
-];
 
-const mockReviews = [
-  {
-    initials: "JD",
-    name: "John Doe",
-    rating: 5,
-    time: "2 weeks ago",
-    color: "bg-indigo-500",
-    text: "Khóa học rất tuyệt vời! Kiến thức được truyền đạt dễ hiểu, các bài thực hành trực quan và có tính ứng dụng cao trong thực tế.",
-  },
-  {
-    initials: "AM",
-    name: "Alice Morgan",
-    rating: 5,
-    time: "1 month ago",
-    color: "bg-emerald-500",
-    text: "Figma basic đến nâng cao được hướng dẫn rất chi tiết. Rất đáng đồng tiền bát gạo!",
-  },
-];
 
 export default function CourseDetailClient({ courseDetail }: CourseDetailClientProps) {
   const { isDark } = useTheme();
@@ -188,30 +154,45 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
     );
   };
 
-  // Safe fallback detail data
-  const title = courseDetail?.title || "UI/UX Design Masterclass: From Zero to Hero";
-  const subtitle = courseDetail?.shortDescription || "Learn how to design beautiful, engaging user interfaces and experiences with Figma.";
-  const fullDesc = courseDetail?.fullDescription || "Dive into the world of User Interface and User Experience design. This comprehensive masterclass will take you from complete beginner to confident designer. You'll learn the core principles of visual design, color theory, typography, and how to create intuitive user flows that solve real problems.";
-  const instructor = courseDetail?.creator?.username || "Jane Doe";
+  if (!courseDetail) {
+    return (
+      <div className={`min-h-screen ${bg} font-sans flex flex-col`}>
+        <Header />
+        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <h1 className={`text-3xl font-bold mb-4 ${text}`}>Không tìm thấy khóa học</h1>
+          <p className={`${muted} mb-8`}>Khóa học này không tồn tại hoặc đã bị gỡ bỏ.</p>
+          <Link href="/courses" className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+            Quay lại danh mục
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const title = courseDetail.title;
+  const subtitle = courseDetail.shortDescription;
+  const fullDesc = courseDetail.fullDescription || "Đang cập nhật nội dung chi tiết...";
+  const instructor = courseDetail.creator?.username || "Admin";
   const {
     rawOriginalPrice: rawPrice,
     originalPrice,
     finalPrice: price
-  } = calculateCoursePricing(courseDetail, discountType, discountValue, !!discountType, 89.99);
-  const level = courseDetail?.level ? courseDetail.level.charAt(0).toUpperCase() + courseDetail.level.slice(1) : "Beginner";
-  const rating = 4.8;
-  const reviewsCount = 1254;
-  const students = "12,400";
-  const language = "Vietnamese / English";
+  } = calculateCoursePricing(courseDetail, discountType, discountValue, !!discountType, courseDetail.price || 0);
+  const level = courseDetail.level ? courseDetail.level.charAt(0).toUpperCase() + courseDetail.level.slice(1) : "Beginner";
+  const rating = 0;
+  const reviewsCount = 0;
+  const students = 0;
+  const language = "Vietnamese";
 
   // Map database curriculum or default fallback
-  const curriculumData = courseDetail?.sections && courseDetail.sections.length > 0
+  const curriculumData = courseDetail.sections && courseDetail.sections.length > 0
     ? courseDetail.sections.map((section) => ({
         module: section.title,
         lessons: section.lessons?.map((lesson) => {
           const duration = lesson.durationSeconds
             ? `${Math.floor(lesson.durationSeconds / 60)}:${(lesson.durationSeconds % 60).toString().padStart(2, "0")}`
-            : "10:25";
+            : "00:00";
           return {
             title: lesson.title,
             duration,
@@ -219,7 +200,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
           };
         }) || [],
       }))
-    : defaultMockCurriculum;
+    : [];
 
   const totalLessons = curriculumData.reduce((acc, curr) => acc + curr.lessons.length, 0);
 
@@ -455,29 +436,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
 
                   {/* Review Items */}
                   <div className="space-y-6">
-                    {mockReviews.map((review, i) => (
-                      <div key={i} className={`border-b ${divider} pb-6`}>
-                        <div className="flex items-center mb-4">
-                          <div
-                            className={`w-10 h-10 rounded-full ${review.color} flex items-center justify-center font-bold text-white text-sm mr-4 shrink-0`}
-                          >
-                            {review.initials}
-                          </div>
-                          <div>
-                            <div className={`font-bold text-sm ${text}`}>{review.name}</div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <div className="flex text-amber-400">
-                                {[...Array(review.rating)].map((_, j) => (
-                                  <Star key={j} className="w-3 h-3 fill-current" />
-                                ))}
-                              </div>
-                              <span className={`text-xs ${subtle}`}>{review.time}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <p className={`text-sm leading-relaxed ${muted}`}>{review.text}</p>
-                      </div>
-                    ))}
+                    <p className={`text-sm ${muted} italic`}>Chưa có đánh giá nào cho khóa học này.</p>
                   </div>
                 </div>
               )}
