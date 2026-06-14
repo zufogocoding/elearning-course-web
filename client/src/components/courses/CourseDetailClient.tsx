@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
+import { calculateCoursePricing } from "@/lib/pricing";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -52,41 +56,7 @@ interface CourseDetailClientProps {
   courseDetail: DbCourseDetail | null;
 }
 
-const defaultMockCurriculum = [
-  {
-    module: "Module 1: Introduction to UI/UX",
-    lessons: [
-      { title: "What is UI/UX Design?", duration: "10:25", isPreview: true },
-      { title: "The Design Thinking Process", duration: "15:40", isPreview: true },
-    ],
-  },
-  {
-    module: "Module 2: Figma Basics",
-    lessons: [
-      { title: "Setting up your workspace", duration: "08:15", isPreview: false },
-      { title: "Frames, Shapes, and Colors", duration: "20:00", isPreview: false },
-    ],
-  },
-];
 
-const mockReviews = [
-  {
-    initials: "JD",
-    name: "John Doe",
-    rating: 5,
-    time: "2 weeks ago",
-    color: "bg-indigo-500",
-    text: "Khóa học rất tuyệt vời! Kiến thức được truyền đạt dễ hiểu, các bài thực hành trực quan và có tính ứng dụng cao trong thực tế.",
-  },
-  {
-    initials: "AM",
-    name: "Alice Morgan",
-    rating: 5,
-    time: "1 month ago",
-    color: "bg-emerald-500",
-    text: "Figma basic đến nâng cao được hướng dẫn rất chi tiết. Rất đáng đồng tiền bát gạo!",
-  },
-];
 
 export default function CourseDetailClient({ courseDetail }: CourseDetailClientProps) {
   const { isDark } = useTheme();
@@ -106,34 +76,123 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
   const [couponCode, setCouponCode] = useState("");
   const [expandedModules, setExpandedModules] = useState<number[]>([0]);
 
+  const { user } = useAuth();
+  const router = useRouter();
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
+  const [discountType, setDiscountType] = useState<string | null>(null);
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkEnrollment = async () => {
+      if (!user || !courseDetail) {
+        setIsEnrolled(false);
+        setCheckingEnrollment(false);
+        return;
+      }
+      try {
+        const res = await api.get('/api/learning/my-courses');
+        if (res.ok) {
+          const result = await res.json();
+          const coursesList = result.data || [];
+          const enrolled = coursesList.some((c: any) => c.courseId === courseDetail.id);
+          setIsEnrolled(enrolled);
+        }
+      } catch (err) {
+        console.error("Error checking enrollment status", err);
+      } finally {
+        setCheckingEnrollment(false);
+      }
+    };
+
+    checkEnrollment();
+  }, [user, courseDetail]);
+
+  const handleEnrollClick = () => {
+    if (!user) {
+      router.push(`/auth/login?redirect=/courses/${courseDetail?.slug || ""}`);
+      return;
+    }
+    if (isEnrolled) {
+      router.push(`/courses/${courseDetail?.slug}/learn`);
+    } else {
+      const couponQuery = couponSuccess ? `?coupon=${couponCode}` : "";
+      router.push(`/checkout/${courseDetail?.slug}${couponQuery}`);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    if (!user) {
+      setCouponError("Vui lòng đăng nhập để áp dụng mã giảm giá.");
+      return;
+    }
+    setCouponError(null);
+    setCouponSuccess(null);
+    try {
+      const res = await api.get(`/api/enrollments/coupon/${couponCode.trim()}`);
+      if (res.ok) {
+        const result = await res.json();
+        const { discountType: type, discountValue: val } = result.coupon;
+        setDiscountType(type);
+        setDiscountValue(Number(val));
+        setCouponSuccess(`Áp dụng mã ${couponCode.toUpperCase()} thành công!`);
+      } else {
+        const errorData = await res.json();
+        setCouponError(errorData.error || "Mã giảm giá không hợp lệ.");
+      }
+    } catch {
+      setCouponError("Lỗi kết nối khi kiểm tra mã giảm giá.");
+    }
+  };
+
   const toggleModule = (idx: number) => {
     setExpandedModules((prev) =>
       prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
     );
   };
 
-  // Safe fallback detail data
-  const title = courseDetail?.title || "UI/UX Design Masterclass: From Zero to Hero";
-  const subtitle = courseDetail?.shortDescription || "Learn how to design beautiful, engaging user interfaces and experiences with Figma.";
-  const fullDesc = courseDetail?.fullDescription || "Dive into the world of User Interface and User Experience design. This comprehensive masterclass will take you from complete beginner to confident designer. You'll learn the core principles of visual design, color theory, typography, and how to create intuitive user flows that solve real problems.";
-  const instructor = courseDetail?.creator?.username || "Jane Doe";
-  const rawPrice = courseDetail?.price || 89.99;
-  const price = courseDetail?.discountPrice ? courseDetail?.discountPrice : rawPrice;
-  const originalPrice = courseDetail?.discountPrice ? rawPrice : rawPrice * 1.5;
-  const level = courseDetail?.level ? courseDetail.level.charAt(0).toUpperCase() + courseDetail.level.slice(1) : "Beginner";
-  const rating = 4.8;
-  const reviewsCount = 1254;
-  const students = "12,400";
-  const language = "Vietnamese / English";
+  if (!courseDetail) {
+    return (
+      <div className={`min-h-screen ${bg} font-sans flex flex-col`}>
+        <Header />
+        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <h1 className={`text-3xl font-bold mb-4 ${text}`}>Không tìm thấy khóa học</h1>
+          <p className={`${muted} mb-8`}>Khóa học này không tồn tại hoặc đã bị gỡ bỏ.</p>
+          <Link href="/courses" className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+            Quay lại danh mục
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const title = courseDetail.title;
+  const subtitle = courseDetail.shortDescription;
+  const fullDesc = courseDetail.fullDescription || "Đang cập nhật nội dung chi tiết...";
+  const instructor = courseDetail.creator?.username || "Admin";
+  const {
+    rawOriginalPrice: rawPrice,
+    originalPrice,
+    finalPrice: price
+  } = calculateCoursePricing(courseDetail, discountType, discountValue, !!discountType, courseDetail.price || 0);
+  const level = courseDetail.level ? courseDetail.level.charAt(0).toUpperCase() + courseDetail.level.slice(1) : "Beginner";
+  const rating = 0;
+  const reviewsCount = 0;
+  const students = 0;
+  const language = "Vietnamese";
 
   // Map database curriculum or default fallback
-  const curriculumData = courseDetail?.sections && courseDetail.sections.length > 0
+  const curriculumData = courseDetail.sections && courseDetail.sections.length > 0
     ? courseDetail.sections.map((section) => ({
         module: section.title,
         lessons: section.lessons?.map((lesson) => {
           const duration = lesson.durationSeconds
             ? `${Math.floor(lesson.durationSeconds / 60)}:${(lesson.durationSeconds % 60).toString().padStart(2, "0")}`
-            : "10:25";
+            : "00:00";
           return {
             title: lesson.title,
             duration,
@@ -141,7 +200,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
           };
         }) || [],
       }))
-    : defaultMockCurriculum;
+    : [];
 
   const totalLessons = curriculumData.reduce((acc, curr) => acc + curr.lessons.length, 0);
 
@@ -377,29 +436,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
 
                   {/* Review Items */}
                   <div className="space-y-6">
-                    {mockReviews.map((review, i) => (
-                      <div key={i} className={`border-b ${divider} pb-6`}>
-                        <div className="flex items-center mb-4">
-                          <div
-                            className={`w-10 h-10 rounded-full ${review.color} flex items-center justify-center font-bold text-white text-sm mr-4 shrink-0`}
-                          >
-                            {review.initials}
-                          </div>
-                          <div>
-                            <div className={`font-bold text-sm ${text}`}>{review.name}</div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <div className="flex text-amber-400">
-                                {[...Array(review.rating)].map((_, j) => (
-                                  <Star key={j} className="w-3 h-3 fill-current" />
-                                ))}
-                              </div>
-                              <span className={`text-xs ${subtle}`}>{review.time}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <p className={`text-sm leading-relaxed ${muted}`}>{review.text}</p>
-                      </div>
-                    ))}
+                    <p className={`text-sm ${muted} italic`}>Chưa có đánh giá nào cho khóa học này.</p>
                   </div>
                 </div>
               )}
@@ -429,9 +466,11 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
               <div className="space-y-3 mb-8">
                 <button
                   id="enroll-now-btn"
-                  className="w-full block py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center text-base transition-all shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40"
+                  onClick={handleEnrollClick}
+                  disabled={!courseDetail && !checkingEnrollment}
+                  className="w-full block py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center text-base transition-all shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Đăng ký ngay
+                  {checkingEnrollment ? "Đang tải..." : isEnrolled ? "Vào học ngay" : "Đăng ký ngay"}
                 </button>
                 <p className={`text-center text-xs font-medium ${subtle}`}>
                   Cam kết hoàn tiền trong 30 ngày
@@ -474,14 +513,23 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                     className={`flex-1 px-4 py-2.5 border rounded-xl text-sm outline-none focus:ring-2 transition-all uppercase placeholder:normal-case ${input}`}
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
+                    disabled={!!couponSuccess}
                   />
                   <button
                     id="apply-coupon-btn"
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim() || !!couponSuccess}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
                   >
                     Áp dụng
                   </button>
                 </div>
+                {couponError && (
+                  <p className="text-xs text-rose-500 mt-2 font-medium">{couponError}</p>
+                )}
+                {couponSuccess && (
+                  <p className="text-xs text-emerald-500 mt-2 font-medium">{couponSuccess}</p>
+                )}
               </div>
             </div>
           </div>

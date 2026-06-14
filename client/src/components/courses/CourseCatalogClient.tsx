@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -33,50 +34,10 @@ interface DbCourse {
 
 interface CourseCatalogClientProps {
   initialCourses: DbCourse[];
+  initialCategory?: string;
 }
 
-const defaultMockDbCourses: DbCourse[] = [
-  {
-    id: 1,
-    title: "UI/UX Design Masterclass",
-    slug: "ui-ux-design-masterclass",
-    shortDescription: "Master UI/UX design with Figma, user research, and prototyping.",
-    price: 89.99,
-    level: "beginner",
-    creator: { username: "Jane Doe" },
-    category: { name: "Design" },
-  },
-  {
-    id: 2,
-    title: "Advanced React Patterns",
-    slug: "advanced-react-patterns",
-    shortDescription: "Build scalable and performant React applications using advanced patterns.",
-    price: 129.99,
-    level: "advanced",
-    creator: { username: "John Smith" },
-    category: { name: "IT & Software" },
-  },
-  {
-    id: 3,
-    title: "Digital Marketing 2026",
-    slug: "digital-marketing-2026",
-    shortDescription: "Complete digital marketing guide including SEO, SEM, and social media.",
-    price: 94.99,
-    level: "intermediate",
-    creator: { username: "Sarah Jenkins" },
-    category: { name: "Marketing" },
-  },
-  {
-    id: 4,
-    title: "Python for Data Science",
-    slug: "python-for-data-science",
-    shortDescription: "Master Python programming, machine learning, and data analysis.",
-    price: 74.99,
-    level: "beginner",
-    creator: { username: "Mike Chen" },
-    category: { name: "IT & Software" },
-  },
-];
+
 
 const mockGradients = [
   "from-violet-500 via-purple-500 to-indigo-600",
@@ -113,7 +74,7 @@ function StarRow({ rating }: { rating: number }) {
   );
 }
 
-export default function CourseCatalogClient({ initialCourses }: CourseCatalogClientProps) {
+export default function CourseCatalogClient({ initialCourses, initialCategory }: CourseCatalogClientProps) {
   const { isDark } = useTheme();
 
   const bg = isDark ? "bg-[#0d0f1a]" : "bg-slate-50";
@@ -133,7 +94,9 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
     : "bg-slate-100 hover:bg-slate-200 text-slate-600";
 
   // Filter state
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialCategory ? [initialCategory] : []
+  );
   const [selectedLevel, setSelectedLevel] = useState("All");
   const [selectedPrice, setSelectedPrice] = useState("All");
   const [selectedRating, setSelectedRating] = useState(0);
@@ -142,14 +105,55 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
 
-  // Robust Fallback to premium Mock Courses if the database courses list is empty (ensures stable presentation at all times)
-  const coursesToUse = initialCourses && initialCourses.length > 0 ? initialCourses : defaultMockDbCourses;
+  // Keep state in sync if initialCategory prop changes (client-side navigation)
+  useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategories([initialCategory]);
+    } else {
+      setSelectedCategories([]);
+    }
+  }, [initialCategory]);
+
+  const coursesToUse = initialCourses || [];
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await api.get('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          const names: string[] = [];
+          data.forEach((cat: any) => {
+            if (cat.name) names.push(cat.name);
+            cat.children?.forEach((child: any) => {
+              if (child.name) names.push(child.name);
+            });
+          });
+          if (names.length > 0) {
+            setCategoriesList(Array.from(new Set(names)));
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories", err);
+      }
+      
+      const courseCats = Array.from(new Set(coursesToUse.map(c => c.category?.name).filter(Boolean))) as string[];
+      setCategoriesList(courseCats.length > 0 ? courseCats : ["IT & Software", "Business", "Design", "Marketing", "Photography"]);
+    };
+    
+    fetchCategories();
+  }, [coursesToUse]);
+
 
   // Map database courses to structured UI courses (with visual gradients, mock ratings/reviews if blank)
   const mappedCourses = coursesToUse.map((c, index) => {
-    const originalPrice = c.discountPrice ? c.price : c.price * 1.5;
-    const finalPrice = c.discountPrice ? c.discountPrice : c.price;
+    const priceNum = parseFloat(c.price?.toString() || "0");
+    const discountPriceNum = c.discountPrice ? parseFloat(c.discountPrice.toString()) : null;
+    const originalPrice = discountPriceNum ? priceNum : priceNum * 1.5;
+    const finalPrice = discountPriceNum ? discountPriceNum : priceNum;
     return {
       id: c.id.toString(),
       slug: c.slug,
@@ -246,7 +250,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
       <div className={`border-t ${divider} pt-5`}>
         <h3 className={`font-semibold text-sm mb-3 ${text}`}>Danh mục</h3>
         <div className="space-y-2.5">
-          {categories.map((cat) => (
+          {categoriesList.map((cat) => (
             <label key={cat} className="flex items-center gap-2.5 cursor-pointer group">
               <input
                 id={`cat-${cat.replace(/\s/g, "-").toLowerCase()}`}
@@ -559,53 +563,7 @@ export default function CourseCatalogClient({ initialCourses }: CourseCatalogCli
               </div>
             )}
 
-            {/* Pagination */}
-            <div className="flex items-center justify-center gap-2 mt-10">
-              <button
-                id="pagination-prev"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
-                  currentPage === 1
-                    ? `${subtle} border-transparent cursor-not-allowed opacity-40`
-                    : `${muted} border-${divider} ${iconBtn}`
-                }`}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Trang trước
-              </button>
 
-              {[1, 2, 3].map((page) => (
-                <button
-                  key={page}
-                  id={`pagination-page-${page}`}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 rounded-xl text-sm font-bold transition-all ${
-                    currentPage === page
-                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/30"
-                      : `${muted} ${iconBtn} border ${divider}`
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-
-              <span className={`text-sm ${subtle}`}>...</span>
-
-              <button
-                id="pagination-next"
-                onClick={() => setCurrentPage((p) => Math.min(3, p + 1))}
-                disabled={currentPage === 3}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
-                  currentPage === 3
-                    ? `${subtle} border-transparent cursor-not-allowed opacity-40`
-                    : `${muted} border-${divider} ${iconBtn}`
-                }`}
-              >
-                Trang sau
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </div>
       </main>

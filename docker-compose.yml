@@ -20,6 +20,8 @@ services:
       - "5000:5000"
     env_file:
       - ./server/.env
+    environment:
+      - DATABASE_URL=postgresql://admin:password123@db:5432/lms_database?schema=public
     depends_on:
       - db
     # Lệnh này đảm bảo Prisma gen type và chạy deploy migrations trước khi chạy server

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useTheme } from "@/components/ui/ThemeProvider";
@@ -33,45 +34,7 @@ import {
   LogOut,
 } from "lucide-react";
 
-// Mock courses for placeholder when real course API is not yet built
-const ENROLLED_COURSES = [
-  {
-    id: "ui-ux-design",
-    title: "UI/UX Design Masterclass",
-    category: "Design",
-    progress: 65,
-    totalLessons: 48,
-    completedLessons: 31,
-    thumbnail: "from-violet-500 to-indigo-600",
-    instructor: "Sarah Chen",
-    lastAccessed: "2 days ago",
-    completed: false,
-  },
-  {
-    id: "react-patterns",
-    title: "Advanced React Patterns",
-    category: "Development",
-    progress: 20,
-    totalLessons: 36,
-    completedLessons: 7,
-    thumbnail: "from-cyan-500 to-blue-600",
-    instructor: "Alex Rivera",
-    lastAccessed: "1 week ago",
-    completed: false,
-  },
-  {
-    id: "digital-marketing",
-    title: "Digital Marketing Strategy",
-    category: "Marketing",
-    progress: 100,
-    totalLessons: 52,
-    completedLessons: 52,
-    thumbnail: "from-emerald-500 to-teal-600",
-    instructor: "Jordan Lee",
-    lastAccessed: "3 weeks ago",
-    completed: true,
-  },
-];
+// Enrolled courses will be loaded from real API in component state
 
 const PURCHASE_HISTORY = [
   {
@@ -117,6 +80,10 @@ export default function ProfilePage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Enrolled courses state
+  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+
   // Sync state with user data
   useEffect(() => {
     if (user) {
@@ -124,6 +91,26 @@ export default function ProfilePage() {
       setBio(user.bio || "");
       setAvatarUrl(user.avatarUrl || "");
     }
+  }, [user]);
+
+  // Fetch enrolled courses from backend API
+  useEffect(() => {
+    const fetchMyCourses = async () => {
+      if (!user) return;
+      try {
+        const res = await api.get("/api/learning/my-courses");
+        if (res.ok) {
+          const result = await res.json();
+          setEnrolledCourses(result.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch my courses:", err);
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+
+    fetchMyCourses();
   }, [user]);
 
   // Auth Guard
@@ -257,9 +244,9 @@ export default function ProfilePage() {
                 {/* Stats */}
                 <div className="flex flex-wrap justify-center sm:justify-start gap-4 mt-4">
                   {[
-                    { icon: BookOpen, label: "Khóa học đã đăng ký", value: "3" },
-                    { icon: Award, label: "Chứng chỉ đạt được", value: "1" },
-                    { icon: Star, label: "Đánh giá trung bình", value: "4.8" },
+                    { icon: BookOpen, label: "Khóa học đã đăng ký", value: enrolledCourses.length.toString() },
+                    { icon: Award, label: "Chứng chỉ đạt được", value: enrolledCourses.filter(c => c.progressPercent === 100).length.toString() },
+                    { icon: Star, label: "Đánh giá trung bình", value: enrolledCourses.length > 0 ? "4.8" : "0.0" },
                   ].map(({ icon: Icon, label, value }) => (
                     <div
                       key={label}
@@ -313,65 +300,107 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between mb-5">
                 <h2 className={`text-lg font-bold ${text}`}>Khóa học đã đăng ký</h2>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${pill}`}>
-                  {ENROLLED_COURSES.length} khóa học
+                  {enrolledCourses.length} khóa học
                 </span>
               </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {ENROLLED_COURSES.map((course) => (
-                  <div
-                    key={course.id}
-                    className={`border rounded-2xl overflow-hidden transition-all ${card} ${cardHover} group`}
+              
+              {coursesLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                </div>
+              ) : enrolledCourses.length === 0 ? (
+                <div className={`text-center py-16 border border-dashed rounded-2xl ${card} flex flex-col items-center gap-3`}>
+                  <BookOpen className={`w-12 h-12 ${muted}`} />
+                  <h3 className={`text-base font-bold ${text}`}>Chưa đăng ký khóa học nào</h3>
+                  <p className={`text-sm max-w-sm ${muted}`}>
+                    Bạn chưa đăng ký bất kỳ khóa học nào trên hệ thống. Hãy bắt đầu nâng cấp kỹ năng ngay!
+                  </p>
+                  <button
+                    onClick={() => router.push("/courses")}
+                    className="mt-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition-all shadow-sm shadow-indigo-600/20"
                   >
-                    {/* Thumbnail */}
-                    <div className={`h-32 bg-gradient-to-br ${course.thumbnail} relative flex items-end p-3`}>
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full bg-black/30 text-white backdrop-blur-sm`}>
-                        {course.category}
-                      </span>
-                      {course.completed && (
-                        <div className="absolute top-3 right-3 bg-emerald-500 rounded-full p-1">
-                          <CheckCircle className="w-3 h-3 text-white" />
-                        </div>
-                      )}
-                    </div>
+                    Khám phá khóa học
+                  </button>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {enrolledCourses.map((course) => {
+                    const gradientColors = [
+                      "from-violet-500 to-indigo-600",
+                      "from-cyan-500 to-blue-600",
+                      "from-emerald-500 to-teal-600"
+                    ];
+                    const bgGradient = course.thumbnailUrl 
+                      ? "" 
+                      : gradientColors[course.courseId % gradientColors.length];
+                    const isCompleted = course.progressPercent === 100;
 
-                    <div className="p-4">
-                      <h3 className={`text-sm font-bold leading-snug mb-1 ${text}`}>{course.title}</h3>
-                      <p className={`text-xs mb-3 ${muted}`}>bởi {course.instructor}</p>
-
-                      {/* Progress */}
-                      <div className="mb-3">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className={`text-xs ${muted}`}>{course.completedLessons}/{course.totalLessons} bài học</span>
-                          <span className={`text-xs font-bold ${course.completed ? "text-emerald-500" : "text-indigo-500"}`}>
-                            {course.progress}%
+                    return (
+                      <Link
+                        key={course.courseId}
+                        href={`/courses/${course.courseId}/learn`}
+                        className={`border rounded-2xl overflow-hidden transition-all ${card} ${cardHover} group block`}
+                      >
+                        {/* Thumbnail */}
+                        <div 
+                          className="h-32 relative flex items-end p-3 bg-cover bg-center"
+                          style={course.thumbnailUrl ? { backgroundImage: `url(${course.thumbnailUrl})` } : {}}
+                        >
+                          {!course.thumbnailUrl && <div className={`absolute inset-0 bg-gradient-to-br ${bgGradient}`} />}
+                          <span className={`relative z-10 text-[10px] font-bold px-2 py-1 rounded-full bg-black/40 text-white backdrop-blur-sm`}>
+                            {course.shortDescription ? course.shortDescription.slice(0, 20) + "..." : "Khóa học"}
                           </span>
+                          {isCompleted && (
+                            <div className="absolute top-3 right-3 bg-emerald-500 rounded-full p-1 z-10">
+                              <CheckCircle className="w-3 h-3 text-white" />
+                            </div>
+                          )}
                         </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? "bg-[#22263a]" : "bg-slate-100"}`}>
-                          <div
-                            className={`h-full rounded-full transition-all ${course.completed ? "bg-emerald-500" : "bg-indigo-600"}`}
-                            style={{ width: `${course.progress}%` }}
-                          />
-                        </div>
-                      </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs flex items-center gap-1 ${muted}`}>
-                          <Clock className="w-3 h-3" /> {course.lastAccessed}
-                        </span>
-                        {course.completed ? (
-                          <span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
-                            <Award className="w-3 h-3" /> Đã hoàn thành
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs font-semibold text-indigo-500">
-                            <Play className="w-3 h-3" /> Đang tiến hành
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        <div className="p-4">
+                          <h3 className={`text-sm font-bold leading-snug mb-1 truncate ${text}`} title={course.title}>
+                            {course.title}
+                          </h3>
+                          <p className={`text-xs mb-3 ${muted}`}>bởi {course.instructor?.username || "Giảng viên"}</p>
+
+                          {/* Progress */}
+                          <div className="mb-3">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className={`text-xs ${muted}`}>
+                                {course.completedLessons}/{course.totalLessons} bài học
+                              </span>
+                              <span className={`text-xs font-bold ${isCompleted ? "text-emerald-500" : "text-indigo-500"}`}>
+                                {course.progressPercent}%
+                              </span>
+                            </div>
+                            <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? "bg-[#22263a]" : "bg-slate-100"}`}>
+                              <div
+                                className={`h-full rounded-full transition-all ${isCompleted ? "bg-emerald-500" : "bg-indigo-600"}`}
+                                style={{ width: `${course.progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs flex items-center gap-1 ${muted}`}>
+                              <Clock className="w-3 h-3" /> {new Date(course.enrolledAt).toLocaleDateString("vi-VN")}
+                            </span>
+                            {isCompleted ? (
+                              <span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
+                                <Award className="w-3 h-3" /> Đã hoàn thành
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs font-semibold text-indigo-500">
+                                <Play className="w-3 h-3" /> Vào học tiếp
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

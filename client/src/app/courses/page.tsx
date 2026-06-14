@@ -8,14 +8,21 @@ async function fetchCourses() {
       cache: "no-store", // SSR: ensures request-time data fetching
     });
     if (!res.ok) return [];
-    return await res.json();
+    const json = await res.json();
+    return json.data || [];
   } catch (error) {
     console.error("Error fetching courses during SSR:", error);
     return [];
   }
 }
 
-export default async function CourseCatalogPage() {
+export default async function CourseCatalogPage(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const searchParams = await props.searchParams;
   const courses = await fetchCourses();
-  return <CourseCatalogClient initialCourses={courses} />;
+  const categoryParam = searchParams?.category;
+  const initialCategory = typeof categoryParam === 'string' ? categoryParam : undefined;
+
+  return <CourseCatalogClient initialCourses={courses} initialCategory={initialCategory} />;
 }

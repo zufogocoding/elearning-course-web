@@ -61,10 +61,30 @@ export default function Header() {
               {label}
             </Link>
           ))}
+          {user?.role === "admin" && (
+            <Link href="/admin/courses" className={linkClass("/admin")}>
+              Quản trị
+            </Link>
+          )}
         </nav>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Admin Panel Link */}
+          {user?.role === "admin" && (
+            <Link
+              href="/admin"
+              id="global-admin-shortcut"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border rounded-xl transition-all shadow-sm ${
+                isDark
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                  : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+              }`}
+            >
+              Quản lý hệ thống
+            </Link>
+          )}
+
           {/* Theme Toggle */}
           <button
             id="global-theme-toggle"
@@ -164,6 +184,19 @@ export default function Header() {
               {label}
             </Link>
           ))}
+          {user?.role === "admin" && (
+            <Link
+              href="/admin/courses"
+              onClick={() => setMobileOpen(false)}
+              className={`block px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                isDark
+                  ? "text-indigo-400 hover:bg-[#1a1d2e] hover:text-indigo-300"
+                  : "text-indigo-600 hover:bg-slate-50 hover:text-indigo-700"
+              }`}
+            >
+              Quản trị (Admin)
+            </Link>
+          )}
           <div
             className={`flex gap-2 pt-2 border-t ${
               isDark ? "border-[#1e2235]" : "border-slate-100"

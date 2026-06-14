@@ -5,6 +5,16 @@ import AdminLayout from "@/components/layout/AdminLayout";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import Link from "next/link";
+
+const COVER_PRESETS = [
+  { name: "Web Dev", url: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&fit=crop" },
+  { name: "Data Science", url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop" },
+  { name: "UI/UX Design", url: "https://images.unsplash.com/photo-1561070791-26c113006238?w=800&auto=format&fit=crop" },
+  { name: "Marketing", url: "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=800&auto=format&fit=crop" },
+  { name: "Business", url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop" },
+  { name: "Abstract Indigo", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop" },
+];
 import {
   Plus, Search, ChevronDown, Edit2, Trash2,
   X, Check, AlertTriangle, BookOpen,
@@ -82,6 +92,57 @@ export default function AdminCoursesPage() {
   const [form, setForm] = useState<CourseForm>(defaultForm);
   const [formErrors, setFormErrors] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Kích thước tệp tin tối đa là 5MB.");
+      return;
+    }
+    
+    setUploadingImage(true);
+    setFormErrors("");
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        try {
+          const res = await api.post("/api/courses/upload", { image: base64Data });
+          const data = await res.json();
+          if (res.ok && data.url) {
+            setForm((prev) => ({ ...prev, thumbnailUrl: data.url }));
+          } else {
+            setFormErrors(data.error || "Không thể tải lên ảnh bìa.");
+          }
+        } catch {
+          setFormErrors("Lỗi kết nối khi tải lên hình ảnh.");
+        } finally {
+          setUploadingImage(false);
+        }
+      };
+      reader.onerror = () => {
+        setFormErrors("Lỗi đọc file ảnh.");
+        setUploadingImage(false);
+      };
+    } catch {
+      setFormErrors("Lỗi xử lý file.");
+      setUploadingImage(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileUpload(file);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileUpload(file);
+  };
 
   const fetchCourses = useCallback(async () => {
     try {
@@ -240,17 +301,7 @@ export default function AdminCoursesPage() {
     return "bg-rose-500/10 text-rose-500";
   };
 
-  if (!user || user.role !== "admin") {
-    return (
-      <AdminLayout>
-        <div className="p-12 text-center">
-          <p className={`text-lg font-semibold ${isDark ? "text-[#7a87a1]" : "text-slate-500"}`}>
-            Bạn cần quyền quản trị để xem trang này.
-          </p>
-        </div>
-      </AdminLayout>
-    );
-  }
+  // Auth guard is now handled centrally by AdminLayout
 
   return (
     <AdminLayout>
@@ -404,6 +455,16 @@ export default function AdminCoursesPage() {
                                 className={`p-1.5 rounded-lg transition-all ${iconBtn}`}>
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
+                              <Link
+                                href={`/admin/courses/${course.id}/builder`}
+                                id={`build-course-${course.id}`}
+                                title="Biên soạn giáo trình & bài quiz"
+                                className={`p-1.5 rounded-lg transition-all flex items-center justify-center ${
+                                  isDark ? "bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30" : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                                }`}
+                              >
+                                <BookOpen className="w-3.5 h-3.5" />
+                              </Link>
                               <button id={`delete-course-${course.id}`} title="Delete"
                                 onClick={() => setDeleteConfirmId(course.id)}
                                 className={`p-1.5 rounded-lg transition-all ${isDark ? "bg-[#22263a] hover:bg-rose-500/20 text-[#a0aec0] hover:text-rose-400" : "bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-500"}`}>
@@ -441,7 +502,17 @@ export default function AdminCoursesPage() {
             isDark ? "bg-[#13151f] border-[#252840]" : "bg-white border-slate-200"
           }`}>
             <div className={`flex items-center justify-between px-6 py-4 border-b ${divider}`}>
-              <h3 className={`text-base font-bold ${text}`}>{editCourse ? "Sửa khóa học" : "Thêm khóa học mới"}</h3>
+              <div className="flex items-center gap-3">
+                <h3 className={`text-base font-bold ${text}`}>{editCourse ? "Sửa khóa học" : "Thêm khóa học mới"}</h3>
+                {editCourse && (
+                  <Link
+                    href={`/admin/courses/${editCourse.id}/builder`}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-600/20 text-xs font-bold rounded-xl transition-all shadow-sm"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" /> Biên soạn giáo trình & quiz
+                  </Link>
+                )}
+              </div>
               <button id="close-add-modal" onClick={closeModal} className={`p-1.5 rounded-lg transition-all ${iconBtn}`}>
                 <X className="w-4 h-4" />
               </button>
@@ -520,10 +591,99 @@ export default function AdminCoursesPage() {
               </div>
 
               <div>
-                <label htmlFor="course-thumbnail" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Ảnh bìa URL</label>
-                <input id="course-thumbnail" type="text" placeholder="https://example.com/thumbnail.jpg"
-                  value={form.thumbnailUrl} onChange={(e) => setForm((p) => ({ ...p, thumbnailUrl: e.target.value }))}
-                  className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
+                <label className={`block text-xs font-semibold mb-1.5 ${muted}`}>Ảnh bìa khóa học</label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Upload area / Drag & Drop zone */}
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById("file-upload-input")?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all hover:border-indigo-500/85 ${
+                      isDark
+                        ? "bg-[#181a27] border-[#2d314d] hover:bg-[#1f2235]"
+                        : "bg-slate-50 border-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    <input
+                      id="file-upload-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    {uploadingImage ? (
+                      <div className="text-center space-y-2">
+                        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto" />
+                        <p className={`text-xs ${muted}`}>Đang tải ảnh lên...</p>
+                      </div>
+                    ) : (
+                      <div className="text-center space-y-2">
+                        <Plus className={`w-8 h-8 text-indigo-500 mx-auto opacity-70`} />
+                        <p className={`text-xs font-bold ${text}`}>Kéo thả ảnh hoặc click để tải lên</p>
+                        <p className={`text-[10px] ${muted}`}>Chấp nhận PNG, JPG, JPEG (Tối đa 5MB)</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Live Preview & URL field */}
+                  <div className="space-y-3">
+                    {form.thumbnailUrl ? (
+                      <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-[#252840] bg-slate-950 group shadow-md">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={form.thumbnailUrl} alt="Cover Preview" className="object-cover w-full h-full" />
+                        <button
+                          type="button"
+                          onClick={() => setForm(p => ({ ...p, thumbnailUrl: "" }))}
+                          className="absolute top-2 right-2 p-1.5 bg-rose-500/90 hover:bg-rose-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Xóa ảnh"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={`aspect-video w-full rounded-2xl border flex items-center justify-center border-dashed ${
+                        isDark ? "bg-[#181a27] border-[#2d314d]" : "bg-slate-50 border-slate-300"
+                      }`}>
+                        <p className={`text-xs italic ${muted}`}>Chưa chọn ảnh bìa</p>
+                      </div>
+                    )}
+
+                    {/* Manual URL input option */}
+                    <div>
+                      <label className={`block text-[9px] font-bold uppercase tracking-wider mb-1 ${muted}`}>Hoặc nhập URL trực tiếp</label>
+                      <input
+                        type="text"
+                        placeholder="https://example.com/image.jpg"
+                        value={form.thumbnailUrl}
+                        onChange={(e) => setForm((p) => ({ ...p, thumbnailUrl: e.target.value }))}
+                        className={`w-full px-3 py-1.5 border rounded-xl outline-none focus:ring-1 transition-all text-xs ${input}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${muted}`}>Hoặc chọn từ kho ảnh mẫu</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {COVER_PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, thumbnailUrl: preset.url }))}
+                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border transition-all ${
+                          form.thumbnailUrl === preset.url
+                            ? "bg-indigo-600 border-indigo-500 text-white shadow-sm"
+                            : isDark
+                              ? "border-[#252840] text-[#7a87a1] hover:border-[#3a3f55] hover:text-[#e2e8f0]"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                        }`}
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div>

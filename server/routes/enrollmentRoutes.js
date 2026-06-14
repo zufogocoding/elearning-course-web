@@ -14,4 +14,8 @@ router.post('/checkout', authenticate, enrollmentController.createPayment);
 // KHÔNG THÊM verifyToken ở đây vì đây là API để SERVER VNPAY gọi ngầm dưới nền
 router.get('/vnpay-ipn', enrollmentController.vnpayIpn);
 
+// 3. API Kiểm tra mã giảm giá
+// URL đầy đủ sẽ là: GET /api/enrollments/coupon/:code
+router.get('/coupon/:code', authenticate, enrollmentController.validateCoupon);
+
 module.exports = router;
