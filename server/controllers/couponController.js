@@ -26,6 +26,25 @@ exports.createCoupon = async (req, res) => {
       return res.status(400).json({ error: 'Coupon code already exists' });
     }
 
+    // KIỂM TRA ĐỊNH DẠNG VÀ LOGIC NGÀY THÁNG
+    if (validFrom) {
+      const parsedFrom = new Date(validFrom);
+      if (isNaN(parsedFrom.getTime())) return res.status(400).json({ error: 'Định dạng validFrom không hợp lệ.' });
+    }
+    
+    if (validTo) {
+      const parsedTo = new Date(validTo);
+      if (isNaN(parsedTo.getTime())) return res.status(400).json({ error: 'Định dạng validTo không hợp lệ.' });
+    }
+
+    if (validFrom && validTo) {
+      const fromTime = new Date(validFrom).getTime();
+      const toTime = new Date(validTo).getTime();
+      if (fromTime >= toTime) {
+        return res.status(400).json({ error: 'Ngày hết hạn (validTo) bắt buộc phải sau ngày bắt đầu (validFrom).' });
+      }
+    }
+
     const newCoupon = await prisma.coupon.create({
       data: {
         code,
@@ -58,6 +77,25 @@ exports.updateCoupon = async (req, res) => {
       });
       if (existingCoupon && existingCoupon.id !== parseInt(id)) {
         return res.status(400).json({ error: 'Coupon code already exists' });
+      }
+    }
+
+    // KIỂM TRA LOGIC NGÀY KHI UPDATE
+    // ==========================================
+    if (validFrom !== undefined && validFrom !== null) {
+      const parsedFrom = new Date(validFrom);
+      if (isNaN(parsedFrom.getTime())) return res.status(400).json({ error: 'Định dạng validFrom không hợp lệ.' });
+    }
+
+    if (validTo !== undefined && validTo !== null) {
+      const parsedTo = new Date(validTo);
+      if (isNaN(parsedTo.getTime())) return res.status(400).json({ error: 'Định dạng validTo không hợp lệ.' });
+    }
+
+    // Check nhanh nếu client gửi cả 2 trường lên để update cùng lúc
+    if (validFrom && validTo) {
+      if (new Date(validFrom).getTime() >= new Date(validTo).getTime()) {
+        return res.status(400).json({ error: 'Ngày hết hạn (validTo) bắt buộc phải sau ngày bắt đầu (validFrom).' });
       }
     }
 

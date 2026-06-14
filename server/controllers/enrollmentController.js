@@ -55,11 +55,23 @@ const createPayment = async (req, res) => {
 
     if (couponCode) {
       appliedCoupon = await prisma.coupon.findUnique({ where: { code: couponCode } });
-      const now = new Date();
+      const nowTimestamp = new Date().getTime();
       
       // Validate Coupon
-      if (!appliedCoupon || !appliedCoupon.isActive || (appliedCoupon.validTo && appliedCoupon.validTo < now)) {
-        return res.status(400).json({ error: 'Mã giảm giá không hợp lệ hoặc đã hết hạn' });
+      if (!appliedCoupon || !appliedCoupon.isActive) {
+        return res.status(400).json({ error: 'Mã giảm giá không tồn tại hoặc đã bị khóa' });
+      }
+      
+      if (appliedCoupon.validFrom && nowTimestamp < new Date(appliedCoupon.validFrom).getTime()) {
+        return res.status(400).json({ error: 'Mã giảm giá chưa đến thời gian áp dụng' });
+      }
+
+      if (appliedCoupon.validTo && nowTimestamp > new Date(appliedCoupon.validTo).getTime()) {
+        return res.status(400).json({ error: 'Mã giảm giá đã hết hạn' });
+      }
+
+      if (appliedCoupon.usageLimit > 0 && appliedCoupon.usedCount >= appliedCoupon.usageLimit) {
+        return res.status(400).json({ error: 'Mã giảm giá đã hết lượt sử dụng' });
       }
 
       // Trừ tiền
