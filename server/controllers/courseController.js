@@ -18,6 +18,23 @@ const createCourse = asyncHandler(async (req, res) => {
     throw error;
   }
 
+// ==========================================
+//  SERVER-SIDE VALIDATION: KIỂM TRA GIÁ TIỀN
+// ==========================================
+  let finalPrice = 0;
+  let finalDiscountPrice = null;
+
+  // 1. Validate Price (Giá gốc)
+  if (price !== undefined && price !== null) {
+    finalPrice = parseFloat(price);
+    // Chặn giá trị không phải số (NaN) hoặc số âm
+  if (isNaN(finalPrice) || finalPrice < 0) {
+      return res.status(400).json({ error: 'Bảo mật: Giá khóa học (price) phải là một số lớn hơn hoặc bằng 0.' });
+    }
+  }
+
+
+
   const newCourse = await prisma.course.create({
     data: {
       title, slug, shortDescription, fullDescription,
