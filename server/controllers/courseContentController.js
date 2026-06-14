@@ -33,18 +33,27 @@ const updateSection = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, orderIndex } = req.body;
+    const parsedId = parseInt(id);
 
-    const section = await prisma.section.update({
-      where: { id: parseInt(id) },
+    const result = await prisma.section.updateMany({
+      where: { id: parsedId, deletedAt: null },
       data: {
         ...(title && { title }),
         ...(orderIndex !== undefined && { orderIndex: parseInt(orderIndex) })
       }
     });
 
+    if (result.count === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy chương hoặc chương đã bị xóa.' });
+    }
+
+    const section = await prisma.section.findUnique({
+      where: { id: parsedId }
+    });
+
     res.status(200).json({ message: 'Cập nhật chương thành công', section });
   } catch (error) {
-    if (error.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy chương' });
+    console.error('Lỗi cập nhật section:', error);
     res.status(500).json({ error: 'Lỗi server khi cập nhật chương.' });
   }
 };
@@ -53,15 +62,30 @@ const updateSection = async (req, res) => {
 const deleteSection = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    await prisma.section.update({
-      where: { id: parseInt(id) },
-      data: { deletedAt: new Date() }
+    const parsedId = parseInt(id);
+
+    const section = await prisma.section.findFirst({
+      where: { id: parsedId, deletedAt: null }
     });
 
-    res.status(200).json({ message: 'Chương đã được xóa mềm.' });
+    if (!section) {
+      return res.status(404).json({ error: 'Không tìm thấy chương hoặc chương đã bị xóa.' });
+    }
+
+    await prisma.$transaction([
+      prisma.section.update({
+        where: { id: parsedId },
+        data: { deletedAt: new Date() }
+      }),
+      prisma.lesson.updateMany({
+        where: { sectionId: parsedId, deletedAt: null },
+        data: { deletedAt: new Date() }
+      })
+    ]);
+
+    res.status(200).json({ message: 'Chương và các bài học bên trong đã được xóa mềm.' });
   } catch (error) {
-    if (error.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy chương' });
+    console.error('Lỗi xóa section:', error);
     res.status(500).json({ error: 'Lỗi server khi xóa chương.' });
   }
 };
@@ -106,13 +130,15 @@ const updateLesson = async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      title, contentType, contentUrl, 
+      sectionId, title, contentType, contentUrl, 
       durationSeconds, isPreview, orderIndex 
     } = req.body;
+    const parsedId = parseInt(id);
 
-    const lesson = await prisma.lesson.update({
-      where: { id: parseInt(id) },
+    const result = await prisma.lesson.updateMany({
+      where: { id: parsedId, deletedAt: null },
       data: {
+        ...(sectionId !== undefined && { sectionId: parseInt(sectionId) }),
         ...(title && { title }),
         ...(contentType && { contentType }),
         ...(contentUrl !== undefined && { contentUrl }),
@@ -122,9 +148,17 @@ const updateLesson = async (req, res) => {
       }
     });
 
+    if (result.count === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy bài học hoặc bài học đã bị xóa.' });
+    }
+
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: parsedId }
+    });
+
     res.status(200).json({ message: 'Cập nhật bài học thành công', lesson });
   } catch (error) {
-    if (error.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy bài học' });
+    console.error('Lỗi cập nhật lesson:', error);
     res.status(500).json({ error: 'Lỗi server khi cập nhật bài học.' });
   }
 };
@@ -133,15 +167,30 @@ const updateLesson = async (req, res) => {
 const deleteLesson = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    await prisma.lesson.update({
-      where: { id: parseInt(id) },
-      data: { deletedAt: new Date() }
+    const parsedId = parseInt(id);
+
+    const lesson = await prisma.lesson.findFirst({
+      where: { id: parsedId, deletedAt: null }
     });
+
+    if (!lesson) {
+      return res.status(404).json({ error: 'Không tìm thấy bài học hoặc bài học đã bị xóa.' });
+    }
+
+    await prisma.$transaction([
+      prisma.lesson.update({
+        where: { id: parsedId },
+        data: { deletedAt: new Date() }
+      }),
+      prisma.quiz.updateMany({
+        where: { lessonId: parsedId, deletedAt: null },
+        data: { deletedAt: new Date() }
+      })
+    ]);
 
     res.status(200).json({ message: 'Bài học đã được xóa mềm.' });
   } catch (error) {
-    if (error.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy bài học' });
+    console.error('Lỗi xóa lesson:', error);
     res.status(500).json({ error: 'Lỗi server khi xóa bài học.' });
   }
 };
@@ -157,23 +206,25 @@ const getCourseCurriculum = async (req, res) => {
     const courseId = parseInt(req.params.courseId);
     if (!courseId) return res.status(400).json({ error: 'courseId không hợp lệ.' });
 
-    const sections = await prisma.section.findMany({
-      where: { courseId, deletedAt: null },
-      orderBy: { orderIndex: 'asc' },
-      include: {
-        lessons: {
-          where: { deletedAt: null },
-          orderBy: { orderIndex: 'asc' },
-          include: {
-            quiz: {
-              where: { deletedAt: null },
-              include: {
-                questions: {
-                  where: { deletedAt: null },
-                  orderBy: { orderIndex: 'asc' },
-                  include: {
-                    questionOptions: {
-                      orderBy: { orderIndex: 'asc' }
+    const [sections, course] = await Promise.all([
+      prisma.section.findMany({
+        where: { courseId, deletedAt: null },
+        orderBy: { orderIndex: 'asc' },
+        include: {
+          lessons: {
+            where: { deletedAt: null },
+            orderBy: { orderIndex: 'asc' },
+            include: {
+              quiz: {
+                where: { deletedAt: null },
+                include: {
+                  questions: {
+                    where: { deletedAt: null },
+                    orderBy: { orderIndex: 'asc' },
+                    include: {
+                      questionOptions: {
+                        orderBy: { orderIndex: 'asc' }
+                      }
                     }
                   }
                 }
@@ -181,10 +232,14 @@ const getCourseCurriculum = async (req, res) => {
             }
           }
         }
-      }
-    });
+      }),
+      prisma.course.findUnique({
+        where: { id: courseId },
+        select: { title: true }
+      })
+    ]);
 
-    res.status(200).json({ success: true, data: sections });
+    res.status(200).json({ success: true, data: sections, courseTitle: course?.title || '' });
   } catch (error) {
     console.error('Lỗi lấy giáo trình:', error);
     res.status(500).json({ error: 'Lỗi server khi lấy giáo trình.' });
@@ -197,42 +252,82 @@ const saveLessonQuiz = async (req, res) => {
     const lessonId = parseInt(req.params.lessonId);
     const { title, description, passingScore, maxAttempts, timeLimitMinutes, questions } = req.body;
 
-    if (!lessonId) return res.status(400).json({ error: 'lessonId không hợp lệ.' });
-    if (!title) return res.status(400).json({ error: 'Tiêu đề quiz là bắt buộc.' });
+    if (!lessonId || isNaN(lessonId)) {
+      return res.status(400).json({ error: 'lessonId không hợp lệ.' });
+    }
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Tiêu đề quiz là bắt buộc.' });
+    }
+
+    // 1. Kiểm tra bài học tồn tại và hoạt động (Security & Integrity)
+    const lesson = await prisma.lesson.findFirst({
+      where: { id: lessonId, deletedAt: null }
+    });
+    if (!lesson) {
+      return res.status(404).json({ error: 'Không tìm thấy bài học hoặc bài học đã bị xóa.' });
+    }
+
+    // 2. Validate quiz settings
+    const parsedPassingScore = (passingScore !== undefined && passingScore !== null && passingScore !== '') ? parseInt(passingScore) : 80;
+    if (isNaN(parsedPassingScore) || parsedPassingScore < 1 || parsedPassingScore > 100) {
+      return res.status(400).json({ error: 'Điểm số đạt yêu cầu phải nằm trong khoảng từ 1 đến 100.' });
+    }
+
+    const parsedMaxAttempts = parseInt(maxAttempts);
+    if (!isNaN(parsedMaxAttempts) && parsedMaxAttempts < 0) {
+      return res.status(400).json({ error: 'Lượt làm tối đa không được âm.' });
+    }
+
+    const parsedTimeLimit = timeLimitMinutes ? parseInt(timeLimitMinutes) : null;
+    if (parsedTimeLimit !== null && parsedTimeLimit < 0) {
+      return res.status(400).json({ error: 'Giới hạn thời gian không được âm.' });
+    }
+
+    // 3. DoS prevention (restrict nested array lengths)
+    if (Array.isArray(questions)) {
+      if (questions.length > 100) {
+        return res.status(400).json({ error: 'Số lượng câu hỏi vượt quá giới hạn (tối đa 100).' });
+      }
+      for (const q of questions) {
+        if (Array.isArray(q.options) && q.options.length > 10) {
+          return res.status(400).json({ error: 'Số lượng lựa chọn cho mỗi câu hỏi vượt quá giới hạn (tối đa 10).' });
+        }
+      }
+    }
 
     const quiz = await prisma.$transaction(async (tx) => {
-      // 1. Upsert Quiz
+      // Upsert Quiz
       const quizRecord = await tx.quiz.upsert({
         where: { lessonId },
         update: {
           title,
           description,
-          passingScore: parseInt(passingScore) || 50,
-          maxAttempts: parseInt(maxAttempts) || 0,
-          timeLimitMinutes: timeLimitMinutes ? parseInt(timeLimitMinutes) : null,
+          passingScore: parsedPassingScore,
+          maxAttempts: isNaN(parsedMaxAttempts) ? 0 : parsedMaxAttempts,
+          timeLimitMinutes: parsedTimeLimit,
           deletedAt: null
         },
         create: {
           lessonId,
           title,
           description,
-          passingScore: parseInt(passingScore) || 50,
-          maxAttempts: parseInt(maxAttempts) || 0,
-          timeLimitMinutes: timeLimitMinutes ? parseInt(timeLimitMinutes) : null
+          passingScore: parsedPassingScore,
+          maxAttempts: isNaN(parsedMaxAttempts) ? 0 : parsedMaxAttempts,
+          timeLimitMinutes: parsedTimeLimit
         }
       });
 
       const quizId = quizRecord.id;
 
-      // 2. Lấy các câu hỏi hiện có để đối soát xóa
-      const existingQuestions = await tx.question.findMany({
-        where: { quizId, deletedAt: null }
-      });
-      const existingQuestionIds = existingQuestions.map(q => q.id);
-      const incomingQuestionIds = [];
+      // Only perform question/option reconciliation if questions are explicitly passed
+      if (questions !== undefined && Array.isArray(questions)) {
+        // Lấy các câu hỏi hiện có để đối soát xóa
+        const existingQuestions = await tx.question.findMany({
+          where: { quizId, deletedAt: null }
+        });
+        const existingQuestionIds = existingQuestions.map(q => q.id);
+        const incomingQuestionIds = [];
 
-      // 3. Upsert câu hỏi và các phương án trả lời
-      if (Array.isArray(questions)) {
         for (let qIdx = 0; qIdx < questions.length; qIdx++) {
           const q = questions[qIdx];
           const qId = q.id ? parseInt(q.id) : null;
@@ -312,15 +407,15 @@ const saveLessonQuiz = async (req, res) => {
             });
           }
         }
-      }
 
-      // 4. Xóa các câu hỏi không còn trong danh sách gửi lên (xóa mềm)
-      const questionsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
-      if (questionsToDelete.length > 0) {
-        await tx.question.updateMany({
-          where: { id: { in: questionsToDelete } },
-          data: { deletedAt: new Date() }
-        });
+        // Xóa các câu hỏi không còn trong danh sách gửi lên (xóa mềm)
+        const questionsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
+        if (questionsToDelete.length > 0) {
+          await tx.question.updateMany({
+            where: { id: { in: questionsToDelete } },
+            data: { deletedAt: new Date() }
+          });
+        }
       }
 
       return quizRecord;
@@ -333,8 +428,62 @@ const saveLessonQuiz = async (req, res) => {
   }
 };
 
+// [POST] Sắp xếp các chương (Bulk Reorder - Admin)
+const reorderSections = async (req, res) => {
+  try {
+    const { sections } = req.body;
+    if (!Array.isArray(sections)) {
+      return res.status(400).json({ error: 'Mảng sections là bắt buộc.' });
+    }
+
+    await prisma.$transaction(
+      sections.map(s => prisma.section.update({
+        where: { id: parseInt(s.id) },
+        data: { orderIndex: parseInt(s.orderIndex) }
+      }))
+    );
+
+    res.status(200).json({ success: true, message: 'Sắp xếp chương thành công.' });
+  } catch (error) {
+    console.error('Lỗi reorder sections:', error);
+    res.status(500).json({ error: 'Lỗi server khi sắp xếp chương.' });
+  }
+};
+
+// [POST] Sắp xếp các bài học (Bulk Reorder - Admin)
+const reorderLessons = async (req, res) => {
+  try {
+    const { lessons } = req.body;
+    if (!Array.isArray(lessons)) {
+      return res.status(400).json({ error: 'Mảng lessons là bắt buộc.' });
+    }
+
+    await prisma.$transaction(
+      lessons.map(l => prisma.lesson.update({
+        where: { id: parseInt(l.id) },
+        data: {
+          orderIndex: parseInt(l.orderIndex),
+          ...(l.sectionId !== undefined && { sectionId: parseInt(l.sectionId) })
+        }
+      }))
+    );
+
+    res.status(200).json({ success: true, message: 'Sắp xếp bài học thành công.' });
+  } catch (error) {
+    console.error('Lỗi reorder lessons:', error);
+    res.status(500).json({ error: 'Lỗi server khi sắp xếp bài học.' });
+  }
+};
+
 module.exports = {
-  createSection, updateSection, deleteSection,
-  createLesson, updateLesson, deleteLesson,
-  getCourseCurriculum, saveLessonQuiz
+  createSection,
+  updateSection,
+  deleteSection,
+  createLesson,
+  updateLesson,
+  deleteLesson,
+  getCourseCurriculum,
+  saveLessonQuiz,
+  reorderSections,
+  reorderLessons
 };

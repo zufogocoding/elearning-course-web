@@ -8,11 +8,13 @@ router.use(verifyToken, verifyAdmin);
 
 // Routes cho Section (Chương)
 router.post('/sections', courseContentController.createSection);
+router.post('/sections/reorder', courseContentController.reorderSections);
 router.put('/sections/:id', courseContentController.updateSection);
 router.delete('/sections/:id', courseContentController.deleteSection);
 
 // Routes cho Lesson (Bài học)
 router.post('/lessons', courseContentController.createLesson);
+router.post('/lessons/reorder', courseContentController.reorderLessons);
 router.put('/lessons/:id', courseContentController.updateLesson);
 router.delete('/lessons/:id', courseContentController.deleteLesson);
 
