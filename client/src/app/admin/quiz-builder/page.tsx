@@ -16,6 +16,7 @@ import {
     Save,
     Search,
     Target,
+    Trash2,
     X,
 } from 'lucide-react';
 
@@ -68,6 +69,19 @@ type QuizFormData = {
     maxAttempts: string;
 };
 
+type QuestionFormOption = {
+    optionText: string;
+    isCorrect: boolean;
+    orderIndex: number;
+};
+
+type QuestionFormData = {
+    questionText: string;
+    questionType: 'single_choice' | 'multiple_choice' | 'true_false';
+    orderIndex: string;
+    options: QuestionFormOption[];
+};
+
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -85,7 +99,31 @@ export default function QuizBuilderPage() {
         maxAttempts: '3',
     });
 
+    const [questionFormData, setQuestionFormData] = useState<QuestionFormData>({
+        questionText: '',
+        questionType: 'single_choice',
+        orderIndex: '1',
+        options: [
+            {
+                optionText: '',
+                isCorrect: true,
+                orderIndex: 1,
+            },
+            {
+                optionText: '',
+                isCorrect: false,
+                orderIndex: 2,
+            },
+        ],
+    });
+
     const [isEditingQuiz, setIsEditingQuiz] = useState(false);
+    const [showQuestionModal, setShowQuestionModal] = useState(false);
+    const [isEditingQuestion, setIsEditingQuestion] = useState(false);
+    const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
+        null
+    );
+
     const [loading, setLoading] = useState<boolean>(true);
     const [savingQuiz, setSavingQuiz] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -332,6 +370,258 @@ export default function QuizBuilderPage() {
         } finally {
             setSavingQuiz(false);
         }
+    };
+
+    const resetQuestionForm = () => {
+        setQuestionFormData({
+            questionText: '',
+            questionType: 'single_choice',
+            orderIndex: '1',
+            options: [
+                {
+                    optionText: '',
+                    isCorrect: true,
+                    orderIndex: 1,
+                },
+                {
+                    optionText: '',
+                    isCorrect: false,
+                    orderIndex: 2,
+                },
+            ],
+        });
+
+        setIsEditingQuestion(false);
+        setEditingQuestionId(null);
+    };
+
+    const handleOpenCreateQuestionModal = () => {
+        if (!selectedQuiz) {
+            setErrorMessage('Vui lòng chọn quiz trước khi thêm câu hỏi.');
+            return;
+        }
+
+        setErrorMessage(null);
+        setSuccessMessage(null);
+        resetQuestionForm();
+        setShowQuestionModal(true);
+    };
+
+    const handleOpenEditQuestionModal = (question: Question) => {
+        setErrorMessage(null);
+        setSuccessMessage(null);
+        setIsEditingQuestion(true);
+        setEditingQuestionId(question.id);
+
+        setQuestionFormData({
+            questionText: question.questionText,
+            questionType: question.questionType,
+            orderIndex: String(question.orderIndex),
+            options:
+                question.questionOptions.length > 0
+                    ? question.questionOptions.map((option, index) => ({
+                        optionText: option.optionText,
+                        isCorrect: option.isCorrect,
+                        orderIndex: option.orderIndex || index + 1,
+                    }))
+                    : [
+                        {
+                            optionText: '',
+                            isCorrect: true,
+                            orderIndex: 1,
+                        },
+                        {
+                            optionText: '',
+                            isCorrect: false,
+                            orderIndex: 2,
+                        },
+                    ],
+        });
+
+        setShowQuestionModal(true);
+    };
+
+    const handleCloseQuestionModal = () => {
+        setShowQuestionModal(false);
+        resetQuestionForm();
+    };
+
+    const handleQuestionFormChange = (
+        event: ChangeEvent<
+            HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >
+    ) => {
+        const { name, value } = event.target;
+
+        setQuestionFormData((prev) => ({
+            ...prev,
+            [name]: value,
+            options:
+                name === 'questionType' && value === 'true_false'
+                    ? [
+                        {
+                            optionText: 'Đúng',
+                            isCorrect: true,
+                            orderIndex: 1,
+                        },
+                        {
+                            optionText: 'Sai',
+                            isCorrect: false,
+                            orderIndex: 2,
+                        },
+                    ]
+                    : prev.options,
+        }));
+    };
+
+    const handleOptionTextChange = (index: number, value: string) => {
+        setQuestionFormData((prev) => ({
+            ...prev,
+            options: prev.options.map((option, optionIndex) =>
+                optionIndex === index
+                    ? {
+                        ...option,
+                        optionText: value,
+                    }
+                    : option
+            ),
+        }));
+    };
+
+    const handleToggleCorrectOption = (index: number) => {
+        setQuestionFormData((prev) => {
+            if (
+                prev.questionType === 'single_choice' ||
+                prev.questionType === 'true_false'
+            ) {
+                return {
+                    ...prev,
+                    options: prev.options.map((option, optionIndex) => ({
+                        ...option,
+                        isCorrect: optionIndex === index,
+                    })),
+                };
+            }
+
+            return {
+                ...prev,
+                options: prev.options.map((option, optionIndex) =>
+                    optionIndex === index
+                        ? {
+                            ...option,
+                            isCorrect: !option.isCorrect,
+                        }
+                        : option
+                ),
+            };
+        });
+    };
+
+    const handleAddOption = () => {
+        setQuestionFormData((prev) => ({
+            ...prev,
+            options: [
+                ...prev.options,
+                {
+                    optionText: '',
+                    isCorrect: false,
+                    orderIndex: prev.options.length + 1,
+                },
+            ],
+        }));
+    };
+
+    const handleRemoveOption = (index: number) => {
+        setQuestionFormData((prev) => {
+            if (prev.options.length <= 2) {
+                return prev;
+            }
+
+            return {
+                ...prev,
+                options: prev.options
+                    .filter((_, optionIndex) => optionIndex !== index)
+                    .map((option, optionIndex) => ({
+                        ...option,
+                        orderIndex: optionIndex + 1,
+                    })),
+            };
+        });
+    };
+
+    const handleSubmitQuestionForm = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!selectedQuiz) {
+            setErrorMessage('Vui lòng chọn quiz trước khi lưu câu hỏi.');
+            return;
+        }
+
+        if (!questionFormData.questionText.trim()) {
+            setErrorMessage('Vui lòng nhập nội dung câu hỏi.');
+            return;
+        }
+
+        const orderIndex = Number(questionFormData.orderIndex);
+
+        if (!Number.isInteger(orderIndex) || orderIndex < 0) {
+            setErrorMessage('Thứ tự câu hỏi phải là số nguyên không âm.');
+            return;
+        }
+
+        if (questionFormData.options.length < 2) {
+            setErrorMessage('Câu hỏi phải có ít nhất 2 đáp án.');
+            return;
+        }
+
+        if (
+            questionFormData.questionType === 'true_false' &&
+            questionFormData.options.length !== 2
+        ) {
+            setErrorMessage('Câu hỏi Đúng / Sai phải có đúng 2 đáp án.');
+            return;
+        }
+
+        const hasEmptyOption = questionFormData.options.some(
+            (option) => !option.optionText.trim()
+        );
+
+        if (hasEmptyOption) {
+            setErrorMessage('Vui lòng nhập đầy đủ nội dung đáp án.');
+            return;
+        }
+
+        const correctOptions = questionFormData.options.filter(
+            (option) => option.isCorrect
+        );
+
+        if (correctOptions.length === 0) {
+            setErrorMessage('Vui lòng chọn ít nhất một đáp án đúng.');
+            return;
+        }
+
+        if (
+            (questionFormData.questionType === 'single_choice' ||
+                questionFormData.questionType === 'true_false') &&
+            correctOptions.length !== 1
+        ) {
+            setErrorMessage('Loại câu hỏi này chỉ được có một đáp án đúng.');
+            return;
+        }
+
+        console.log('Question form data:', {
+            quizId: selectedQuiz.id,
+            isEditingQuestion,
+            editingQuestionId,
+            questionFormData,
+        });
+
+        setErrorMessage(null);
+        setSuccessMessage(
+            isEditingQuestion
+                ? 'Form cập nhật câu hỏi đã sẵn sàng.'
+                : 'Form tạo câu hỏi đã sẵn sàng.'
+        );
     };
 
     return (
@@ -691,7 +981,7 @@ export default function QuizBuilderPage() {
                                     </div>
 
                                     <div className="border-t border-slate-200 pt-6">
-                                        <div className="mb-4 flex items-center justify-between">
+                                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                             <div>
                                                 <h3 className="text-base font-semibold text-slate-900">
                                                     Danh sách câu hỏi
@@ -700,6 +990,15 @@ export default function QuizBuilderPage() {
                                                     Hiển thị toàn bộ câu hỏi và đáp án thuộc quiz hiện tại.
                                                 </p>
                                             </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleOpenCreateQuestionModal}
+                                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Thêm câu hỏi
+                                            </button>
                                         </div>
 
                                         {selectedQuiz.questions.length === 0 ? (
@@ -736,9 +1035,22 @@ export default function QuizBuilderPage() {
                                                                     </h4>
                                                                 </div>
 
-                                                                <p className="text-xs text-slate-500">
-                                                                    Thứ tự: {question.orderIndex}
-                                                                </p>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-xs text-slate-500">
+                                                                        Thứ tự: {question.orderIndex}
+                                                                    </p>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            handleOpenEditQuestionModal(question)
+                                                                        }
+                                                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                                                                    >
+                                                                        <Edit3 className="h-3.5 w-3.5" />
+                                                                        Sửa
+                                                                    </button>
+                                                                </div>
                                                             </div>
 
                                                             <div className="mt-4 space-y-2">
@@ -789,6 +1101,160 @@ export default function QuizBuilderPage() {
                     </section>
                 )}
             </div>
+
+            {showQuestionModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900">
+                                    {isEditingQuestion ? 'Cập nhật câu hỏi' : 'Thêm câu hỏi'}
+                                </h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Nhập nội dung câu hỏi và thiết lập các đáp án.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleCloseQuestionModal}
+                                className="rounded-xl border border-slate-300 p-2 text-slate-500 transition hover:bg-slate-50"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmitQuestionForm} className="space-y-4">
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">
+                                    Nội dung câu hỏi
+                                </label>
+                                <textarea
+                                    name="questionText"
+                                    value={questionFormData.questionText}
+                                    onChange={handleQuestionFormChange}
+                                    rows={3}
+                                    placeholder="Nhập nội dung câu hỏi"
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                />
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                                        Loại câu hỏi
+                                    </label>
+                                    <select
+                                        name="questionType"
+                                        value={questionFormData.questionType}
+                                        onChange={handleQuestionFormChange}
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                    >
+                                        <option value="single_choice">Một đáp án</option>
+                                        <option value="multiple_choice">Nhiều đáp án</option>
+                                        <option value="true_false">Đúng / Sai</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                                        Thứ tự
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="orderIndex"
+                                        value={questionFormData.orderIndex}
+                                        onChange={handleQuestionFormChange}
+                                        min="0"
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="mb-3 flex items-center justify-between">
+                                    <label className="block text-sm font-medium text-slate-700">
+                                        Danh sách đáp án
+                                    </label>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleAddOption}
+                                        disabled={questionFormData.questionType === 'true_false'}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Thêm đáp án
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {questionFormData.options.map((option, index) => (
+                                        <div
+                                            key={index}
+                                            className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-[1fr_auto_auto]"
+                                        >
+                                            <input
+                                                type="text"
+                                                value={option.optionText}
+                                                onChange={(event) =>
+                                                    handleOptionTextChange(index, event.target.value)
+                                                }
+                                                placeholder={`Đáp án ${index + 1}`}
+                                                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                            />
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleToggleCorrectOption(index)}
+                                                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                                                    option.isCorrect
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                        : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                                                }`}
+                                            >
+                                                <CheckCircle2 className="h-4 w-4" />
+                                                Đúng
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveOption(index)}
+                                                disabled={
+                                                    questionFormData.options.length <= 2 ||
+                                                    questionFormData.questionType === 'true_false'
+                                                }
+                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Xóa
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={handleCloseQuestionModal}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    Hủy
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                                >
+                                    <Save className="h-4 w-4" />
+                                    {isEditingQuestion ? 'Lưu cập nhật' : 'Thêm câu hỏi'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
