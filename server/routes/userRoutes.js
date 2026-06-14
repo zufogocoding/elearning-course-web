@@ -12,6 +12,7 @@ router.use(authenticate);
 // IMPORTANT: /me must come BEFORE /:id to avoid route shadowing
 router.get('/me', userController.getMe);
 router.put('/me', validateUpdateMe, userController.updateMe);
+router.put('/avatar', verifyToken, uploadImage, userController.updateAvatar);
 
 // API cập nhật Avatar: Đi qua Token -> Đi qua bộ lọc File -> Vào Controller
 router.put(

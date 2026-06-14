@@ -246,4 +246,5 @@ module.exports = {
   updateMe,
   adminGetAllUsers,
   adminUpdateUserStatus,
+  updateAvatar
 };

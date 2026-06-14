@@ -6,8 +6,8 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { initEmailTransporter } = require('./lib/email');
 const errorHandler = require('./middleware/errorMiddleware');
-const path = require('path');
-const express = require('express');
+
+
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
