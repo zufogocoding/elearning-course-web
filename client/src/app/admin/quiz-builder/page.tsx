@@ -126,6 +126,7 @@ export default function QuizBuilderPage() {
 
     const [loading, setLoading] = useState<boolean>(true);
     const [savingQuiz, setSavingQuiz] = useState<boolean>(false);
+    const [savingQuestion, setSavingQuestion] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -549,7 +550,9 @@ export default function QuizBuilderPage() {
         });
     };
 
-    const handleSubmitQuestionForm = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmitQuestionForm = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
         event.preventDefault();
 
         if (!selectedQuiz) {
@@ -609,19 +612,70 @@ export default function QuizBuilderPage() {
             return;
         }
 
-        console.log('Question form data:', {
-            quizId: selectedQuiz.id,
-            isEditingQuestion,
-            editingQuestionId,
-            questionFormData,
-        });
-
+        setSavingQuestion(true);
         setErrorMessage(null);
-        setSuccessMessage(
-            isEditingQuestion
-                ? 'Form cập nhật câu hỏi đã sẵn sàng.'
-                : 'Form tạo câu hỏi đã sẵn sàng.'
-        );
+        setSuccessMessage(null);
+
+        const payload = {
+            quizId: selectedQuiz.id,
+            questionText: questionFormData.questionText.trim(),
+            questionType: questionFormData.questionType,
+            orderIndex,
+            options: questionFormData.options.map((option, index) => ({
+                optionText: option.optionText.trim(),
+                isCorrect: option.isCorrect,
+                orderIndex: index + 1,
+            })),
+        };
+
+        try {
+            let response;
+
+            if (isEditingQuestion && editingQuestionId) {
+                // TODO: Check API URL
+                response = await axios.put(
+                    `${API_BASE_URL}/api/content/questions/${editingQuestionId}`,
+                    payload,
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                );
+
+                setSuccessMessage('Cập nhật câu hỏi thành công.');
+            } else {
+                // TODO: Check API URL
+                response = await axios.post(
+                    `${API_BASE_URL}/api/content/questions`,
+                    payload,
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                );
+
+                setSuccessMessage('Thêm câu hỏi thành công.');
+            }
+
+            const savedQuestion: Question | undefined = response.data?.data;
+
+            if (savedQuestion) {
+                console.log('Saved question:', savedQuestion);
+            }
+
+            await loadQuizzesByLesson(lessonId, selectedQuiz.id);
+            handleCloseQuestionModal();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể lưu câu hỏi.'
+                );
+            } else {
+                setErrorMessage('Không thể lưu câu hỏi.');
+            }
+        } finally {
+            setSavingQuestion(false);
+        }
     };
 
     return (
@@ -1118,7 +1172,8 @@ export default function QuizBuilderPage() {
                             <button
                                 type="button"
                                 onClick={handleCloseQuestionModal}
-                                className="rounded-xl border border-slate-300 p-2 text-slate-500 transition hover:bg-slate-50"
+                                disabled={savingQuestion}
+                                className="rounded-xl border border-slate-300 p-2 text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 <X className="h-4 w-4" />
                             </button>
@@ -1135,7 +1190,8 @@ export default function QuizBuilderPage() {
                                     onChange={handleQuestionFormChange}
                                     rows={3}
                                     placeholder="Nhập nội dung câu hỏi"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                    disabled={savingQuestion}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                                 />
                             </div>
 
@@ -1148,7 +1204,8 @@ export default function QuizBuilderPage() {
                                         name="questionType"
                                         value={questionFormData.questionType}
                                         onChange={handleQuestionFormChange}
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                        disabled={savingQuestion}
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                                     >
                                         <option value="single_choice">Một đáp án</option>
                                         <option value="multiple_choice">Nhiều đáp án</option>
@@ -1166,7 +1223,8 @@ export default function QuizBuilderPage() {
                                         value={questionFormData.orderIndex}
                                         onChange={handleQuestionFormChange}
                                         min="0"
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                        disabled={savingQuestion}
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                                     />
                                 </div>
                             </div>
@@ -1180,7 +1238,10 @@ export default function QuizBuilderPage() {
                                     <button
                                         type="button"
                                         onClick={handleAddOption}
-                                        disabled={questionFormData.questionType === 'true_false'}
+                                        disabled={
+                                            savingQuestion ||
+                                            questionFormData.questionType === 'true_false'
+                                        }
                                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Plus className="h-4 w-4" />
@@ -1201,13 +1262,15 @@ export default function QuizBuilderPage() {
                                                     handleOptionTextChange(index, event.target.value)
                                                 }
                                                 placeholder={`Đáp án ${index + 1}`}
-                                                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                                disabled={savingQuestion}
+                                                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                                             />
 
                                             <button
                                                 type="button"
                                                 onClick={() => handleToggleCorrectOption(index)}
-                                                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                                                disabled={savingQuestion}
+                                                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
                                                     option.isCorrect
                                                         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                                         : 'border-slate-300 text-slate-600 hover:bg-slate-50'
@@ -1221,6 +1284,7 @@ export default function QuizBuilderPage() {
                                                 type="button"
                                                 onClick={() => handleRemoveOption(index)}
                                                 disabled={
+                                                    savingQuestion ||
                                                     questionFormData.options.length <= 2 ||
                                                     questionFormData.questionType === 'true_false'
                                                 }
@@ -1238,16 +1302,22 @@ export default function QuizBuilderPage() {
                                 <button
                                     type="button"
                                     onClick={handleCloseQuestionModal}
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                    disabled={savingQuestion}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     Hủy
                                 </button>
 
                                 <button
                                     type="submit"
-                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                                    disabled={savingQuestion}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    <Save className="h-4 w-4" />
+                                    {savingQuestion ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
                                     {isEditingQuestion ? 'Lưu cập nhật' : 'Thêm câu hỏi'}
                                 </button>
                             </div>
