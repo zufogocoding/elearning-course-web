@@ -6,6 +6,7 @@ import { useTheme } from "@/components/ui/ThemeProvider";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import { formatVND } from "@/lib/pricing";
 
 const COVER_PRESETS = [
   { name: "Web Dev", url: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&fit=crop" },
@@ -174,7 +175,7 @@ export default function AdminCoursesPage() {
       );
       if (res.ok) {
         const data = await res.json();
-        setCategories(Array.isArray(data) ? data : []);
+        setCategories(data && Array.isArray(data.data) ? data.data : []);
       }
     } catch { /* optional */ }
   }, []);
@@ -410,9 +411,9 @@ export default function AdminCoursesPage() {
                           </span>
                         </td>
                         <td className={`px-4 py-3.5 font-semibold ${text}`}>
-                          ${Number(course.price).toFixed(2)}
+                          {formatVND(course.price)}
                           {course.discountPrice && (
-                            <span className={`ml-1.5 text-xs line-through ${muted}`}>${Number(course.discountPrice).toFixed(2)}</span>
+                            <span className={`ml-1.5 text-xs line-through ${muted}`}>{formatVND(course.discountPrice)}</span>
                           )}
                         </td>
                         <td className={`px-4 py-3.5 ${text}`}>{course._count.enrollments}</td>
@@ -577,14 +578,14 @@ export default function AdminCoursesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="course-price" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Giá ($)</label>
-                  <input id="course-price" type="number" step="0.01" min="0" placeholder="0.00"
+                  <label htmlFor="course-price" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Giá (₫)</label>
+                  <input id="course-price" type="number" step="1000" min="0" placeholder="0"
                     value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
                     className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
                 </div>
                 <div>
-                  <label htmlFor="course-discount" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Giá khuyến mãi ($)</label>
-                  <input id="course-discount" type="number" step="0.01" min="0" placeholder="Tùy chọn"
+                  <label htmlFor="course-discount" className={`block text-xs font-semibold mb-1.5 ${muted}`}>Giá khuyến mãi (₫)</label>
+                  <input id="course-discount" type="number" step="1000" min="0" placeholder="Tùy chọn"
                     value={form.discountPrice} onChange={(e) => setForm((p) => ({ ...p, discountPrice: e.target.value }))}
                     className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm ${input}`} />
                 </div>
