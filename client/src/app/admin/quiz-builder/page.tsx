@@ -5,6 +5,8 @@ import axios from 'axios';
 import {
     AlertCircle,
     BookOpen,
+    CheckCircle2,
+    Circle,
     Clock,
     FileQuestion,
     Loader2,
@@ -82,6 +84,14 @@ export default function QuizBuilderPage() {
         return {
             Authorization: `Bearer ${token}`,
         };
+    };
+
+    const getQuestionTypeLabel = (
+        questionType: 'single_choice' | 'multiple_choice' | 'true_false'
+    ) => {
+        if (questionType === 'single_choice') return 'Một đáp án';
+        if (questionType === 'multiple_choice') return 'Nhiều đáp án';
+        return 'Đúng / Sai';
     };
 
     const handleLoadQuiz = async () => {
@@ -205,15 +215,27 @@ export default function QuizBuilderPage() {
                         <h2 className="mt-1 text-xl font-semibold text-slate-900">
                             {lesson.title}
                         </h2>
+
                         <div className="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                             <div className="rounded-xl bg-slate-50 p-3">
-                                Mã bài học: <span className="font-medium">{lesson.id}</span>
+                                Mã bài học:{' '}
+                                <span className="font-medium text-slate-900">
+                  {lesson.id}
+                </span>
                             </div>
+
                             <div className="rounded-xl bg-slate-50 p-3">
-                                Mã chương: <span className="font-medium">{lesson.sectionId}</span>
+                                Mã chương:{' '}
+                                <span className="font-medium text-slate-900">
+                  {lesson.sectionId}
+                </span>
                             </div>
+
                             <div className="rounded-xl bg-slate-50 p-3">
-                                Mã khóa học: <span className="font-medium">{lesson.courseId}</span>
+                                Mã khóa học:{' '}
+                                <span className="font-medium text-slate-900">
+                  {lesson.courseId}
+                </span>
                             </div>
                         </div>
                     </section>
@@ -322,6 +344,98 @@ export default function QuizBuilderPage() {
                                                     : selectedQuiz.maxAttempts}
                                             </p>
                                         </div>
+                                    </div>
+
+                                    <div className="border-t border-slate-200 pt-6">
+                                        <div className="mb-4 flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-base font-semibold text-slate-900">
+                                                    Danh sách câu hỏi
+                                                </h3>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    Hiển thị toàn bộ câu hỏi và đáp án thuộc quiz hiện tại.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {selectedQuiz.questions.length === 0 ? (
+                                            <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
+                                                <FileQuestion className="mx-auto h-8 w-8 text-slate-400" />
+                                                <p className="mt-3 text-sm text-slate-500">
+                                                    Không có dữ liệu câu hỏi.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {selectedQuiz.questions.map(
+                                                    (question, questionIndex) => (
+                                                        <article
+                                                            key={question.id}
+                                                            className="rounded-2xl border border-slate-200 p-5"
+                                                        >
+                                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                                <div>
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                      Câu {questionIndex + 1}
+                                    </span>
+
+                                                                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                                      {getQuestionTypeLabel(
+                                          question.questionType
+                                      )}
+                                    </span>
+                                                                    </div>
+
+                                                                    <h4 className="mt-3 text-sm font-semibold text-slate-900">
+                                                                        {question.questionText}
+                                                                    </h4>
+                                                                </div>
+
+                                                                <p className="text-xs text-slate-500">
+                                                                    Thứ tự: {question.orderIndex}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="mt-4 space-y-2">
+                                                                {question.questionOptions.length === 0 ? (
+                                                                    <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                                                                        Không có dữ liệu đáp án.
+                                                                    </p>
+                                                                ) : (
+                                                                    question.questionOptions.map((option) => (
+                                                                        <div
+                                                                            key={option.id}
+                                                                            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
+                                                                                option.isCorrect
+                                                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                                                                    : 'border-slate-200 bg-white text-slate-700'
+                                                                            }`}
+                                                                        >
+                                                                            {option.isCorrect ? (
+                                                                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                                                            ) : (
+                                                                                <Circle className="h-4 w-4 text-slate-400" />
+                                                                            )}
+
+                                                                            <span className="flex-1">
+                                        {option.optionText}
+                                      </span>
+
+                                                                            {option.isCorrect && (
+                                                                                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                                          Đáp án đúng
+                                        </span>
+                                                                            )}
+                                                                        </div>
+                                                                    ))
+                                                                )}
+                                                            </div>
+                                                        </article>
+                                                    )
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ) : (
