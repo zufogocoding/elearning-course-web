@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
     AlertCircle,
@@ -8,11 +8,15 @@ import {
     CheckCircle2,
     Circle,
     Clock,
+    Edit3,
     FileQuestion,
     Loader2,
+    Plus,
     RefreshCcw,
+    Save,
     Search,
     Target,
+    X,
 } from 'lucide-react';
 
 type QuestionOption = {
@@ -56,6 +60,14 @@ type QuizResponseData = {
     quizzes: Quiz[];
 };
 
+type QuizFormData = {
+    title: string;
+    description: string;
+    passingScore: string;
+    timeLimitMinutes: string;
+    maxAttempts: string;
+};
+
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -64,8 +76,20 @@ export default function QuizBuilderPage() {
     const [lesson, setLesson] = useState<LessonInfo | null>(null);
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
+
+    const [quizFormData, setQuizFormData] = useState<QuizFormData>({
+        title: '',
+        description: '',
+        passingScore: '70',
+        timeLimitMinutes: '',
+        maxAttempts: '3',
+    });
+
+    const [isEditingQuiz, setIsEditingQuiz] = useState(false);
     const [loading, setLoading] = useState<boolean>(true);
+    const [savingQuiz, setSavingQuiz] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     useEffect(() => {
         setLoading(false);
@@ -94,14 +118,64 @@ export default function QuizBuilderPage() {
         return 'Đúng / Sai';
     };
 
-    const handleLoadQuiz = async () => {
-        if (!lessonId.trim()) {
+    const handleQuizFormChange = (
+        event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+        const { name, value } = event.target;
+
+        setQuizFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
+    const resetQuizForm = () => {
+        setIsEditingQuiz(false);
+        setQuizFormData({
+            title: '',
+            description: '',
+            passingScore: '70',
+            timeLimitMinutes: '',
+            maxAttempts: '3',
+        });
+    };
+
+    const handlePrepareCreateQuiz = () => {
+        setErrorMessage(null);
+        setSuccessMessage(null);
+        resetQuizForm();
+    };
+
+    const handlePrepareEditQuiz = () => {
+        if (!selectedQuiz) return;
+
+        setErrorMessage(null);
+        setSuccessMessage(null);
+        setIsEditingQuiz(true);
+
+        setQuizFormData({
+            title: selectedQuiz.title,
+            description: selectedQuiz.description || '',
+            passingScore: String(selectedQuiz.passingScore),
+            timeLimitMinutes: selectedQuiz.timeLimitMinutes
+                ? String(selectedQuiz.timeLimitMinutes)
+                : '',
+            maxAttempts: String(selectedQuiz.maxAttempts),
+        });
+    };
+
+    const loadQuizzesByLesson = async (
+        targetLessonId: string,
+        selectedQuizId?: number
+    ) => {
+        if (!targetLessonId.trim()) {
             setErrorMessage('Vui lòng nhập mã bài học.');
             return;
         }
 
         setLoading(true);
         setErrorMessage(null);
+        setSuccessMessage(null);
         setLesson(null);
         setQuizzes([]);
         setSelectedQuiz(null);
@@ -109,17 +183,22 @@ export default function QuizBuilderPage() {
         try {
             // TODO: Check API URL
             const response = await axios.get(
-                `${API_BASE_URL}/api/content/quizzes/${lessonId}`,
+                `${API_BASE_URL}/api/content/quizzes/${targetLessonId}`,
                 {
                     headers: getAuthHeaders(),
                 }
             );
 
             const responseData: QuizResponseData = response.data?.data;
+            const quizList = responseData?.quizzes || [];
+            const nextSelectedQuiz =
+                quizList.find((quiz) => quiz.id === selectedQuizId) ||
+                quizList[0] ||
+                null;
 
             setLesson(responseData?.lesson || null);
-            setQuizzes(responseData?.quizzes || []);
-            setSelectedQuiz(responseData?.quizzes?.[0] || null);
+            setQuizzes(quizList);
+            setSelectedQuiz(nextSelectedQuiz);
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 setErrorMessage(
@@ -132,6 +211,126 @@ export default function QuizBuilderPage() {
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLoadQuiz = async () => {
+        await loadQuizzesByLesson(lessonId);
+    };
+
+    const validateQuizForm = () => {
+        if (!lessonId.trim()) {
+            return 'Vui lòng nhập mã bài học trước khi lưu quiz.';
+        }
+
+        if (!quizFormData.title.trim()) {
+            return 'Vui lòng nhập tiêu đề quiz.';
+        }
+
+        const passingScore = Number(quizFormData.passingScore);
+        if (
+            !Number.isInteger(passingScore) ||
+            passingScore < 0 ||
+            passingScore > 100
+        ) {
+            return 'Điểm đạt phải là số nguyên từ 0 đến 100.';
+        }
+
+        if (quizFormData.timeLimitMinutes.trim()) {
+            const timeLimitMinutes = Number(quizFormData.timeLimitMinutes);
+
+            if (!Number.isInteger(timeLimitMinutes) || timeLimitMinutes <= 0) {
+                return 'Thời gian làm bài phải là số nguyên lớn hơn 0.';
+            }
+        }
+
+        const maxAttempts = Number(quizFormData.maxAttempts);
+        if (!Number.isInteger(maxAttempts) || maxAttempts < 0) {
+            return 'Số lượt làm tối đa phải là số nguyên không âm.';
+        }
+
+        if (isEditingQuiz && !selectedQuiz) {
+            return 'Vui lòng chọn quiz cần cập nhật.';
+        }
+
+        return null;
+    };
+
+    const handleSubmitQuizForm = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        const validationError = validateQuizForm();
+
+        if (validationError) {
+            setErrorMessage(validationError);
+            setSuccessMessage(null);
+            return;
+        }
+
+        setSavingQuiz(true);
+        setErrorMessage(null);
+        setSuccessMessage(null);
+
+        const payload = {
+            lessonId: Number(lessonId),
+            title: quizFormData.title.trim(),
+            description: quizFormData.description.trim() || null,
+            passingScore: Number(quizFormData.passingScore),
+            timeLimitMinutes: quizFormData.timeLimitMinutes.trim()
+                ? Number(quizFormData.timeLimitMinutes)
+                : null,
+            maxAttempts: Number(quizFormData.maxAttempts),
+        };
+
+        try {
+            let response;
+
+            if (isEditingQuiz && selectedQuiz) {
+                // TODO: Check API URL
+                response = await axios.put(
+                    `${API_BASE_URL}/api/content/quizzes/${selectedQuiz.id}`,
+                    payload,
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                );
+
+                setSuccessMessage('Cập nhật quiz thành công.');
+            } else {
+                // TODO: Check API URL
+                response = await axios.post(
+                    `${API_BASE_URL}/api/content/quizzes`,
+                    payload,
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                );
+
+                setSuccessMessage('Tạo quiz thành công.');
+            }
+
+            const savedQuiz: Quiz | undefined = response.data?.data;
+
+            await loadQuizzesByLesson(
+                lessonId,
+                savedQuiz?.id || selectedQuiz?.id || undefined
+            );
+
+            if (!isEditingQuiz) {
+                resetQuizForm();
+            }
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể lưu quiz.'
+                );
+            } else {
+                setErrorMessage('Không thể lưu quiz.');
+            }
+        } finally {
+            setSavingQuiz(false);
         }
     };
 
@@ -190,6 +389,13 @@ export default function QuizBuilderPage() {
                             <span>{errorMessage}</span>
                         </div>
                     )}
+
+                    {successMessage && (
+                        <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{successMessage}</span>
+                        </div>
+                    )}
                 </section>
 
                 {loading && (
@@ -238,6 +444,144 @@ export default function QuizBuilderPage() {
                 </span>
                             </div>
                         </div>
+                    </section>
+                )}
+
+                {!loading && lesson && (
+                    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="text-base font-semibold text-slate-900">
+                                    {isEditingQuiz ? 'Cập nhật quiz' : 'Tạo quiz mới'}
+                                </h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Nhập thông tin cơ bản của quiz cho bài học hiện tại.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handlePrepareCreateQuiz}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Tạo mới
+                                </button>
+
+                                {selectedQuiz && (
+                                    <button
+                                        type="button"
+                                        onClick={handlePrepareEditQuiz}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                    >
+                                        <Edit3 className="h-4 w-4" />
+                                        Sửa quiz đang chọn
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleSubmitQuizForm} className="space-y-4">
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">
+                                    Tiêu đề quiz
+                                </label>
+                                <input
+                                    type="text"
+                                    name="title"
+                                    value={quizFormData.title}
+                                    onChange={handleQuizFormChange}
+                                    placeholder="Nhập tiêu đề quiz"
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">
+                                    Mô tả
+                                </label>
+                                <textarea
+                                    name="description"
+                                    value={quizFormData.description}
+                                    onChange={handleQuizFormChange}
+                                    placeholder="Nhập mô tả quiz"
+                                    rows={3}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                />
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                                        Điểm đạt (%)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="passingScore"
+                                        value={quizFormData.passingScore}
+                                        onChange={handleQuizFormChange}
+                                        min="0"
+                                        max="100"
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                                        Thời gian làm bài
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="timeLimitMinutes"
+                                        value={quizFormData.timeLimitMinutes}
+                                        onChange={handleQuizFormChange}
+                                        min="1"
+                                        placeholder="Bỏ trống nếu không giới hạn"
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                                        Số lượt làm tối đa
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="maxAttempts"
+                                        value={quizFormData.maxAttempts}
+                                        onChange={handleQuizFormChange}
+                                        min="0"
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={resetQuizForm}
+                                    disabled={savingQuiz}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <X className="h-4 w-4" />
+                                    Hủy
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    disabled={savingQuiz}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {savingQuiz ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    {isEditingQuiz ? 'Lưu cập nhật' : 'Tạo quiz'}
+                                </button>
+                            </div>
+                        </form>
                     </section>
                 )}
 
