@@ -224,6 +224,23 @@ const adminUpdateUserStatus = async (req, res) => {
   }
 };
 
+const updateAvatar = async (req, res) => {
+  try {
+    // URL này đã được làm sạch và xác thực bởi Middleware
+    const newAvatarUrl = req.file.safeUrl; 
+
+    // Cập nhật vào DB Prisma...
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { avatarUrl: newAvatarUrl }
+    });
+
+    res.status(200).json({ message: 'Đổi avatar thành công', url: newAvatarUrl });
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi...' });
+  }
+};
+
 module.exports = {
   getMe,
   updateMe,

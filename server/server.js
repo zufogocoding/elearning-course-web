@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { initEmailTransporter } = require('./lib/email');
 const errorHandler = require('./middleware/errorMiddleware');
+const path = require('path');
+const express = require('express');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -71,3 +73,11 @@ app.listen(PORT, async () => {
   }
 });
 
+// Mở endpoint phục vụ file (Chỉ trả về file tĩnh, không thực thi)
+app.use('/api/files', express.static(path.join(__dirname, '../storage/uploads'), {
+  fallthrough: false,
+  setHeaders: (res, filePath) => {
+    // Ép trình duyệt không được chạy file nội dung lạ (Bảo mật thêm 1 lớp XSS)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}));
