@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
-import { calculateCoursePricing } from "@/lib/pricing";
+import { calculateCoursePricing, formatVND } from "@/lib/pricing";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -450,9 +450,9 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
               {/* Price */}
               <div className="mb-6">
                 <div className="flex items-end gap-3 mb-2">
-                  <span className={`text-4xl font-extrabold ${text}`}>${price}</span>
+                  <span className={`text-4xl font-extrabold ${text}`}>{formatVND(price)}</span>
                   {originalPrice > price && (
-                    <span className={`text-lg line-through mb-1 ${subtle}`}>${originalPrice.toFixed(2)}</span>
+                    <span className={`text-lg line-through mb-1 ${subtle}`}>{formatVND(originalPrice)}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
