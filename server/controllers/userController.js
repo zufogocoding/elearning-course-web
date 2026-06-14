@@ -224,9 +224,39 @@ const adminUpdateUserStatus = async (req, res) => {
   }
 };
 
+// ============================================
+// GET /users/me/transactions — Lấy lịch sử mua hàng của user đang đăng nhập
+// ============================================
+const getMyTransactions = async (req, res) => {
+  try {
+    const transactions = await prisma.paymentTransaction.findMany({
+      where: { userId: req.user.id },
+      include: {
+        enrollment: {
+          include: {
+            course: {
+              select: {
+                title: true,
+                slug: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.status(200).json({ success: true, data: transactions });
+  } catch (error) {
+    console.error('Lỗi khi lấy lịch sử giao dịch:', error);
+    res.status(500).json({ error: 'Lỗi server khi lấy lịch sử giao dịch' });
+  }
+};
+
 module.exports = {
   getMe,
   updateMe,
+  getMyTransactions,
   adminGetAllUsers,
   adminUpdateUserStatus,
 };
