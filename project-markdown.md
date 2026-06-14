@@ -445,14 +445,14 @@ CREATE INDEX idx_user_quiz_attempts_user_quiz ON user_quiz_attempts(user_id, qui
 ### 9.1. Bảng Tiến Độ Tổng Quan (Overview Dashboard)
 | Giai Đoạn | Mô Tả | Số Task | Hoàn Thành | Tiến Độ (%) | Trạng Thế / Ghi Chú |
 | :--- | :--- | :---: | :---: | :---: | :--- |
-| **Phase 1** | Khởi tạo dự án & Cơ sở dữ liệu | 4 | 4 | 100% | Hoàn thành |
-| **Phase 2** | Xác thực người dùng (Auth) & Profile | 5 | 4 | 80% | Đang thực hiện (Chưa làm Frontend) |
-| **Phase 3** | Admin: Quản lý Khóa học & Nội dung | 6 | 0 | 0% | Chưa bắt đầu |
-| **Phase 4** | Checkout, Thanh toán & Mã giảm giá | 6 | 0 | 0% | Chưa bắt đầu |
-| **Phase 5** | Tiến độ học tập & Chống gian lận tua Video | 6 | 0 | 0% | Chưa bắt đầu |
-| **Phase 6** | Làm Quiz & Tự động cấp Chứng chỉ | 5 | 0 | 0% | Chưa bắt đầu |
-| **Phase 7** | Đánh giá, Hoàn tiền & Admin Dashboard | 5 | 0 | 0% | Chưa bắt đầu |
-| **Tổng cộng**| **Toàn bộ dự án** | **37** | **8** | **21.6%** | **Đang triển khai** |
+| **Phase 1** | Khởi tạo dự án & Cơ sở dữ liệu | 4 | 4 | 100% | ✅ Hoàn thành |
+| **Phase 2** | Xác thực người dùng (Auth) & Profile | 5 | 5 | 100% | ✅ Hoàn thành (Cả BE + FE) |
+| **Phase 3** | Admin: Quản lý Khóa học & Nội dung | 6 | 6 | 100% | ✅ Hoàn thành (Cần cải thiện chất lượng code) |
+| **Phase 4** | Checkout, Thanh toán & Mã giảm giá | 6 | 4 | ~67% | 🟡 Đang thực hiện (Thiếu MoMo IPN, Cron job, validFrom check) |
+| **Phase 5** | Tiến độ học tập & Chống gian lận tua Video | 6 | 5 | ~83% | 🟡 Gần hoàn thành (Thiếu text reader tracking hoàn chỉnh) |
+| **Phase 6** | Làm Quiz & Tự động cấp Chứng chỉ | 5 | 2.5 | ~50% | 🟡 Đang thực hiện (Thiếu backend cấp chứng chỉ) |
+| **Phase 7** | Đánh giá, Hoàn tiền & Admin Dashboard | 5 | 0 | 0% | 🔴 Chưa bắt đầu |
+| **Tổng cộng**| **Toàn bộ dự án** | **37** | **~26.5** | **~72%** | 🟢 **Đang triển khai — Tiến độ khả quan** |
 
 ---
 
@@ -469,38 +469,46 @@ CREATE INDEX idx_user_quiz_attempts_user_quiz ON user_quiz_attempts(user_id, qui
 - [x] **TASK-2.2 [BE]:** Hoàn thành API đăng ký, đăng nhập, đăng xuất, refresh token và quên/reset mật khẩu. *(Hoàn thành)*
 - [x] **TASK-2.3 [BE]:** Xây dựng API lấy và cập nhật thông tin cá nhân (Profile, đổi mật khẩu). *(Hoàn thành)*
 - [x] **TASK-2.4 [BE]:** Xây dựng API Admin lấy danh sách người dùng và khóa/mở khóa tài khoản. *(Hoàn thành)*
-- [ ] **TASK-2.5 [FE]:** Phát triển giao diện Login, Register, Forgot Password, Reset Password và trang thông tin cá nhân Profile sử dụng CSS đẹp mắt, hiện đại. *(Chưa bắt đầu)*
+- [x] **TASK-2.5 [FE]:** Phát triển giao diện Login, Register, Forgot Password, Reset Password và trang thông tin cá nhân Profile sử dụng CSS đẹp mắt, hiện đại. *(Hoàn thành)*
 
 #### Phase 3: Quản Lý Khóa Học & Nội Dung Học Tập (Admin)
-- [ ] **TASK-3.1 [BE]:** Xây dựng API CRUD Danh mục khóa học (Categories) hỗ trợ cấu trúc cây phân cấp (parent/child). *(Chưa bắt đầu)*
-- [ ] **TASK-3.2 [BE]:** Xây dựng API CRUD Khóa học (Courses) với các trạng thái Draft/Published/Archived và cơ chế tăng `version` khi sửa đổi khóa học đã xuất bản. *(Chưa bắt đầu)*
-- [ ] **TASK-3.3 [BE]:** Xây dựng API CRUD Chương (Sections) và Bài học (Lessons: Video/Text/Quiz). *(Chưa bắt đầu)*
-- [ ] **TASK-3.4 [BE]:** Xây dựng API CRUD Câu hỏi & Đáp án Quiz. *(Chưa bắt đầu)*
-- [ ] **TASK-3.5 [FE]:** Thiết kế trang Admin Dashboard: Giao diện quản lý danh sách khóa học, thêm/sửa chương bài học trực quan (drag-drop sắp xếp order_index nếu có thể). *(Chưa bắt đầu)*
-- [ ] **TASK-3.6 [FE]:** Giao diện Admin quản lý câu hỏi Quiz, thiết lập điểm chuẩn đạt và số lần làm tối đa. *(Chưa bắt đầu)*
+- [x] **TASK-3.1 [BE]:** Xây dựng API CRUD Danh mục khóa học (Categories) hỗ trợ cấu trúc cây phân cấp (parent/child). *(Hoàn thành)*
+- [x] **TASK-3.2 [BE]:** Xây dựng API CRUD Khóa học (Courses) với các trạng thái Draft/Published/Archived và cơ chế tăng `version` khi sửa đổi khóa học đã xuất bản. *(Hoàn thành)*
+- [x] **TASK-3.3 [BE]:** Xây dựng API CRUD Chương (Sections) và Bài học (Lessons: Video/Text/Quiz). *(Hoàn thành)*
+- [x] **TASK-3.4 [BE]:** Xây dựng API CRUD Câu hỏi & Đáp án Quiz. *(Hoàn thành)*
+- [x] **TASK-3.5 [FE]:** Thiết kế trang Admin Dashboard: Giao diện quản lý danh sách khóa học, thêm/sửa chương bài học trực quan (drag-drop sắp xếp order_index nếu có thể). *(Hoàn thành)*
+- [x] **TASK-3.6 [FE]:** Giao diện Admin quản lý câu hỏi Quiz, thiết lập điểm chuẩn đạt và số lần làm tối đa. *(Hoàn thành)*
+
+> **Ghi chú Phase 3:** Về mặt chức năng đã hoàn thành, nhưng cần cải thiện chất lượng code (builder 1038 lines cần split, search admin courses dead code, upload security B1 chưa fix).
 
 #### Phase 4: Thanh Toán VNPayQR & MoMo, Giữ Chỗ Mã Giảm Giá & Cron Job
-- [ ] **TASK-4.1 [BE]:** Xây dựng transaction atomic thực hiện kiểm tra mã giảm giá (Coupon), tăng `used_count` và tạo Enrollment trạng thái `pending` khi người dùng bấm mua. *(Chưa bắt đầu)*
-- [ ] **TASK-4.2 [BE]:** Tích hợp SDK/API VNPay & MoMo để tạo yêu cầu giao dịch (tính checksum hash HmacSHA512/SHA256) và sinh URL thanh toán (Pay URL/QR Code). *(Chưa bắt đầu)*
-- [ ] **TASK-4.3 [BE]:** Xây dựng endpoint tiếp nhận IPN (Instant Payment Notification) từ VNPay (`/payments/vnpay-ipn`) và MoMo (`/payments/momo-ipn`) để xác thực chữ ký bảo mật, kiểm tra số tiền, trạng thái giao dịch và kích hoạt enrollment/hoàn trả coupon. *(Chưa bắt đầu)*
-- [ ] **TASK-4.4 [BE]:** Viết Cron Job (chạy mỗi 5 phút) tự động quét và giải phóng các enrollment `pending` quá 15 phút không thanh toán (chuyển sang expired, hoàn lại lượt coupon). *(Chưa bắt đầu)*
-- [ ] **TASK-4.5 [FE]:** Xây dựng trang chi tiết khóa học, màn hình Checkout hỗ trợ lựa chọn phương thức thanh toán VNPayQR hoặc Ví MoMo, thực hiện redirect người dùng hoặc hiển thị QR Code để quét thanh toán. *(Chưa bắt đầu)*
-- [ ] **TASK-4.6 [FE]:** Xây dựng tính năng nhập coupon mã giảm giá, kiểm tra tính hợp lệ và hiển thị số tiền được giảm theo thời gian thực trước khi thanh toán. *(Chưa bắt đầu)*
+- [x] **TASK-4.1 [BE]:** Xây dựng transaction atomic thực hiện kiểm tra mã giảm giá (Coupon), tăng `used_count` và tạo Enrollment trạng thái `pending` khi người dùng bấm mua. *(Hoàn thành — cần bổ sung validFrom check)*
+- [x] **TASK-4.2 [BE]:** Tích hợp SDK/API VNPay & MoMo để tạo yêu cầu giao dịch (tính checksum hash HmacSHA512/SHA256) và sinh URL thanh toán (Pay URL/QR Code). *(Hoàn thành — VNPay, MoMo chưa verify)*
+- [x] **TASK-4.3 [BE]:** Xây dựng endpoint tiếp nhận IPN từ VNPay (`/payments/vnpay-ipn`) — MoMo IPN còn thiếu. *(VNPay OK, MoMo thiếu)*
+- [ ] **TASK-4.4 [BE]:** Viết Cron Job (chạy mỗi 5 phút) tự động quét và giải phóng các enrollment `pending` quá 15 phút không thanh toán. *(Chưa bắt đầu)*
+- [x] **TASK-4.5 [FE]:** Xây dựng trang chi tiết khóa học, màn hình Checkout hỗ trợ lựa chọn phương thức thanh toán VNPayQR hoặc Ví MoMo. *(Hoàn thành)*
+- [x] **TASK-4.6 [FE]:** Xây dựng tính năng nhập coupon mã giảm giá, kiểm tra tính hợp lệ và hiển thị số tiền được giảm. *(Hoàn thành)*
+
+> **Cảnh báo Phase 4:** ❌ B3 (thiếu validFrom check coupon), ❌ B2 (fake pricing ×1.5 — vi phạm pháp luật), ⚠️ MoMo IPN chưa có, ❌ Cron job chưa có.
 
 #### Phase 5: Trình Học Tập, Luồng Video & Chống Tua Gian Lận Tiến Độ
-- [ ] **TASK-5.1 [BE]:** Xây dựng API trả về Signed URL bảo mật cho video bài học từ Mux hoặc Cloudflare Stream để chống tải lậu. *(Chưa bắt đầu)*
-- [ ] **TASK-5.2 [BE]:** Xây dựng API cập nhật checkpoint thời gian xem video (`POST /lessons/{id}/progress`) được gọi định kỳ từ FE. *(Chưa bắt đầu)*
-- [ ] **TASK-5.3 [BE]:** Xây dựng API đánh dấu hoàn thành bài học (`POST /lessons/{id}/complete`) kèm cơ chế kiểm tra gian lận (đối với video: checkpoint >= 95% thời lượng; đối với bài viết: thời gian đọc tối thiểu dựa trên độ dài văn bản). *(Chưa bắt đầu)*
-- [ ] **TASK-5.4 [FE]:** Thiết kế giao diện Trình học tập (Learning Area) với sidebar bài học phân cấp, hiển thị tiến độ hoàn thành dưới dạng thanh progress bar. *(Chưa bắt đầu)*
-- [ ] **TASK-5.5 [FE]:** Tích hợp Video Player hỗ trợ tracking sự kiện xem video, định kỳ gửi checkpoint lên server mỗi 10 giây và ngăn chặn hành vi click hoàn thành sớm. *(Chưa bắt đầu)*
-- [ ] **TASK-5.6 [FE]:** Giao diện đọc bài viết (text lesson) tích hợp bộ đếm thời gian tối thiểu trước khi kích hoạt nút hoàn thành bài học. *(Chưa bắt đầu)*
+- [x] **TASK-5.1 [BE]:** Xây dựng API trả về Signed URL bảo mật cho video bài học từ Mux hoặc Cloudflare Stream. *(Hoàn thành — `videoController.js`)*
+- [x] **TASK-5.2 [BE]:** Xây dựng API cập nhật checkpoint thời gian xem video (`POST /lessons/{id}/progress`). *(Hoàn thành)*
+- [x] **TASK-5.3 [BE]:** Xây dựng API đánh dấu hoàn thành bài học (`POST /lessons/{id}/complete`) kèm cơ chế kiểm tra gian lận. *(Hoàn thành — cần verify thresholds)*
+- [x] **TASK-5.4 [FE]:** Thiết kế giao diện Learning Area với sidebar bài học, hiển thị tiến độ progress bar. *(Hoàn thành)*
+- [x] **TASK-5.5 [FE]:** Tích hợp Video Player tracking checkpoint mỗi 10 giây. *(Hoàn thành — cần verify tracking thực tế)*
+- [ ] **TASK-5.6 [FE]:** Giao diện đọc bài viết (text lesson) tích hợp bộ đếm thời gian tối thiểu. *(Chưa hoàn chỉnh)*
+
+> **Cảnh báo Phase 5:** ❌ B5 (locked: false hardcoded — phá vỡ sequencing), ⚠️ H1 (quiz progress stale closure).
 
 #### Phase 6: Làm Quiz Học Tập & Cấp Chứng Chỉ Độc Bản
-- [ ] **TASK-6.1 [BE]:** Xây dựng API bắt đầu làm Quiz (`/quizzes/{id}/start`) khởi tạo attempt lưu trạng thái `in_progress`. *(Chưa bắt đầu)*
-- [ ] **TASK-6.2 [BE]:** Xây dựng API chấm điểm Quiz tự động (`/quizzes/{id}/submit`), lưu lịch sử câu trả lời, cập nhật passed/failed và tự động hoàn thành bài học tương ứng nếu đạt. *(Chưa bắt đầu)*
-- [ ] **TASK-6.3 [BE]:** Xây dựng logic tự động kiểm tra tiến độ khóa học (100% complete) và phát hành Chứng chỉ (Certificate) chứa mã UUID độc bản xác thực kèm lưu trữ phiên bản khóa học. *(Chưa bắt đầu)*
-- [ ] **TASK-6.4 [FE]:** Xây dựng giao diện làm bài Quiz trắc nghiệm có bộ đếm thời gian ngược, hiển thị kết quả chi tiết từng câu hỏi sau khi nộp bài. *(Chưa bắt đầu)*
-- [ ] **TASK-6.5 [FE]:** Xây dựng trang xem, hiển thị và tải chứng chỉ học tập PDF đẹp mắt, tích hợp trang xác minh chứng chỉ công khai cho nhà tuyển dụng qua mã UUID. *(Chưa bắt đầu)*
+- [x] **TASK-6.1 [BE]:** Xây dựng API bắt đầu làm Quiz (`/quizzes/{id}/start`) khởi tạo attempt lưu trạng thái `in_progress`. *(Hoàn thành)*
+- [x] **TASK-6.2 [BE]:** Xây dựng API chấm điểm Quiz tự động (`/quizzes/{id}/submit`), lưu lịch sử câu trả lời, cập nhật passed/failed. *(Hoàn thành)*
+- [ ] **TASK-6.3 [BE]:** Xây dựng logic tự động kiểm tra tiến độ khóa học (100% complete) và phát hành Chứng chỉ (Certificate) chứa mã UUID độc bản. *(Chưa bắt đầu — chưa có certificateController)*
+- [x] **TASK-6.4 [FE]:** Xây dựng giao diện làm bài Quiz trắc nghiệm có bộ đếm thời gian ngược, hiển thị kết quả chi tiết từng câu hỏi sau khi nộp bài. *(Hoàn thành — trong learn page)*
+- [ ] **TASK-6.5 [FE]:** Xây dựng trang xem, hiển thị và tải chứng chỉ học tập PDF đẹp mắt, tích hợp trang xác minh chứng chỉ công khai. *(Trang mock đã có nhưng chưa kết nối API thật)*
+
+> **Ghi chú Phase 6:** Quiz flow (start, answer, submit, result) hoạt động tốt. Backend certificate auto-issuance là gap lớn nhất.
 
 #### Phase 7: Đánh Giá, Hoàn Tiền & Admin Báo Cáo
 - [ ] **TASK-7.1 [BE/FE]:** Phát triển tính năng đánh giá khóa học (1-5 sao kèm nhận xét), ràng buộc chỉ học viên đã mua khóa học mới được đánh giá, mỗi người chỉ được đánh giá 1 lần. *(Chưa bắt đầu)*
