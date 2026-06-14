@@ -1,7 +1,12 @@
 const jwt = require('jsonwebtoken');
 
 // MUST match the secret in auth.js (JWT_ACCESS_SECRET)
-const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'access-secret-dev';
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+
+if (!JWT_ACCESS_SECRET) {
+  console.error('❌ LỖI NGHIÊM TRỌNG: Thiếu biến môi trường JWT_ACCESS_SECRET trong file .env');
+  process.exit(1); // Dừng hệ thống ngay lập tức
+}
 
 // Middleware xác thực User (Kiểm tra xem đã đăng nhập chưa)
 const verifyToken = (req, res, next) => {

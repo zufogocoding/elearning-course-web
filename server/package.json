@@ -8,8 +8,7 @@
     "dev": "nodemon server.js",
     "prisma:generate": "npx prisma generate",
     "prisma:push": "npx prisma db push",
-    "test": "jest",
-    "dev": "nodemon server.js"
+    "test": "jest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.8.0",
