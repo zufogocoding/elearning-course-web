@@ -270,10 +270,19 @@ const validateCoupon = async (req, res) => {
       where: { code: code.toUpperCase() }
     });
 
-    const now = new Date();
+    //LẤY TIMESTAMP UTC CỦA SERVER
+    const nowTimestamp = new Date().getTime();
 
-    if (!coupon || !coupon.isActive || (coupon.validTo && coupon.validTo < now)) {
-      return res.status(400).json({ error: 'Mã giảm giá không hợp lệ hoặc đã hết hạn.' });
+    if (!coupon || !coupon.isActive) {
+      return res.status(400).json({ error: 'Mã giảm giá không hợp lệ hoặc đã bị khóa.' });
+    }
+
+    if (coupon.validFrom && nowTimestamp < new Date(coupon.validFrom).getTime()) {
+      return res.status(400).json({ error: 'Mã giảm giá chưa đến thời gian áp dụng.' });
+    }
+
+    if (coupon.validTo && nowTimestamp > new Date(coupon.validTo).getTime()) {
+      return res.status(400).json({ error: 'Mã giảm giá đã hết hạn.' });
     }
 
     if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
@@ -294,6 +303,7 @@ const validateCoupon = async (req, res) => {
     return res.status(500).json({ error: 'Lỗi server khi kiểm tra mã giảm giá.' });
   }
 };
+
 
 module.exports = {
   createPayment,
