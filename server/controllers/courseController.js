@@ -4,56 +4,70 @@ const path = require('path');
 const asyncHandler = require('../middleware/asyncHandler');
 const { sendSuccess } = require('../lib/apiResponse');
 
-// [POST] Tạo khóa học mới (Yêu cầu quyền Admin)
-const createCourse = asyncHandler(async (req, res) => {
-  const {
-    title, slug, shortDescription, fullDescription, level, price,
-    discountPrice, thumbnailUrl, previewVideoUrl, status, categoryId,
-  } = req.body;
-  const adminId = req.user.id;
+// [POST] Tạo khóa học mới (Admin)
+const createCourse = async (req, res) => {
+  try {
+    const {
+      title, slug, shortDescription, fullDescription, level,
+      price, discountPrice, thumbnailUrl, previewVideoUrl, status, categoryId
+    } = req.body;
 
-  if (!title || !slug) {
-    const error = new Error('Thiếu thông tin bắt buộc: title, slug');
-    error.status = 400;
-    throw error;
-  }
+    const adminId = req.user.id;
 
-// ==========================================
-//  SERVER-SIDE VALIDATION: KIỂM TRA GIÁ TIỀN
-// ==========================================
-  let finalPrice = 0;
-  let finalDiscountPrice = null;
-
-  // 1. Validate Price (Giá gốc)
-  if (price !== undefined && price !== null) {
-    finalPrice = parseFloat(price);
-    // Chặn giá trị không phải số (NaN) hoặc số âm
-  if (isNaN(finalPrice) || finalPrice < 0) {
-      return res.status(400).json({ error: 'Bảo mật: Giá khóa học (price) phải là một số lớn hơn hoặc bằng 0.' });
+    if (!title || !slug) {
+      return res.status(400).json({ error: 'Thiếu thông tin bắt buộc: title, slug' });
     }
-  }
 
+    // ==========================================
+    // SERVER-SIDE VALIDATION: KIỂM TRA GIÁ TIỀN
+    // ==========================================
+    let finalPrice = 0;
+    let finalDiscountPrice = null;
 
-
-  const newCourse = await prisma.course.create({
-    data: {
-      title, slug, shortDescription, fullDescription,
-      level: level || "beginner",
-      price: price ? parseFloat(price) : 0,
-      discountPrice: discountPrice ? parseFloat(discountPrice) : null,
-      thumbnailUrl, previewVideoUrl,
-      status: status || "draft",
-      categoryId: categoryId ? parseInt(categoryId) : null,
-      createdBy: adminId,
-    },
-    select: {
-      id: true, title: true, slug: true, status: true, createdAt: true,
-      creator: { select: { id: true, username: true, email: true } }
+    // 1. Validate Price (Giá gốc)
+    if (price !== undefined && price !== null) {
+      finalPrice = parseFloat(price);
+      // Chặn giá trị không phải số (NaN) hoặc số âm
+      if (isNaN(finalPrice) || finalPrice < 0) {
+        return res.status(400).json({ error: 'Bảo mật: Giá khóa học (price) phải là một số lớn hơn hoặc bằng 0.' });
+      }
+      // Nếu bạn bắt buộc khóa học phải có phí (không có khóa free), đổi thành: finalPrice <= 0
     }
-  });
 
-  return sendSuccess(res, newCourse, 'Tạo khóa học thành công', 201);
-});
+    // 2. Validate Discount Price (Giá giảm)
+    if (discountPrice !== undefined && discountPrice !== null) {
+      finalDiscountPrice = parseFloat(discountPrice);
+      if (isNaN(finalDiscountPrice) || finalDiscountPrice < 0) {
+        return res.status(400).json({ error: 'Bảo mật: Giá giảm (discountPrice) không hợp lệ.' });
+      }
+      // 3. Logic nghiệp vụ: Giá giảm tuyệt đối không được lớn hơn hoặc bằng giá gốc
+      if (finalDiscountPrice >= finalPrice) {
+        return res.status(400).json({ error: 'Bảo mật: Giá giảm khuyến mãi phải nhỏ hơn giá gốc của khóa học.' });
+      }
+    }
+    // ==========================================
+
+    const newCourse = await prisma.course.create({
+      data: {
+        title, slug, shortDescription, fullDescription,
+        level: level || "beginner",
+        price: finalPrice, 
+        discountPrice: finalDiscountPrice,
+        thumbnailUrl, previewVideoUrl,
+        status: status || "draft",
+        categoryId: categoryId ? parseInt(categoryId) : null,
+        createdBy: adminId,
+      },
+      select: { id: true, title: true, price: true, discountPrice: true }
+    });
+
+    res.status(201).json({ message: 'Tạo khóa học thành công', course: newCourse });
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ error: 'Slug khóa học đã tồn tại.' });
+    res.status(500).json({ error: 'Lỗi server khi tạo khóa học.' });
+  }
+};
+
 
 // [GET] Lấy danh sách khóa học (Public)
 const getAllCourses = asyncHandler(async (req, res) => {
