@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import {
+    AlertCircle,
     FolderTree,
     Loader2,
     Plus,
@@ -19,18 +21,107 @@ type Category = {
     children?: Category[];
 };
 
+const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
 export default function AdminCategoriesPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [keyword, setKeyword] = useState<string>('');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    useEffect(() => {
-        setLoading(false);
+    const getAuthHeaders = () => {
+        if (typeof window === 'undefined') return {};
+
+        const token =
+            localStorage.getItem('elearning_admin_token') ||
+            localStorage.getItem('adminToken') ||
+            localStorage.getItem('accessToken');
+
+        if (!token) return {};
+
+        return {
+            Authorization: `Bearer ${token}`,
+        };
+    };
+
+    const loadCategories = useCallback(async () => {
+        setLoading(true);
+        setErrorMessage(null);
+
+        try {
+            // TODO: Check API URL
+            const response = await axios.get(`${API_BASE_URL}/api/categories`, {
+                headers: getAuthHeaders(),
+            });
+
+            const responseData = response.data?.data || response.data || [];
+            setCategories(Array.isArray(responseData) ? responseData : []);
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
+
+                if (status === 401) {
+                    setErrorMessage(
+                        'Từ chối truy cập: Vui lòng đăng nhập bằng tài khoản quản trị.'
+                    );
+                } else if (status === 403) {
+                    setErrorMessage(
+                        'Bạn không có quyền quản trị để truy cập chức năng này.'
+                    );
+                } else {
+                    setErrorMessage(
+                        error.response?.data?.error ||
+                        error.response?.data?.message ||
+                        'Không thể tải danh sách danh mục.'
+                    );
+                }
+            } else {
+                setErrorMessage('Không thể tải danh sách danh mục.');
+            }
+
+            setCategories([]);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-    const filteredCategories = categories.filter((category) =>
-        category.name.toLowerCase().includes(keyword.toLowerCase())
-    );
+    useEffect(() => {
+        loadCategories();
+    }, [loadCategories]);
+
+    const filterCategoryTree = (
+        categoryList: Category[],
+        searchKeyword: string
+    ): Category[] => {
+        if (!searchKeyword.trim()) return categoryList;
+
+        const normalizedKeyword = searchKeyword.toLowerCase().trim();
+
+        return categoryList
+            .map((category) => {
+                const matched =
+                    category.name.toLowerCase().includes(normalizedKeyword) ||
+                    category.slug.toLowerCase().includes(normalizedKeyword);
+
+                const filteredChildren = filterCategoryTree(
+                    category.children || [],
+                    searchKeyword
+                );
+
+                if (matched || filteredChildren.length > 0) {
+                    return {
+                        ...category,
+                        children: filteredChildren,
+                    };
+                }
+
+                return null;
+            })
+            .filter(Boolean) as Category[];
+    };
+
+    const filteredCategories = filterCategoryTree(categories, keyword);
 
     return (
         <main className="min-h-screen bg-slate-50 p-6">
@@ -75,9 +166,15 @@ export default function AdminCategoriesPage() {
 
                         <button
                             type="button"
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            onClick={loadCategories}
+                            disabled={loading}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            <RefreshCcw className="h-4 w-4" />
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCcw className="h-4 w-4" />
+                            )}
                             Làm mới
                         </button>
                     </div>
@@ -93,11 +190,18 @@ export default function AdminCategoriesPage() {
                                 type="text"
                                 value={keyword}
                                 onChange={(event) => setKeyword(event.target.value)}
-                                placeholder="Nhập tên danh mục cần tìm"
+                                placeholder="Nhập tên hoặc slug danh mục cần tìm"
                                 className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
                             />
                         </div>
                     </div>
+
+                    {errorMessage && (
+                        <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{errorMessage}</span>
+                        </div>
+                    )}
                 </section>
 
                 {loading && (
@@ -116,8 +220,8 @@ export default function AdminCategoriesPage() {
                             Không có dữ liệu
                         </h3>
                         <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-                            Hiện chưa có danh mục nào. Bấm Thêm danh mục để tạo danh mục mới
-                            cho hệ thống khóa học.
+                            Hiện chưa có danh mục nào phù hợp. Bấm Thêm danh mục để tạo danh
+                            mục mới cho hệ thống khóa học.
                         </p>
                     </section>
                 )}
