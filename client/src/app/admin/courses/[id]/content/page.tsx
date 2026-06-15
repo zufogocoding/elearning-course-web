@@ -67,6 +67,13 @@ type SectionFormModalProps = {
     onChange: (event: ChangeEvent<HTMLInputElement>) => void;
 };
 
+type DeleteSectionConfirmModalProps = {
+    section: Section;
+    submitting: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+};
+
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -205,6 +212,79 @@ function SectionFormModal({
     );
 }
 
+function DeleteSectionConfirmModal({
+                                       section,
+                                       submitting,
+                                       onClose,
+                                       onConfirm,
+                                   }: DeleteSectionConfirmModalProps) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+                <div className="border-b border-slate-200 p-5">
+                    <div className="flex items-start gap-3">
+                        <div className="rounded-xl bg-red-50 p-3">
+                            <Trash2 className="h-5 w-5 text-red-600" />
+                        </div>
+
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-900">
+                                Xóa chương học
+                            </h2>
+                            <p className="mt-1 text-sm text-slate-500">
+                                Thao tác này sẽ xóa mềm chương học khỏi khóa học.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-5">
+                    <p className="text-sm text-slate-600">
+                        Bạn có chắc chắn muốn xóa chương:
+                    </p>
+
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="font-medium text-slate-900">{section.title}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Chương #{section.id} • Thứ tự {section.orderIndex}
+                        </p>
+                    </div>
+
+                    <p className="mt-3 text-sm text-red-600">
+                        Nếu khóa học đã xuất bản, backend sẽ tự động tăng phiên bản nội
+                        dung.
+                    </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 border-t border-slate-200 p-5">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={submitting}
+                        className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        Hủy
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={submitting}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {submitting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Trash2 className="h-4 w-4" />
+                        )}
+                        Xóa chương
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function CourseContentEditorPage() {
     const params = useParams();
     const courseSlug = params?.id as string;
@@ -221,6 +301,7 @@ export default function CourseContentEditorPage() {
     const [isEditSectionModalOpen, setIsEditSectionModalOpen] =
         useState<boolean>(false);
     const [editingSection, setEditingSection] = useState<Section | null>(null);
+    const [deletingSection, setDeletingSection] = useState<Section | null>(null);
     const [sectionFormData, setSectionFormData] = useState<SectionFormData>(
         initialSectionFormData
     );
@@ -259,67 +340,79 @@ export default function CourseContentEditorPage() {
             return data.data as Course;
         }
 
-        if (responseData && typeof responseData === 'object' && 'id' in responseData) {
+        if (
+            responseData &&
+            typeof responseData === 'object' &&
+            'id' in responseData
+        ) {
             return responseData as Course;
         }
 
         return null;
     };
 
-    const loadCourseContent = useCallback(async (showLoading = true) => {
-        if (!courseSlug) return;
+    const loadCourseContent = useCallback(
+        async (showLoading = true) => {
+            if (!courseSlug) return;
 
-        if (showLoading) {
-            setLoading(true);
-            setErrorMessage(null);
-        }
-
-        try {
-            // TODO: Check API URL
-            const response = await axios.get(`${API_BASE_URL}/api/courses/${courseSlug}`, {
-                headers: getAuthHeaders(),
-            });
-
-            const courseData = normalizeCourseResponse(response.data);
-            const sectionData = courseData?.sections || [];
-
-            setCourse(courseData);
-            setSections(Array.isArray(sectionData) ? sectionData : []);
-            setExpandedSectionIds(
-                Array.isArray(sectionData) ? sectionData.map((section) => section.id) : []
-            );
-        } catch (error) {
-            if (axios.isAxiosError(error)) {
-                const status = error.response?.status;
-
-                if (status === 404) {
-                    setErrorMessage('Không tìm thấy khóa học cần quản lý nội dung.');
-                } else if (status === 401) {
-                    setErrorMessage(
-                        'Từ chối truy cập: Vui lòng đăng nhập bằng tài khoản quản trị.'
-                    );
-                } else if (status === 403) {
-                    setErrorMessage(
-                        'Bạn không có quyền quản trị để truy cập chức năng này.'
-                    );
-                } else {
-                    setErrorMessage(
-                        error.response?.data?.error ||
-                        error.response?.data?.message ||
-                        'Không thể tải nội dung khóa học.'
-                    );
-                }
-            } else {
-                setErrorMessage('Không thể tải nội dung khóa học.');
+            if (showLoading) {
+                setLoading(true);
+                setErrorMessage(null);
             }
 
-            setCourse(null);
-            setSections([]);
-            setExpandedSectionIds([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [courseSlug]);
+            try {
+                // TODO: Check API URL
+                const response = await axios.get(
+                    `${API_BASE_URL}/api/courses/${courseSlug}`,
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                );
+
+                const courseData = normalizeCourseResponse(response.data);
+                const sectionData = courseData?.sections || [];
+
+                setCourse(courseData);
+                setSections(Array.isArray(sectionData) ? sectionData : []);
+                setExpandedSectionIds(
+                    Array.isArray(sectionData)
+                        ? sectionData.map((section) => section.id)
+                        : []
+                );
+            } catch (error) {
+                if (axios.isAxiosError(error)) {
+                    const status = error.response?.status;
+
+                    if (status === 404) {
+                        setErrorMessage('Không tìm thấy khóa học cần quản lý nội dung.');
+                    } else if (status === 401) {
+                        setErrorMessage(
+                            'Từ chối truy cập: Vui lòng đăng nhập bằng tài khoản quản trị.'
+                        );
+                    } else if (status === 403) {
+                        setErrorMessage(
+                            'Bạn không có quyền quản trị để truy cập chức năng này.'
+                        );
+                    } else {
+                        setErrorMessage(
+                            error.response?.data?.error ||
+                            error.response?.data?.message ||
+                            'Không thể tải nội dung khóa học.'
+                        );
+                    }
+                } else {
+                    setErrorMessage('Không thể tải nội dung khóa học.');
+                }
+
+                setCourse(null);
+                setSections([]);
+                setExpandedSectionIds([]);
+            } finally {
+                setLoading(false);
+            }
+        },
+        [courseSlug]
+    );
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -406,6 +499,16 @@ export default function CourseContentEditorPage() {
         setIsEditSectionModalOpen(false);
         setEditingSection(null);
         setSectionFormData(initialSectionFormData);
+    };
+
+    const openDeleteSectionModal = (section: Section) => {
+        setDeletingSection(section);
+    };
+
+    const closeDeleteSectionModal = () => {
+        if (submitting) return;
+
+        setDeletingSection(null);
     };
 
     const handleSectionFormChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -515,6 +618,37 @@ export default function CourseContentEditorPage() {
                 );
             } else {
                 setErrorMessage('Không thể cập nhật chương.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeleteSection = async () => {
+        if (!deletingSection) return;
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await axios.delete(
+                `${API_BASE_URL}/api/content/sections/${deletingSection.id}`,
+                {
+                    headers: getAuthHeaders(),
+                }
+            );
+
+            setDeletingSection(null);
+            await loadCourseContent();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể xóa chương.'
+                );
+            } else {
+                setErrorMessage('Không thể xóa chương.');
             }
         } finally {
             setSubmitting(false);
@@ -718,6 +852,7 @@ export default function CourseContentEditorPage() {
 
                                             <button
                                                 type="button"
+                                                onClick={() => openDeleteSectionModal(section)}
                                                 className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -759,7 +894,9 @@ export default function CourseContentEditorPage() {
                                                                             </h4>
 
                                                                             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                        {getContentTypeLabel(lesson.contentType)}
+                                        {getContentTypeLabel(
+                                            lesson.contentType
+                                        )}
                                       </span>
 
                                                                             {lesson.isPreview && (
@@ -818,6 +955,15 @@ export default function CourseContentEditorPage() {
                     onClose={closeEditSectionModal}
                     onSubmit={handleUpdateSection}
                     onChange={handleSectionFormChange}
+                />
+            )}
+
+            {deletingSection && (
+                <DeleteSectionConfirmModal
+                    section={deletingSection}
+                    submitting={submitting}
+                    onClose={closeDeleteSectionModal}
+                    onConfirm={handleDeleteSection}
                 />
             )}
         </main>
