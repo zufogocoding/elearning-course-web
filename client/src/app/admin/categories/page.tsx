@@ -38,6 +38,7 @@ type CategoryTreeItemProps = {
     category: Category;
     level: number;
     onEdit: (category: Category) => void;
+    onDelete: (category: Category) => void;
 };
 
 type CategoryFormModalProps = {
@@ -52,6 +53,13 @@ type CategoryFormModalProps = {
     onChange: (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => void;
+};
+
+type DeleteConfirmModalProps = {
+    category: Category;
+    submitting: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
 };
 
 const API_BASE_URL =
@@ -217,7 +225,86 @@ function CategoryFormModal({
     );
 }
 
-function CategoryTreeItem({ category, level, onEdit }: CategoryTreeItemProps) {
+function DeleteConfirmModal({
+                                category,
+                                submitting,
+                                onClose,
+                                onConfirm,
+                            }: DeleteConfirmModalProps) {
+    const childCount = category.children?.length || 0;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+                <div className="border-b border-slate-200 p-5">
+                    <div className="flex items-start gap-3">
+                        <div className="rounded-xl bg-red-50 p-3">
+                            <Trash2 className="h-5 w-5 text-red-600" />
+                        </div>
+
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-900">
+                                Xác nhận xóa danh mục
+                            </h2>
+                            <p className="mt-1 text-sm text-slate-500">
+                                Hành động này sẽ xóa mềm danh mục khỏi hệ thống.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-4 p-5">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm text-slate-500">Danh mục cần xóa</p>
+                        <h3 className="mt-1 font-semibold text-slate-900">
+                            {category.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">/{category.slug}</p>
+
+                        {childCount > 0 && (
+                            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                                Danh mục này đang có {childCount} danh mục con. Hãy kiểm tra
+                                nghiệp vụ backend trước khi xóa.
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={submitting}
+                            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Hủy
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={onConfirm}
+                            disabled={submitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {submitting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-4 w-4" />
+                            )}
+                            Xóa danh mục
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CategoryTreeItem({
+                              category,
+                              level,
+                              onEdit,
+                              onDelete,
+                          }: CategoryTreeItemProps) {
     const children = category.children || [];
     const hasChildren = children.length > 0;
 
@@ -280,6 +367,7 @@ function CategoryTreeItem({ category, level, onEdit }: CategoryTreeItemProps) {
 
                         <button
                             type="button"
+                            onClick={() => onDelete(category)}
                             className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
                         >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -297,6 +385,7 @@ function CategoryTreeItem({ category, level, onEdit }: CategoryTreeItemProps) {
                             category={child}
                             level={level + 1}
                             onEdit={onEdit}
+                            onDelete={onDelete}
                         />
                     ))}
                 </div>
@@ -312,6 +401,9 @@ export default function AdminCategoriesPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+    const [deletingCategory, setDeletingCategory] = useState<Category | null>(
+        null
+    );
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [formData, setFormData] = useState<CategoryFormData>(initialFormData);
     const [submitting, setSubmitting] = useState<boolean>(false);
@@ -457,6 +549,16 @@ export default function AdminCategoriesPage() {
         setFormData(initialFormData);
     };
 
+    const openDeleteModal = (category: Category) => {
+        setDeletingCategory(category);
+    };
+
+    const closeDeleteModal = () => {
+        if (submitting) return;
+
+        setDeletingCategory(null);
+    };
+
     const handleFormChange = (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => {
@@ -576,6 +678,34 @@ export default function AdminCategoriesPage() {
         }
     };
 
+    const handleDeleteCategory = async () => {
+        if (!deletingCategory) return;
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await axios.delete(`${API_BASE_URL}/api/categories/${deletingCategory.id}`, {
+                headers: getAuthHeaders(),
+            });
+
+            setDeletingCategory(null);
+            await loadCategories();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể xóa danh mục.'
+                );
+            } else {
+                setErrorMessage('Không thể xóa danh mục.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <main className="min-h-screen bg-slate-50 p-6">
             <div className="mx-auto max-w-6xl space-y-6">
@@ -689,6 +819,7 @@ export default function AdminCategoriesPage() {
                                     category={category}
                                     level={0}
                                     onEdit={openEditModal}
+                                    onDelete={openDeleteModal}
                                 />
                             ))}
                         </div>
@@ -721,6 +852,15 @@ export default function AdminCategoriesPage() {
                     onClose={closeEditModal}
                     onSubmit={handleUpdateCategory}
                     onChange={handleFormChange}
+                />
+            )}
+
+            {deletingCategory && (
+                <DeleteConfirmModal
+                    category={deletingCategory}
+                    submitting={submitting}
+                    onClose={closeDeleteModal}
+                    onConfirm={() => void handleDeleteCategory()}
                 />
             )}
         </main>
