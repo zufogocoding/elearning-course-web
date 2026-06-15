@@ -25,10 +25,12 @@ import {
     X,
 } from 'lucide-react';
 
+type LessonContentType = 'video' | 'text' | 'quiz';
+
 type Lesson = {
     id: number;
     title: string;
-    contentType: 'video' | 'text' | 'quiz' | string;
+    contentType: LessonContentType | string;
     contentUrl: string | null;
     durationSeconds: number | null;
     isPreview: boolean;
@@ -56,6 +58,15 @@ type SectionFormData = {
     orderIndex: string;
 };
 
+type LessonFormData = {
+    title: string;
+    contentType: LessonContentType;
+    contentUrl: string;
+    durationSeconds: string;
+    isPreview: boolean;
+    orderIndex: string;
+};
+
 type SectionFormModalProps = {
     title: string;
     description: string;
@@ -65,6 +76,20 @@ type SectionFormModalProps = {
     onClose: () => void;
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
     onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+};
+
+type LessonFormModalProps = {
+    title: string;
+    description: string;
+    formData: LessonFormData;
+    submitting: boolean;
+    submitLabel: string;
+    sectionTitle: string;
+    onClose: () => void;
+    onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+    onChange: (
+        event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    ) => void;
 };
 
 type DeleteSectionConfirmModalProps = {
@@ -82,6 +107,63 @@ const initialSectionFormData: SectionFormData = {
     orderIndex: '',
 };
 
+const initialLessonFormData: LessonFormData = {
+    title: '',
+    contentType: 'video',
+    contentUrl: '',
+    durationSeconds: '',
+    isPreview: false,
+    orderIndex: '',
+};
+
+function getAuthHeaders() {
+    if (typeof window === 'undefined') return {};
+
+    const token =
+        localStorage.getItem('elearning_admin_token') ||
+        localStorage.getItem('adminToken') ||
+        localStorage.getItem('accessToken');
+
+    if (!token) return {};
+
+    return {
+        Authorization: `Bearer ${token}`,
+    };
+}
+
+function isCourse(value: unknown): value is Course {
+    return Boolean(value && typeof value === 'object' && 'id' in value);
+}
+
+function normalizeCourseResponse(responseData: unknown): Course | null {
+    const root = responseData as {
+        data?: unknown;
+        course?: Course;
+    };
+
+    if (isCourse(root?.course)) {
+        return root.course;
+    }
+
+    if (isCourse(root?.data)) {
+        return root.data;
+    }
+
+    const nestedData = root?.data as {
+        course?: Course;
+    };
+
+    if (isCourse(nestedData?.course)) {
+        return nestedData.course;
+    }
+
+    if (isCourse(responseData)) {
+        return responseData;
+    }
+
+    return null;
+}
+
 function formatDuration(durationSeconds: number | null) {
     if (!durationSeconds || durationSeconds <= 0) return 'Chưa có thời lượng';
 
@@ -98,6 +180,14 @@ function getNextSectionOrderIndex(sections: Section[]) {
     if (sections.length === 0) return 1;
 
     return Math.max(...sections.map((section) => section.orderIndex || 0)) + 1;
+}
+
+function getNextLessonOrderIndex(section: Section | null) {
+    const lessons = section?.lessons || [];
+
+    if (lessons.length === 0) return 1;
+
+    return Math.max(...lessons.map((lesson) => lesson.orderIndex || 0)) + 1;
 }
 
 function getLessonIcon(contentType: string) {
@@ -177,11 +267,169 @@ function SectionFormModal({
                             placeholder="Ví dụ: 1"
                             className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
                         />
-                        <p className="mt-1 text-xs text-slate-500">
-                            Khi thêm mới, thứ tự sẽ được tự động gán ở cuối danh sách và có
-                            thể chỉnh sửa lại.
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={submitting}
+                            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Hủy
+                        </button>
+
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {submitting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4" />
+                            )}
+                            {submitLabel}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+function LessonFormModal({
+                             title,
+                             description,
+                             formData,
+                             submitting,
+                             submitLabel,
+                             sectionTitle,
+                             onClose,
+                             onSubmit,
+                             onChange,
+                         }: LessonFormModalProps) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+            <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+                <div className="flex items-start justify-between border-b border-slate-200 p-5">
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+                        <p className="mt-1 text-sm text-slate-500">{description}</p>
+                        <p className="mt-2 text-xs font-medium text-slate-500">
+                            Chương: {sectionTitle}
                         </p>
                     </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={submitting}
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={onSubmit} className="space-y-4 p-5">
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                            Tên bài học
+                        </label>
+                        <input
+                            type="text"
+                            name="title"
+                            value={formData.title}
+                            onChange={onChange}
+                            placeholder="Ví dụ: Bài 1 - Tổng quan"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                        />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-slate-700">
+                                Loại nội dung
+                            </label>
+                            <select
+                                name="contentType"
+                                value={formData.contentType}
+                                onChange={onChange}
+                                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                            >
+                                <option value="video">Video</option>
+                                <option value="text">Bài đọc</option>
+                                <option value="quiz">Quiz</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-slate-700">
+                                Thứ tự hiển thị
+                            </label>
+                            <input
+                                type="number"
+                                name="orderIndex"
+                                value={formData.orderIndex}
+                                onChange={onChange}
+                                min={1}
+                                placeholder="Ví dụ: 1"
+                                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                            Đường dẫn nội dung
+                        </label>
+                        <input
+                            type="text"
+                            name="contentUrl"
+                            value={formData.contentUrl}
+                            onChange={onChange}
+                            placeholder="Ví dụ: https://youtube.com/... hoặc đường dẫn tài liệu"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                            Có thể để trống nếu bài học dạng text/quiz chưa cần URL.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                            Thời lượng giây
+                        </label>
+                        <input
+                            type="number"
+                            name="durationSeconds"
+                            value={formData.durationSeconds}
+                            onChange={onChange}
+                            min={0}
+                            placeholder="Ví dụ: 600"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                        />
+                    </div>
+
+                    <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 p-4">
+                        <div>
+                            <p className="text-sm font-medium text-slate-900">
+                                Cho phép học thử
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                Bật tùy chọn này nếu bài học được xem miễn phí trước khi mua
+                                khóa học.
+                            </p>
+                        </div>
+
+                        <input
+                            type="checkbox"
+                            name="isPreview"
+                            checked={formData.isPreview}
+                            onChange={onChange}
+                            className="h-5 w-5 rounded border-slate-300"
+                        />
+                    </label>
 
                     <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
                         <button
@@ -302,54 +550,22 @@ export default function CourseContentEditorPage() {
         useState<boolean>(false);
     const [editingSection, setEditingSection] = useState<Section | null>(null);
     const [deletingSection, setDeletingSection] = useState<Section | null>(null);
+
+    const [isCreateLessonModalOpen, setIsCreateLessonModalOpen] =
+        useState<boolean>(false);
+    const [isEditLessonModalOpen, setIsEditLessonModalOpen] =
+        useState<boolean>(false);
+    const [selectedSectionForLesson, setSelectedSectionForLesson] =
+        useState<Section | null>(null);
+    const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+
     const [sectionFormData, setSectionFormData] = useState<SectionFormData>(
         initialSectionFormData
     );
+    const [lessonFormData, setLessonFormData] = useState<LessonFormData>(
+        initialLessonFormData
+    );
     const [submitting, setSubmitting] = useState<boolean>(false);
-
-    const getAuthHeaders = () => {
-        if (typeof window === 'undefined') return {};
-
-        const token =
-            localStorage.getItem('elearning_admin_token') ||
-            localStorage.getItem('adminToken') ||
-            localStorage.getItem('accessToken');
-
-        if (!token) return {};
-
-        return {
-            Authorization: `Bearer ${token}`,
-        };
-    };
-
-    const normalizeCourseResponse = (responseData: unknown): Course | null => {
-        const data = responseData as {
-            data?: Course | { course?: Course };
-            course?: Course;
-        };
-
-        if (data?.data && 'course' in data.data && data.data.course) {
-            return data.data.course;
-        }
-
-        if (data?.course) {
-            return data.course;
-        }
-
-        if (data?.data && 'id' in data.data) {
-            return data.data as Course;
-        }
-
-        if (
-            responseData &&
-            typeof responseData === 'object' &&
-            'id' in responseData
-        ) {
-            return responseData as Course;
-        }
-
-        return null;
-    };
 
     const loadCourseContent = useCallback(
         async (showLoading = true) => {
@@ -511,6 +727,53 @@ export default function CourseContentEditorPage() {
         setDeletingSection(null);
     };
 
+    const openCreateLessonModal = (section: Section) => {
+        setSelectedSectionForLesson(section);
+        setEditingLesson(null);
+        setLessonFormData({
+            ...initialLessonFormData,
+            orderIndex: String(getNextLessonOrderIndex(section)),
+        });
+        setIsCreateLessonModalOpen(true);
+    };
+
+    const closeCreateLessonModal = () => {
+        if (submitting) return;
+
+        setIsCreateLessonModalOpen(false);
+        setSelectedSectionForLesson(null);
+        setLessonFormData(initialLessonFormData);
+    };
+
+    const openEditLessonModal = (section: Section, lesson: Lesson) => {
+        setSelectedSectionForLesson(section);
+        setEditingLesson(lesson);
+        setLessonFormData({
+            title: lesson.title,
+            contentType:
+                lesson.contentType === 'text' || lesson.contentType === 'quiz'
+                    ? lesson.contentType
+                    : 'video',
+            contentUrl: lesson.contentUrl || '',
+            durationSeconds:
+                lesson.durationSeconds !== null && lesson.durationSeconds !== undefined
+                    ? String(lesson.durationSeconds)
+                    : '',
+            isPreview: Boolean(lesson.isPreview),
+            orderIndex: String(lesson.orderIndex),
+        });
+        setIsEditLessonModalOpen(true);
+    };
+
+    const closeEditLessonModal = () => {
+        if (submitting) return;
+
+        setIsEditLessonModalOpen(false);
+        setSelectedSectionForLesson(null);
+        setEditingLesson(null);
+        setLessonFormData(initialLessonFormData);
+    };
+
     const handleSectionFormChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
 
@@ -520,6 +783,25 @@ export default function CourseContentEditorPage() {
         }));
     };
 
+    const handleLessonFormChange = (
+        event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    ) => {
+        const target = event.target;
+        const { name, value } = target;
+
+        if (target instanceof HTMLInputElement && name === 'isPreview') {
+            setLessonFormData((currentFormData) => ({
+                ...currentFormData,
+                isPreview: target.checked,
+            }));
+            return;
+        }
+
+        setLessonFormData((currentFormData) => ({
+            ...currentFormData,
+            [name]: value,
+        }));
+    };
     const validateSectionForm = () => {
         if (!sectionFormData.title.trim()) {
             setErrorMessage('Vui lòng nhập tên chương.');
@@ -538,6 +820,50 @@ export default function CourseContentEditorPage() {
 
         return true;
     };
+
+    const validateLessonForm = () => {
+        if (!lessonFormData.title.trim()) {
+            setErrorMessage('Vui lòng nhập tên bài học.');
+            return false;
+        }
+
+        if (!lessonFormData.contentType) {
+            setErrorMessage('Vui lòng chọn loại nội dung.');
+            return false;
+        }
+
+        if (!lessonFormData.orderIndex.trim()) {
+            setErrorMessage('Vui lòng nhập thứ tự hiển thị của bài học.');
+            return false;
+        }
+
+        if (Number(lessonFormData.orderIndex) < 1) {
+            setErrorMessage('Thứ tự hiển thị của bài học phải lớn hơn hoặc bằng 1.');
+            return false;
+        }
+
+        if (
+            lessonFormData.durationSeconds.trim() &&
+            Number(lessonFormData.durationSeconds) < 0
+        ) {
+            setErrorMessage('Thời lượng bài học không được nhỏ hơn 0.');
+            return false;
+        }
+
+        return true;
+    };
+
+    const getLessonPayload = () => ({
+        sectionId: selectedSectionForLesson?.id,
+        title: lessonFormData.title.trim(),
+        contentType: lessonFormData.contentType,
+        contentUrl: lessonFormData.contentUrl.trim() || null,
+        durationSeconds: lessonFormData.durationSeconds.trim()
+            ? Number(lessonFormData.durationSeconds)
+            : null,
+        isPreview: lessonFormData.isPreview,
+        orderIndex: Number(lessonFormData.orderIndex),
+    });
 
     const handleCreateSection = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -649,6 +975,86 @@ export default function CourseContentEditorPage() {
                 );
             } else {
                 setErrorMessage('Không thể xóa chương.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleCreateLesson = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!selectedSectionForLesson) {
+            setErrorMessage('Không tìm thấy chương để thêm bài học.');
+            return;
+        }
+
+        if (!validateLessonForm()) return;
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await axios.post(
+                `${API_BASE_URL}/api/content/lessons`,
+                getLessonPayload(),
+                {
+                    headers: getAuthHeaders(),
+                }
+            );
+
+            setIsCreateLessonModalOpen(false);
+            setSelectedSectionForLesson(null);
+            setLessonFormData(initialLessonFormData);
+            await loadCourseContent();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể thêm bài học.'
+                );
+            } else {
+                setErrorMessage('Không thể thêm bài học.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleUpdateLesson = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!editingLesson || !selectedSectionForLesson) return;
+
+        if (!validateLessonForm()) return;
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await axios.put(
+                `${API_BASE_URL}/api/content/lessons/${editingLesson.id}`,
+                getLessonPayload(),
+                {
+                    headers: getAuthHeaders(),
+                }
+            );
+
+            setIsEditLessonModalOpen(false);
+            setSelectedSectionForLesson(null);
+            setEditingLesson(null);
+            setLessonFormData(initialLessonFormData);
+            await loadCourseContent();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể cập nhật bài học.'
+                );
+            } else {
+                setErrorMessage('Không thể cập nhật bài học.');
             }
         } finally {
             setSubmitting(false);
@@ -840,7 +1246,16 @@ export default function CourseContentEditorPage() {
                                             </div>
                                         </button>
 
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center justify-end gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => openCreateLessonModal(section)}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-50"
+                                            >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                Thêm bài
+                                            </button>
+
                                             <button
                                                 type="button"
                                                 onClick={() => openEditSectionModal(section)}
@@ -870,8 +1285,8 @@ export default function CourseContentEditorPage() {
                                                         Chưa có bài học
                                                     </p>
                                                     <p className="mt-1 text-sm text-slate-500">
-                                                        Bước tiếp theo sẽ thêm chức năng tạo bài học trong
-                                                        chương này.
+                                                        Bấm Thêm bài để tạo bài học đầu tiên trong chương
+                                                        này.
                                                     </p>
                                                 </div>
                                             ) : (
@@ -917,6 +1332,19 @@ export default function CourseContentEditorPage() {
                                                                             </p>
                                                                         )}
                                                                     </div>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            openEditLessonModal(section, lesson)
+                                                                        }
+                                                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                                                                    >
+                                                                        <Edit3 className="h-3.5 w-3.5" />
+                                                                        Sửa
+                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -964,6 +1392,34 @@ export default function CourseContentEditorPage() {
                     submitting={submitting}
                     onClose={closeDeleteSectionModal}
                     onConfirm={handleDeleteSection}
+                />
+            )}
+
+            {isCreateLessonModalOpen && selectedSectionForLesson && (
+                <LessonFormModal
+                    title="Thêm bài học"
+                    description="Tạo bài học mới trong chương đã chọn."
+                    formData={lessonFormData}
+                    submitting={submitting}
+                    submitLabel="Lưu bài học"
+                    sectionTitle={selectedSectionForLesson.title}
+                    onClose={closeCreateLessonModal}
+                    onSubmit={handleCreateLesson}
+                    onChange={handleLessonFormChange}
+                />
+            )}
+
+            {isEditLessonModalOpen && selectedSectionForLesson && editingLesson && (
+                <LessonFormModal
+                    title="Sửa bài học"
+                    description="Cập nhật thông tin bài học."
+                    formData={lessonFormData}
+                    submitting={submitting}
+                    submitLabel="Cập nhật bài học"
+                    sectionTitle={selectedSectionForLesson.title}
+                    onClose={closeEditLessonModal}
+                    onSubmit={handleUpdateLesson}
+                    onChange={handleLessonFormChange}
                 />
             )}
         </main>
