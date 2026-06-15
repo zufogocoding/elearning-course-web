@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   PlayCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight,
   Download, HelpCircle, Sun, Moon, X, FileText, BookOpen,
@@ -24,6 +24,7 @@ type LessonType = "video" | "quiz" | "document";
 interface Lesson {
   id: number; title: string; duration: string;
   completed: boolean; locked: boolean; type: LessonType;
+  isPreview?: boolean;
 }
 interface Section { id: number; title: string; lessons: Lesson[]; expanded: boolean; }
 interface Attachment { name: string; size: string; type: string; }
@@ -147,6 +148,22 @@ export default function LearnPage() {
 
   const t = buildTheme(isDark);
 
+  // Sắp xếp bài học và tính toán khóa theo trình tự
+  const sectionsWithLocks = useMemo(() => {
+    let previousCompleted = true;
+    return sections.map((sec) => ({
+      ...sec,
+      lessons: sec.lessons.map((les) => {
+        const locked = les.isPreview ? false : !previousCompleted;
+        previousCompleted = les.completed;
+        return {
+          ...les,
+          locked
+        };
+      })
+    }));
+  }, [sections]);
+
   // Load Course and Learning structure
   useEffect(() => {
     if (!authLoading && !user) {
@@ -162,9 +179,10 @@ export default function LearnPage() {
           return;
         }
         const basicCourse = await res.json();
-        setCourseDetail(basicCourse);
+        const courseData = basicCourse.data;
+        setCourseDetail(courseData);
 
-        const structureRes = await api.get(`/api/learning/courses/${basicCourse.id}`);
+        const structureRes = await api.get(`/api/learning/courses/${courseData.id}`);
         if (!structureRes.ok) {
           router.push(`/checkout/${courseSlug}`);
           return;
@@ -189,7 +207,8 @@ export default function LearnPage() {
             completed: les.isCompleted,
             locked: false,
             type: les.contentType === "video" ? "video" : les.contentType === "quiz" ? "quiz" : "document",
-            quizId: les.quizId
+            quizId: les.quizId,
+            isPreview: les.isPreview
           }))
         }));
         setSections(uiSections);
@@ -311,7 +330,22 @@ export default function LearnPage() {
       if ((window as any).YT && (window as any).YT.Player) {
         initPlayer();
       } else {
-        (window as any).onYouTubeIframeAPIReady = initPlayer;
+        const previousOnReady = (window as any).onYouTubeIframeAPIReady;
+        (window as any).onYouTubeIframeAPIReady = () => {
+          if (previousOnReady) previousOnReady();
+          initPlayer();
+        };
+
+        if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+          const tag = document.createElement("script");
+          tag.src = "https://www.youtube.com/iframe_api";
+          const firstScriptTag = document.getElementsByTagName("script")[0];
+          if (firstScriptTag && firstScriptTag.parentNode) {
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+          } else {
+            document.head.appendChild(tag);
+          }
+        }
       }
     }
 
@@ -335,12 +369,15 @@ export default function LearnPage() {
       if (res.ok) {
         const result = await res.json();
         const attempt = result.data;
+        if (attempt && !attempt.id && attempt.attemptId) {
+          attempt.id = attempt.attemptId;
+        }
         setQuizAttempt(attempt);
 
         const qRes = await api.get(`/api/learning/quiz-attempts/${attempt.id}/questions`);
         if (qRes.ok) {
           const qData = await qRes.json();
-          setQuizQuestions(qData.data || []);
+          setQuizQuestions(qData.data.questions || []);
           setSelectedAnswers({});
           setQuizResult(null);
 
@@ -424,7 +461,7 @@ export default function LearnPage() {
   }, [quizAttempt, quizTimeLeft, quizResult]);
 
   /* helpers */
-  const allLessons    = sections.flatMap((s) => s.lessons);
+  const allLessons    = sectionsWithLocks.flatMap((s) => s.lessons);
   const progress      = progressPercent;
   const currentLesson = allLessons.find((l) => l.id === currentLessonId);
   const flatUnlocked  = allLessons.filter((l) => !l.locked);
@@ -743,15 +780,22 @@ export default function LearnPage() {
                 <span className={`text-xs font-semibold ${t.muted}`}>{progress}%</span>
               </div>
 
-              <button
-                id="complete-next-btn"
-                onClick={goNextAndComplete}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 active:scale-[0.97]"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">Mark Complete &amp; Next</span>
-                <span className="sm:hidden">Complete</span>
-              </button>
+              {currentLessonDetail?.contentType !== "quiz" && (
+                <button
+                  id="complete-next-btn"
+                  onClick={goNextAndComplete}
+                  disabled={
+                    (currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document") &&
+                    !currentLesson?.completed &&
+                    !documentReadComplete
+                  }
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="hidden sm:inline">Mark Complete &amp; Next</span>
+                  <span className="sm:hidden">Complete</span>
+                </button>
+              )}
             </div>
 
             {/* Tabs */}
@@ -975,7 +1019,7 @@ export default function LearnPage() {
 
             {/* Lessons List */}
             <div className="flex-1 overflow-y-auto">
-              {sections.map((section) => {
+              {sectionsWithLocks.map((section) => {
                 const secDone  = section.lessons.filter((l) => l.completed).length;
                 const secTotal = section.lessons.length;
                 return (

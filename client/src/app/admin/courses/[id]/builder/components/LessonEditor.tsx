@@ -87,6 +87,8 @@ export default function LessonEditor({
         }
       } catch {
         setSaveState("error");
+      } finally {
+        timerRef.current = null;
       }
     }, 1000); // 1-second debounce
   };

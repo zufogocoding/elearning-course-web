@@ -55,13 +55,13 @@ export default function QuizEditor({
   // Sync database IDs ONLY when initialQuiz changes (after backend save resolves)
   // This prevents resetting user text inputs while they are actively typing.
   useEffect(() => {
-    if (!initialQuiz) return;
+    if (!initialQuiz || !initialQuiz.questions) return;
     setQuiz((prev) => {
       const mergedQuestions = prev.questions.map((q, qIdx) => {
         const initialQ = initialQuiz.questions[qIdx];
         if (!initialQ) return q;
         const mergedOptions = q.options.map((opt, oIdx) => {
-          const initialOpt = initialQ.options[oIdx];
+          const initialOpt = initialQ.options ? initialQ.options[oIdx] : null;
           return { ...opt, id: initialOpt?.id || opt.id };
         });
         return { ...q, id: initialQ.id || q.id, options: mergedOptions };
@@ -107,6 +107,8 @@ export default function QuizEditor({
         }
       } catch {
         setSaveState("error");
+      } finally {
+        timerRef.current = null;
       }
     }, 1200); // 1.2-second debounce for complex quiz structures
   };
@@ -115,7 +117,9 @@ export default function QuizEditor({
   const updateQuizState = (updater: (prev: Quiz) => Quiz) => {
     setQuiz((prev) => {
       const next = updater(prev);
-      triggerAutoSave(next);
+      setTimeout(() => {
+        triggerAutoSave(next);
+      }, 0);
       return next;
     });
   };

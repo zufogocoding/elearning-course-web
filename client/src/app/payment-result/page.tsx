@@ -89,7 +89,7 @@ function PaymentResultContent() {
         setTxnTime(`${h}:${mi} ngày ${d}/${mo}/${y}`);
       }
 
-      if (!isOk) {
+      if (!isSuccess) {
         setChecking(false);
         return;
       }
