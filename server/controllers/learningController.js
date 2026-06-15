@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const crypto = require('crypto');
 
 // =====================================================
 // LEARNING CONTROLLER
@@ -46,6 +47,24 @@ const findActiveEnrollment = async (userId, courseId) => {
   });
 
   return isEnrollmentActive(enrollment) ? enrollment : null;
+};
+
+const issueCertificateIfDone = async (userId, courseId, enrollmentId, progressPercent) => {
+  if (progressPercent >= 100 && enrollmentId) {
+    const existingCert = await prisma.certificate.findUnique({ where: { enrollmentId } });
+    if (!existingCert) {
+      const course = await prisma.course.findUnique({ where: { id: courseId } });
+      await prisma.certificate.create({
+        data: {
+          enrollmentId,
+          userId,
+          courseId,
+          certificateCode: crypto.randomUUID(),
+          courseVersion: course?.version || 1
+        }
+      });
+    }
+  }
 };
 
 const getCourseProgressData = async (userId, courseId) => {
@@ -562,6 +581,10 @@ const completeLesson = async (req, res) => {
 
     const courseProgress = await getCourseProgressData(userId, access.courseId);
 
+    if (access.enrollment) {
+      await issueCertificateIfDone(userId, access.courseId, access.enrollment.id, courseProgress.progressPercent);
+    }
+
     return success(res, {
       lessonId,
       isCompleted: true,
@@ -855,7 +878,7 @@ const checkAttemptOwnerAndTime = async (userId, attemptId) => {
   const access = await checkLessonAccess(userId, attempt.quiz.lesson);
   if (!access.allowed) return { ok: false, status: access.status, message: access.message };
 
-  return { ok: true, attempt, courseId: access.courseId };
+  return { ok: true, attempt, courseId: access.courseId, enrollment: access.enrollment };
 };
 
 // =====================================================
@@ -1026,6 +1049,10 @@ const submitQuizAttempt = async (req, res) => {
     ]);
 
     const courseProgress = await getCourseProgressData(userId, checked.courseId);
+
+    if (checked.enrollment) {
+      await issueCertificateIfDone(userId, checked.courseId, checked.enrollment.id, courseProgress.progressPercent);
+    }
 
     return success(res, {
       attemptId,
