@@ -31,6 +31,8 @@ interface Section { id: number; title: string; lessons: Lesson[]; expanded: bool
 interface Attachment { id: number; fileName: string; fileSize: number; fileType: string; fileUrl: string; }
 interface ApiLesson { id: number; title: string; durationSeconds: number; isCompleted: boolean; isPreview: boolean; contentType: string; quizId?: number; }
 interface ApiSection { id: number; title: string; lessons: ApiLesson[]; }
+interface QuizOption { id: number; optionText: string; isCorrect?: boolean; }
+interface QuizQuestion { id: number; questionText: string; explanation?: string | null; questionOptions: QuizOption[]; }
 
 
 /* ── Mock Data ── */
