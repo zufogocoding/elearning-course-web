@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { initEmailTransporter } = require('./lib/email');
@@ -25,6 +26,9 @@ const reviewRoutes = require('./routes/reviewRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Security: Helmet (sets various HTTP security headers)
+app.use(helmet());
 
 // Security: Rate Limiting
 const limiter = rateLimit({

@@ -36,4 +36,6 @@ node_modules
 .env
 
 # AI Rules
-.ai-rules.md
+.ai-rules.mddiff.txt
+q
+setup-github-project.sh

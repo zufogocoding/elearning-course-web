@@ -43,7 +43,6 @@ const initEmailTransporter = async () => {
     console.log(`📧 Email service: Ethereal (dev mode)`);
     console.log(`   Preview URL: https://ethereal.email/login`);
     console.log(`   User: ${testAccount.user}`);
-    console.log(`   Pass: ${testAccount.pass}`);
   }
 };
 
@@ -99,8 +98,10 @@ const sendPasswordResetEmail = async (to, resetToken) => {
  * ALWAYS logs OTP to console as fallback (for grading/dev without SMTP)
  */
 const sendEmailVerificationOtp = async (to, otp) => {
-  // Always log for dev/grading fallback
-  console.log(`\n🔑 [EMAIL VERIFY OTP] Email: ${to} | OTP: ${otp}\n`);
+  // Log OTP for dev/grading fallback (never in production)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`\n🔑 [EMAIL VERIFY OTP] Email: ${to} | OTP: ${otp}\n`);
+  }
 
   if (!transporter) {
     try { await initEmailTransporter(); } catch(e) { return; }
@@ -143,8 +144,10 @@ const sendEmailVerificationOtp = async (to, otp) => {
  * ALWAYS logs OTP to console as fallback
  */
 const sendPasswordResetOtp = async (to, otp) => {
-  // Always log for dev/grading fallback
-  console.log(`\n🔑 [RESET PASSWORD OTP] Email: ${to} | OTP: ${otp}\n`);
+  // Log OTP for dev/grading fallback (never in production)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`\n🔑 [RESET PASSWORD OTP] Email: ${to} | OTP: ${otp}\n`);
+  }
 
   if (!transporter) {
     try { await initEmailTransporter(); } catch(e) { return; }

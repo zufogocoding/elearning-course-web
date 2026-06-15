@@ -430,7 +430,6 @@ export default function AdminCategoriesPage() {
         }
 
         try {
-            // TODO: Check API URL
             const response = await axios.get(`${API_BASE_URL}/api/categories`, {
                 headers: getAuthHeaders(),
             });

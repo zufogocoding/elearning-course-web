@@ -56,6 +56,8 @@ interface Stat {
   value: string;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
 export default function Home() {
   const { isDark } = useTheme();
   const { user } = useAuth();
@@ -70,8 +72,7 @@ export default function Home() {
 
   useEffect(() => {
     // Fetch Categories
-    // TODO: Check API URL
-    axios.get('http://localhost:5000/api/categories')
+    axios.get(`${API_BASE}/api/categories`)
       .then(res => {
         setCategories(res.data?.data || []);
       })
@@ -79,8 +80,7 @@ export default function Home() {
       .finally(() => setLoadingCategories(false));
 
     // Fetch Popular Courses
-    // TODO: Check API URL
-    axios.get('http://localhost:5000/api/courses?sort=popular&limit=3')
+    axios.get(`${API_BASE}/api/courses?sort=popular&limit=3`)
       .then(res => {
         setCourses(res.data?.data || []);
       })
@@ -88,8 +88,7 @@ export default function Home() {
       .finally(() => setLoadingCourses(false));
 
     // Fetch Stats
-    // TODO: Check API URL
-    axios.get('http://localhost:5000/api/courses/stats')
+    axios.get(`${API_BASE}/api/courses/stats`)
       .then(res => {
         setStats(res.data?.data || []);
       })

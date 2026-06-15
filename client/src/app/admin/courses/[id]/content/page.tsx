@@ -696,7 +696,6 @@ export default function CourseContentEditorPage() {
             }
 
             try {
-                // TODO: Check API URL
                 const response = await axios.get(
                     `${API_BASE_URL}/api/courses/${courseSlug}`,
                     {

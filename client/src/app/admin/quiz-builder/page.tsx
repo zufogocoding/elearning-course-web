@@ -223,7 +223,6 @@ export default function QuizBuilderPage() {
         setSelectedQuiz(null);
 
         try {
-            // TODO: Check API URL
             const response = await axios.get(
                 `${API_BASE_URL}/api/content/quizzes/${targetLessonId}`,
                 {
@@ -340,7 +339,6 @@ export default function QuizBuilderPage() {
             let response;
 
             if (isEditingQuiz && selectedQuiz) {
-                // TODO: Check API URL
                 response = await axios.put(
                     `${API_BASE_URL}/api/content/quizzes/${selectedQuiz.id}`,
                     payload,
@@ -351,7 +349,6 @@ export default function QuizBuilderPage() {
 
                 setSuccessMessage('Cập nhật quiz thành công.');
             } else {
-                // TODO: Check API URL
                 response = await axios.post(
                     `${API_BASE_URL}/api/content/quizzes`,
                     payload,
@@ -647,7 +644,6 @@ export default function QuizBuilderPage() {
             let response;
 
             if (isEditingQuestion && editingQuestionId) {
-                // TODO: Check API URL
                 response = await axios.put(
                     `${API_BASE_URL}/api/content/questions/${editingQuestionId}`,
                     payload,
@@ -658,7 +654,6 @@ export default function QuizBuilderPage() {
 
                 setSuccessMessage('Cập nhật câu hỏi thành công.');
             } else {
-                // TODO: Check API URL
                 response = await axios.post(
                     `${API_BASE_URL}/api/content/questions`,
                     payload,
@@ -710,7 +705,6 @@ export default function QuizBuilderPage() {
         setSuccessMessage(null);
 
         try {
-            // TODO: Check API URL
             await axios.delete(`${API_BASE_URL}/api/content/questions/${question.id}`, {
                 headers: getAuthHeaders(),
             });
