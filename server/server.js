@@ -8,6 +8,8 @@ const { initEmailTransporter } = require('./lib/email');
 const errorHandler = require('./middleware/errorMiddleware');
 const { startCronJobs } = require('./lib/cronJobs');
 
+
+
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -73,3 +75,11 @@ app.listen(PORT, '0.0.0.0', async () => {
   }
 });
 
+// Mở endpoint phục vụ file (Chỉ trả về file tĩnh, không thực thi)
+app.use('/api/files', express.static(path.join(__dirname, '../storage/uploads'), {
+  fallthrough: false,
+  setHeaders: (res, filePath) => {
+    // Ép trình duyệt không được chạy file nội dung lạ (Bảo mật thêm 1 lớp XSS)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}));

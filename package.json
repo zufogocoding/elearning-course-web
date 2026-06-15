@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "file-type": "^22.0.1",
+    "multer": "^2.1.1"
+  }
+}

@@ -4,39 +4,68 @@ const path = require('path');
 const asyncHandler = require('../middleware/asyncHandler');
 const { sendSuccess } = require('../lib/apiResponse');
 
-// [POST] Tạo khóa học mới (Yêu cầu quyền Admin)
-const createCourse = asyncHandler(async (req, res) => {
-  const {
-    title, slug, shortDescription, fullDescription, level, price,
-    discountPrice, thumbnailUrl, previewVideoUrl, status, categoryId,
-  } = req.body;
-  const adminId = req.user.id;
+// [POST] Tạo khóa học mới (Admin)
+const createCourse = async (req, res) => {
+  try {
+    const {
+      title, slug, shortDescription, fullDescription, level,
+      price, discountPrice, thumbnailUrl, previewVideoUrl, status, categoryId
+    } = req.body;
 
-  if (!title || !slug) {
-    const error = new Error('Thiếu thông tin bắt buộc: title, slug');
-    error.status = 400;
-    throw error;
-  }
+    const adminId = req.user.id;
 
-  const newCourse = await prisma.course.create({
-    data: {
-      title, slug, shortDescription, fullDescription,
-      level: level || "beginner",
-      price: price ? parseFloat(price) : 0,
-      discountPrice: discountPrice ? parseFloat(discountPrice) : null,
-      thumbnailUrl, previewVideoUrl,
-      status: status || "draft",
-      categoryId: categoryId ? parseInt(categoryId) : null,
-      createdBy: adminId,
-    },
-    select: {
-      id: true, title: true, slug: true, status: true, createdAt: true,
-      creator: { select: { id: true, username: true, email: true } }
+    if (!title || !slug) {
+      return res.status(400).json({ error: 'Thiếu thông tin bắt buộc: title, slug' });
     }
-  });
 
-  return sendSuccess(res, newCourse, 'Tạo khóa học thành công', 201);
-});
+    // ==========================================
+    // SERVER-SIDE VALIDATION: KIỂM TRA GIÁ TIỀN
+    // ==========================================
+    let finalPrice = 0;
+    let finalDiscountPrice = null;
+
+    // 1. Validate Price (Giá gốc)
+    if (price !== undefined && price !== null) {
+      finalPrice = parseFloat(price);
+      // Chặn giá trị không phải số (NaN) hoặc số âm
+      if (isNaN(finalPrice) || finalPrice < 0) {
+        return res.status(400).json({ error: 'Bảo mật: Giá khóa học (price) phải là một số lớn hơn hoặc bằng 0.' });
+      }
+    }
+
+    // 2. Validate Discount Price (Giá giảm)
+    if (discountPrice !== undefined && discountPrice !== null) {
+      finalDiscountPrice = parseFloat(discountPrice);
+      if (isNaN(finalDiscountPrice) || finalDiscountPrice < 0) {
+        return res.status(400).json({ error: 'Bảo mật: Giá giảm (discountPrice) không hợp lệ.' });
+      }
+      // 3. Logic nghiệp vụ: Giá giảm tuyệt đối không được lớn hơn hoặc bằng giá gốc
+      if (finalDiscountPrice >= finalPrice) {
+        return res.status(400).json({ error: 'Bảo mật: Giá giảm khuyến mãi phải nhỏ hơn giá gốc của khóa học.' });
+      }
+    }
+
+    const newCourse = await prisma.course.create({
+      data: {
+        title, slug, shortDescription, fullDescription,
+        level: level || "beginner",
+        price: finalPrice, 
+        discountPrice: finalDiscountPrice,
+        thumbnailUrl, previewVideoUrl,
+        status: status || "draft",
+        categoryId: categoryId ? parseInt(categoryId) : null,
+        createdBy: adminId,
+      },
+      select: { id: true, title: true, price: true, discountPrice: true }
+    });
+
+    res.status(201).json({ message: 'Tạo khóa học thành công', course: newCourse });
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ error: 'Slug khóa học đã tồn tại.' });
+    res.status(500).json({ error: 'Lỗi server khi tạo khóa học.' });
+  }
+};
+
 
 // [GET] Lấy danh sách khóa học (Public)
 const getAllCourses = asyncHandler(async (req, res) => {
@@ -118,38 +147,72 @@ const getCourseBySlug = asyncHandler(async (req, res) => {
 });
 
 // [PUT] Cập nhật khóa học (Admin)
-const updateCourse = asyncHandler(async (req, res) => {
+const updateCourse = async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
 
-  const existingCourse = await prisma.course.findUnique({
-    where: { id: parseInt(id) }
-  });
+  try {
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-  if (!existingCourse || existingCourse.deletedAt) {
-    const error = new Error('Không tìm thấy khóa học để cập nhật.');
-    error.status = 404;
-    throw error;
+    if (!existingCourse || existingCourse.deletedAt) {
+      return res.status(404).json({ error: 'Không tìm thấy khóa học.' });
+    }
+
+    // ==========================================
+    // SERVER-SIDE VALIDATION: KIỂM TRA GIÁ TIỀN UPDATE
+    // ==========================================
+    let newPrice = existingCourse.price; // Mặc định lấy giá cũ
+    let newDiscount = existingCourse.discountPrice;
+
+    if (updateData.price !== undefined) {
+      newPrice = parseFloat(updateData.price);
+      if (isNaN(newPrice) || newPrice < 0) {
+        return res.status(400).json({ error: 'Bảo mật: Giá khóa học không hợp lệ.' });
+      }
+    }
+
+    if (updateData.discountPrice !== undefined) {
+      // Nếu gửi null hoặc chuỗi rỗng lên tức là muốn xóa giá giảm
+      if (updateData.discountPrice === null || updateData.discountPrice === '') {
+        newDiscount = null;
+      } else {
+        newDiscount = parseFloat(updateData.discountPrice);
+        if (isNaN(newDiscount) || newDiscount < 0) {
+          return res.status(400).json({ error: 'Bảo mật: Giá giảm không hợp lệ.' });
+        }
+      }
+    }
+
+    // Kiểm tra logic chéo: Giá giảm mới có bị lớn hơn giá gốc (mới hoặc cũ) không?
+    if (newDiscount !== null && newDiscount >= newPrice) {
+      return res.status(400).json({ error: 'Bảo mật: Giá giảm không được lớn hơn hoặc bằng giá gốc.' });
+    }
+    // ==========================================
+
+    let newVersion = existingCourse.version;
+    if (existingCourse.status === 'published') newVersion += 1;
+
+    const dataToUpdate = {
+      ...updateData,
+      version: newVersion,
+      price: newPrice,
+      discountPrice: newDiscount,
+      ...(updateData.categoryId !== undefined && { categoryId: parseInt(updateData.categoryId) }),
+    };
+
+    const updatedCourse = await prisma.course.update({
+      where: { id: parseInt(id) },
+      data: dataToUpdate
+    });
+
+    res.status(200).json({ message: 'Cập nhật thành công', course: updatedCourse });
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ error: 'Slug đã tồn tại.' });
+    res.status(500).json({ error: 'Lỗi server khi cập nhật khóa học.' });
   }
-
-  let newVersion = existingCourse.version;
-  if (existingCourse.status === 'published') newVersion += 1;
-
-  const dataToUpdate = {
-    ...updateData,
-    version: newVersion,
-    ...(updateData.price !== undefined && { price: parseFloat(updateData.price) }),
-    ...(updateData.discountPrice !== undefined && { discountPrice: parseFloat(updateData.discountPrice) }),
-    ...(updateData.categoryId !== undefined && { categoryId: parseInt(updateData.categoryId) }),
-  };
-
-  const updatedCourse = await prisma.course.update({
-    where: { id: parseInt(id) },
-    data: dataToUpdate
-  });
-
-  return sendSuccess(res, updatedCourse, 'Cập nhật khóa học thành công');
-});
+};
 
 // [DELETE] Xóa mềm khóa học (Admin)
 const deleteCourse = asyncHandler(async (req, res) => {

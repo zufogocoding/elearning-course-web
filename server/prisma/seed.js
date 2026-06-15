@@ -30,32 +30,48 @@ async function main() {
   await prisma.user.deleteMany({});
   console.log('Cleaned existing data.');
 
-  // Create an admin user
-  const adminPassword = await bcrypt.hash('password123', 12);
+// 🛡️ BẢO MẬT: TẠO ADMIN TỪ BIẾN MÔI TRƯỜNG
+  console.log('Creating Admin user...');
+  
+  const adminEmail = process.env.ADMIN_SEED_EMAIL;
+  const adminRawPassword = process.env.ADMIN_SEED_PASSWORD;
+
+  if (!adminEmail || !adminRawPassword) {
+    console.error('❌ LỖI: Bạn phải thêm ADMIN_SEED_EMAIL và ADMIN_SEED_PASSWORD vào file .env trước khi chạy Seed!');
+    process.exit(1); // Dừng script ngay lập tức nếu thiếu cấu hình bảo mật
+  }
+
+  const adminPasswordHash = await bcrypt.hash(adminRawPassword, 12);
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@email.com',
+      email: adminEmail,
       username: 'David Kim',
-      passwordHash: adminPassword,
+      passwordHash: adminPasswordHash, 
       role: 'admin',
       bio: 'Quản trị viên hệ thống Elevate',
       isActive: true,
       emailVerifiedAt: new Date(),
+      mustChangePassword: true, // Bật cờ bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên
     },
   });
-  console.log(`Created admin: ${admin.email}`);
+  console.log(`✅ Created admin: ${admin.email}`);
 
-  // Create normal users
-  const userPassword = await bcrypt.hash('password123', 12);
+  // ==========================================
+  // TẠO NGƯỜI DÙNG BÌNH THƯỜNG 
+  // ==========================================
+  const userRawPassword = process.env.USER_SEED_PASSWORD || 'HocVien@2026'; // Có fallback nếu lười tạo biến env
+  const userPasswordHash = await bcrypt.hash(userRawPassword, 12);
+  
   const usersToCreate = [
-    { email: 'alice@email.com', username: 'Alice Wang', passwordHash: userPassword, role: 'user', isActive: true, emailVerifiedAt: new Date() },
-    { email: 'bob@email.com', username: 'Bob Nguyen', passwordHash: userPassword, role: 'user', isActive: true, emailVerifiedAt: new Date() },
+    { email: 'alice@email.com', username: 'Alice Wang', passwordHash: userPasswordHash, role: 'user', isActive: true, emailVerifiedAt: new Date(), mustChangePassword: true },
+    { email: 'bob@email.com', username: 'Bob Nguyen', passwordHash: userPasswordHash, role: 'user', isActive: true, emailVerifiedAt: new Date(), mustChangePassword: true },
   ];
 
   const createdUsers = [];
   for (const u of usersToCreate) {
     createdUsers.push(await prisma.user.create({ data: u }));
   }
+  console.log('✅ Created normal users.');
 
   // Create Categories
   console.log('Creating categories...');
