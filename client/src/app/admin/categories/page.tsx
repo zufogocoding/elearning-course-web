@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import {
     AlertCircle,
+    ChevronRight,
+    Edit3,
     FolderTree,
     Loader2,
     Plus,
     RefreshCcw,
     Search,
     Tags,
+    Trash2,
 } from 'lucide-react';
 
 type Category = {
@@ -21,8 +24,99 @@ type Category = {
     children?: Category[];
 };
 
+type CategoryTreeItemProps = {
+    category: Category;
+    level: number;
+};
+
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+function CategoryTreeItem({ category, level }: CategoryTreeItemProps) {
+    const children = category.children || [];
+    const hasChildren = children.length > 0;
+
+    return (
+        <div className="space-y-3">
+            <div
+                className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50"
+                style={{ marginLeft: `${level * 24}px` }}
+            >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                            {hasChildren ? (
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                            ) : (
+                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                            )}
+                        </div>
+
+                        <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="font-medium text-slate-900">{category.name}</h3>
+
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  Mã: {category.id}
+                </span>
+
+                                {category.parentId === null && (
+                                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                    Danh mục cha
+                  </span>
+                                )}
+                            </div>
+
+                            <p className="mt-1 text-sm text-slate-500">/{category.slug}</p>
+
+                            {category.description && (
+                                <p className="mt-2 text-sm text-slate-600">
+                                    {category.description}
+                                </p>
+                            )}
+
+                            {hasChildren && (
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Có {children.length} danh mục con
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-white"
+                        >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            Sửa
+                        </button>
+
+                        <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Xóa
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {hasChildren && (
+                <div className="space-y-3">
+                    {children.map((child) => (
+                        <CategoryTreeItem
+                            key={child.id}
+                            category={child}
+                            level={level + 1}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function AdminCategoriesPage() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -45,9 +139,11 @@ export default function AdminCategoriesPage() {
         };
     };
 
-    const loadCategories = useCallback(async () => {
-        setLoading(true);
-        setErrorMessage(null);
+    const loadCategories = useCallback(async (showLoading = true) => {
+        if (showLoading) {
+            setLoading(true);
+            setErrorMessage(null);
+        }
 
         try {
             // TODO: Check API URL
@@ -55,7 +151,13 @@ export default function AdminCategoriesPage() {
                 headers: getAuthHeaders(),
             });
 
-            const responseData = response.data?.data || response.data || [];
+            const responseData =
+                response.data?.data?.categories ||
+                response.data?.categories ||
+                response.data?.data ||
+                response.data ||
+                [];
+
             setCategories(Array.isArray(responseData) ? responseData : []);
         } catch (error) {
             if (axios.isAxiosError(error)) {
@@ -87,7 +189,7 @@ export default function AdminCategoriesPage() {
     }, []);
 
     useEffect(() => {
-        loadCategories();
+        void loadCategories(false);
     }, [loadCategories]);
 
     const filterCategoryTree = (
@@ -166,7 +268,7 @@ export default function AdminCategoriesPage() {
 
                         <button
                             type="button"
-                            onClick={loadCategories}
+                            onClick={() => void loadCategories()}
                             disabled={loading}
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -230,31 +332,11 @@ export default function AdminCategoriesPage() {
                     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="space-y-3">
                             {filteredCategories.map((category) => (
-                                <div
+                                <CategoryTreeItem
                                     key={category.id}
-                                    className="rounded-xl border border-slate-200 p-4"
-                                >
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                            <h3 className="font-medium text-slate-900">
-                                                {category.name}
-                                            </h3>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                /{category.slug}
-                                            </p>
-                                        </div>
-
-                                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                      Mã: {category.id}
-                    </span>
-                                    </div>
-
-                                    {category.description && (
-                                        <p className="mt-3 text-sm text-slate-600">
-                                            {category.description}
-                                        </p>
-                                    )}
-                                </div>
+                                    category={category}
+                                    level={0}
+                                />
                             ))}
                         </div>
                     </section>
