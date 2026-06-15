@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import axios from 'axios';
 import {
     AlertCircle,
@@ -10,6 +11,7 @@ import {
     BookOpen,
     ChevronDown,
     ChevronRight,
+    Edit3,
     FileQuestion,
     FileText,
     Layers,
@@ -17,7 +19,10 @@ import {
     PlayCircle,
     Plus,
     RefreshCcw,
+    Save,
     Search,
+    Trash2,
+    X,
 } from 'lucide-react';
 
 type Lesson = {
@@ -46,8 +51,29 @@ type Course = {
     sections?: Section[];
 };
 
+type SectionFormData = {
+    title: string;
+    orderIndex: string;
+};
+
+type SectionFormModalProps = {
+    title: string;
+    description: string;
+    formData: SectionFormData;
+    submitting: boolean;
+    submitLabel: string;
+    onClose: () => void;
+    onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+    onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+};
+
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+const initialSectionFormData: SectionFormData = {
+    title: '',
+    orderIndex: '',
+};
 
 function formatDuration(durationSeconds: number | null) {
     if (!durationSeconds || durationSeconds <= 0) return 'Chưa có thời lượng';
@@ -59,6 +85,12 @@ function formatDuration(durationSeconds: number | null) {
     if (seconds === 0) return `${minutes} phút`;
 
     return `${minutes} phút ${seconds}s`;
+}
+
+function getNextSectionOrderIndex(sections: Section[]) {
+    if (sections.length === 0) return 1;
+
+    return Math.max(...sections.map((section) => section.orderIndex || 0)) + 1;
 }
 
 function getLessonIcon(contentType: string) {
@@ -81,6 +113,98 @@ function getContentTypeLabel(contentType: string) {
     return contentType;
 }
 
+function SectionFormModal({
+                              title,
+                              description,
+                              formData,
+                              submitting,
+                              submitLabel,
+                              onClose,
+                              onSubmit,
+                              onChange,
+                          }: SectionFormModalProps) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+            <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+                <div className="flex items-start justify-between border-b border-slate-200 p-5">
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+                        <p className="mt-1 text-sm text-slate-500">{description}</p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={submitting}
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={onSubmit} className="space-y-4 p-5">
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                            Tên chương
+                        </label>
+                        <input
+                            type="text"
+                            name="title"
+                            value={formData.title}
+                            onChange={onChange}
+                            placeholder="Ví dụ: Giới thiệu khóa học"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                            Thứ tự hiển thị
+                        </label>
+                        <input
+                            type="number"
+                            name="orderIndex"
+                            value={formData.orderIndex}
+                            onChange={onChange}
+                            min={1}
+                            placeholder="Ví dụ: 1"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                            Khi thêm mới, thứ tự sẽ được tự động gán ở cuối danh sách và có
+                            thể chỉnh sửa lại.
+                        </p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={submitting}
+                            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Hủy
+                        </button>
+
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {submitting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="h-4 w-4" />
+                            )}
+                            {submitLabel}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default function CourseContentEditorPage() {
     const params = useParams();
     const courseSlug = params?.id as string;
@@ -91,6 +215,16 @@ export default function CourseContentEditorPage() {
     const [keyword, setKeyword] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const [isCreateSectionModalOpen, setIsCreateSectionModalOpen] =
+        useState<boolean>(false);
+    const [isEditSectionModalOpen, setIsEditSectionModalOpen] =
+        useState<boolean>(false);
+    const [editingSection, setEditingSection] = useState<Section | null>(null);
+    const [sectionFormData, setSectionFormData] = useState<SectionFormData>(
+        initialSectionFormData
+    );
+    const [submitting, setSubmitting] = useState<boolean>(false);
 
     const getAuthHeaders = () => {
         if (typeof window === 'undefined') return {};
@@ -241,6 +375,152 @@ export default function CourseContentEditorPage() {
         0
     );
 
+    const openCreateSectionModal = () => {
+        setSectionFormData({
+            title: '',
+            orderIndex: String(getNextSectionOrderIndex(sections)),
+        });
+        setEditingSection(null);
+        setIsCreateSectionModalOpen(true);
+    };
+
+    const closeCreateSectionModal = () => {
+        if (submitting) return;
+
+        setIsCreateSectionModalOpen(false);
+        setSectionFormData(initialSectionFormData);
+    };
+
+    const openEditSectionModal = (section: Section) => {
+        setEditingSection(section);
+        setSectionFormData({
+            title: section.title,
+            orderIndex: String(section.orderIndex),
+        });
+        setIsEditSectionModalOpen(true);
+    };
+
+    const closeEditSectionModal = () => {
+        if (submitting) return;
+
+        setIsEditSectionModalOpen(false);
+        setEditingSection(null);
+        setSectionFormData(initialSectionFormData);
+    };
+
+    const handleSectionFormChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = event.target;
+
+        setSectionFormData((currentFormData) => ({
+            ...currentFormData,
+            [name]: value,
+        }));
+    };
+
+    const validateSectionForm = () => {
+        if (!sectionFormData.title.trim()) {
+            setErrorMessage('Vui lòng nhập tên chương.');
+            return false;
+        }
+
+        if (!sectionFormData.orderIndex.trim()) {
+            setErrorMessage('Vui lòng nhập thứ tự hiển thị.');
+            return false;
+        }
+
+        if (Number(sectionFormData.orderIndex) < 1) {
+            setErrorMessage('Thứ tự hiển thị phải lớn hơn hoặc bằng 1.');
+            return false;
+        }
+
+        return true;
+    };
+
+    const handleCreateSection = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!course?.id) {
+            setErrorMessage('Không tìm thấy khóa học để thêm chương.');
+            return;
+        }
+
+        if (!validateSectionForm()) return;
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await axios.post(
+                `${API_BASE_URL}/api/content/sections`,
+                {
+                    courseId: course.id,
+                    title: sectionFormData.title.trim(),
+                    orderIndex: Number(sectionFormData.orderIndex),
+                },
+                {
+                    headers: getAuthHeaders(),
+                }
+            );
+
+            setIsCreateSectionModalOpen(false);
+            setSectionFormData(initialSectionFormData);
+            await loadCourseContent();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể thêm chương.'
+                );
+            } else {
+                setErrorMessage('Không thể thêm chương.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleUpdateSection = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!editingSection) return;
+
+        if (!validateSectionForm()) return;
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await axios.put(
+                `${API_BASE_URL}/api/content/sections/${editingSection.id}`,
+                {
+                    title: sectionFormData.title.trim(),
+                    orderIndex: Number(sectionFormData.orderIndex),
+                },
+                {
+                    headers: getAuthHeaders(),
+                }
+            );
+
+            setIsEditSectionModalOpen(false);
+            setEditingSection(null);
+            setSectionFormData(initialSectionFormData);
+            await loadCourseContent();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể cập nhật chương.'
+                );
+            } else {
+                setErrorMessage('Không thể cập nhật chương.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <main className="min-h-screen bg-slate-50 p-6">
             <div className="mx-auto max-w-6xl space-y-6">
@@ -295,6 +575,7 @@ export default function CourseContentEditorPage() {
 
                         <button
                             type="button"
+                            onClick={openCreateSectionModal}
                             className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
                         >
                             <Plus className="h-4 w-4" />
@@ -390,12 +671,12 @@ export default function CourseContentEditorPage() {
                                     key={section.id}
                                     className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                                 >
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleSection(section.id)}
-                                        className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-slate-50"
-                                    >
-                                        <div className="flex items-start gap-3">
+                                    <div className="flex items-start justify-between gap-4 p-5 transition hover:bg-slate-50">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleSection(section.id)}
+                                            className="flex flex-1 items-start gap-3 text-left"
+                                        >
                                             <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100">
                                                 {isExpanded ? (
                                                     <ChevronDown className="h-4 w-4 text-slate-600" />
@@ -423,8 +704,27 @@ export default function CourseContentEditorPage() {
                                                     Chương #{section.id}
                                                 </p>
                                             </div>
+                                        </button>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditSectionModal(section)}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-white"
+                                            >
+                                                <Edit3 className="h-3.5 w-3.5" />
+                                                Sửa
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Xóa
+                                            </button>
                                         </div>
-                                    </button>
+                                    </div>
 
                                     {isExpanded && (
                                         <div className="border-t border-slate-200 bg-slate-50/50 p-5">
@@ -494,6 +794,32 @@ export default function CourseContentEditorPage() {
                     </section>
                 )}
             </div>
+
+            {isCreateSectionModalOpen && (
+                <SectionFormModal
+                    title="Thêm chương"
+                    description="Tạo chương mới cho nội dung khóa học."
+                    formData={sectionFormData}
+                    submitting={submitting}
+                    submitLabel="Lưu chương"
+                    onClose={closeCreateSectionModal}
+                    onSubmit={handleCreateSection}
+                    onChange={handleSectionFormChange}
+                />
+            )}
+
+            {isEditSectionModalOpen && editingSection && (
+                <SectionFormModal
+                    title="Sửa chương"
+                    description="Cập nhật tên chương và thứ tự hiển thị."
+                    formData={sectionFormData}
+                    submitting={submitting}
+                    submitLabel="Cập nhật chương"
+                    onClose={closeEditSectionModal}
+                    onSubmit={handleUpdateSection}
+                    onChange={handleSectionFormChange}
+                />
+            )}
         </main>
     );
 }
