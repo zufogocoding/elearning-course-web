@@ -65,7 +65,10 @@ const createPayment = async (req, res) => {
     }
 
     // 3. Tính toán giá tiền và Mã giảm giá
-    let finalAmount = Number(course.price);
+    let finalAmount = course.discountPrice && course.discountPrice > 0 
+      ? Number(course.discountPrice) 
+      : Number(course.price);
+
     let appliedCoupon = null;
 
     if (couponCode) {
@@ -757,10 +760,89 @@ const momoIpn = async (req, res) => {
   }
 };
 
+// ============================================
+// API 6: XÁC THỰC KẾT QUẢ THANH TOÁN (Frontend gọi cho MOCK/PayOS)
+// ============================================
+const verifyPayment = async (req, res) => {
+  const { paymentId } = req.params;
+  
+  if (!paymentId) {
+    return res.status(400).json({ error: 'Thiếu paymentId' });
+  }
+
+  try {
+    const payment = await prisma.paymentTransaction.findUnique({
+      where: { id: parseInt(paymentId, 10) },
+      include: { enrollment: true }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Giao dịch không tồn tại' });
+    }
+
+    if (payment.status === 'completed') {
+      return res.status(200).json({ status: 'PAID', message: 'Giao dịch đã hoàn tất trước đó' });
+    }
+
+    const clientId = process.env.PAYOS_CLIENT_ID;
+    const apiKey = process.env.PAYOS_API_KEY;
+
+    // Check if it's PayOS and we have real keys
+    if (payment.paymentMethod === 'vietqr' && clientId && apiKey && !clientId.startsWith('your_')) {
+      const orderCode = payment.gatewayTransactionId;
+      if (orderCode) {
+        const response = await axios.get(`https://api-merchant.payos.vn/v2/payment-requests/${orderCode}`, {
+          headers: {
+            'x-client-id': clientId,
+            'x-api-key': apiKey
+          }
+        });
+
+        if (response.data && response.data.code === '00' && response.data.data) {
+          const payosData = response.data.data;
+          if (payosData.status === 'PAID') {
+            await prisma.$transaction([
+              prisma.paymentTransaction.update({
+                where: { id: payment.id },
+                data: { status: 'completed' }
+              }),
+              prisma.enrollment.update({
+                where: { id: payment.enrollmentId },
+                data: { status: 'active' }
+              })
+            ]);
+            return res.status(200).json({ status: 'PAID' });
+          } else {
+            return res.status(200).json({ status: payosData.status });
+          }
+        }
+      }
+    }
+
+    // Fallback: MOCK MODE or VNPAY mock
+    await prisma.$transaction([
+      prisma.paymentTransaction.update({
+        where: { id: payment.id },
+        data: { status: 'completed' }
+      }),
+      prisma.enrollment.update({
+        where: { id: payment.enrollmentId },
+        data: { status: 'active' }
+      })
+    ]);
+    return res.status(200).json({ status: 'PAID', message: 'Mock mode success' });
+
+  } catch (err) {
+    console.error('Lỗi khi verify thanh toán:', err.response?.data || err.message);
+    return res.status(500).json({ error: 'Lỗi khi gọi kiểm tra giao dịch' });
+  }
+};
+
 module.exports = {
   createPayment,
   vnpayIpn,
   validateCoupon,
   payosWebhook,
-  momoIpn
+  momoIpn,
+  verifyPayment
 };

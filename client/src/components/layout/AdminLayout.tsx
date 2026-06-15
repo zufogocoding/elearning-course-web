@@ -35,6 +35,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, login, isLoading } = useAuth();
 
   const handleAdminAutoLogin = async () => {
+    // Chỉ chạy trong môi trường dev — credentials không bao giờ ship lên production
+    if (process.env.NODE_ENV === 'production') return;
     try {
       const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/login`,

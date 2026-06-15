@@ -61,11 +61,6 @@ export default function Header() {
               {label}
             </Link>
           ))}
-          {user?.role === "admin" && (
-            <Link href="/admin/courses" className={linkClass("/admin")}>
-              Quản trị
-            </Link>
-          )}
         </nav>
 
         {/* Right Actions */}
@@ -184,19 +179,6 @@ export default function Header() {
               {label}
             </Link>
           ))}
-          {user?.role === "admin" && (
-            <Link
-              href="/admin/courses"
-              onClick={() => setMobileOpen(false)}
-              className={`block px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                isDark
-                  ? "text-indigo-400 hover:bg-[#1a1d2e] hover:text-indigo-300"
-                  : "text-indigo-600 hover:bg-slate-50 hover:text-indigo-700"
-              }`}
-            >
-              Quản trị (Admin)
-            </Link>
-          )}
           <div
             className={`flex gap-2 pt-2 border-t ${
               isDark ? "border-[#1e2235]" : "border-slate-100"

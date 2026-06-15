@@ -24,7 +24,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-// ─── Types & Mock Data ────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────
 type UserStatus = "Active" | "Banned";
 type UserRole = "Admin" | "User";
 

@@ -2,18 +2,15 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 
-// 1. Cấu hình lưu file tạm vào RAM (Memory Storage) 
-// Tuyệt đối chưa ghi ra ổ cứng khi chưa kiểm tra xong
 const storage = multer.memoryStorage();
 
-// 2. Cấu hình Multer cơ bản (Lọc lớp 1: Chặn theo Extension & Kích thước)
-const upload = multer({
+// ==========================================
+// 1. IMAGE UPLOAD
+// ==========================================
+const uploadImageMw = multer({
   storage: storage,
-  limits: { 
-    fileSize: 5 * 1024 * 1024 // Giới hạn max 5MB/file để chống DDOS ổ cứng
-  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
-    // Lọc sơ bộ qua mimetype do trình duyệt gửi lên
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -23,43 +20,25 @@ const upload = multer({
   }
 });
 
-// 3. Middleware Kiểm tra "Ruột" File (Lọc lớp 2: Quét Magic Numbers)
-const validateActualFileType = async (req, res, next) => {
-  if (!req.file) return next(); // Nếu không có file tải lên thì bỏ qua
-
+const validateImageFile = async (req, res, next) => {
+  if (!req.file) return next();
   try {
-    // Dynamic import cho thư viện file-type (vì nó là ESM)
     const { fileTypeFromBuffer } = await import('file-type');
-
-    // Đọc các byte đầu tiên (Magic bytes) của file để xác định định dạng gốc
     const actualType = await fileTypeFromBuffer(req.file.buffer);
-
-    // Danh sách các chuẩn file thực tế được phép
     const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
 
     if (!actualType || !validMimes.includes(actualType.mime)) {
-      return res.status(400).json({ 
-        error: 'Cảnh báo an ninh: Định dạng file bị làm giả! Hãy tải lên một file ảnh thật.' 
-      });
+      return res.status(400).json({ error: 'Cảnh báo an ninh: Định dạng file bị làm giả! Hãy tải lên file ảnh thật.' });
     }
 
-    // 4. LƯU FILE AN TOÀN (Ngoài Document Root)
-    // Đảm bảo thư mục server/storage/uploads đã được tạo sẵn
     const uploadDir = path.join(__dirname, '../../storage/uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-    // Đổi tên file ngẫu nhiên hoàn toàn để tránh Path Traversal và giấu tên file gốc
     const safeFileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${actualType.ext}`;
     const destinationPath = path.join(uploadDir, safeFileName);
-
-    // Ghi file từ RAM ra ổ đĩa
     fs.writeFileSync(destinationPath, req.file.buffer);
 
-    // Gắn đường dẫn an toàn vào req để Controller dùng lưu vào Database
     req.file.safeUrl = `/api/files/${safeFileName}`; 
-    
     next();
   } catch (error) {
     console.error('Lỗi khi quét file:', error);
@@ -67,7 +46,64 @@ const validateActualFileType = async (req, res, next) => {
   }
 };
 
+// ==========================================
+// 2. DOCUMENT / ATTACHMENT UPLOAD
+// ==========================================
+const uploadDocumentMw = multer({
+  storage: storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req, file, cb) => {
+    cb(null, true);
+  }
+});
+
+const validateDocumentFile = async (req, res, next) => {
+  if (!req.file) return res.status(400).json({ error: 'Vui lòng đính kèm một tệp tài liệu.' });
+  try {
+    const { fileTypeFromBuffer } = await import('file-type');
+    const actualType = await fileTypeFromBuffer(req.file.buffer);
+    
+    const originalName = req.file.originalname;
+    const originalExt = path.extname(originalName).toLowerCase().replace('.', '');
+    
+    let isSafe = false;
+    let finalExt = originalExt || 'bin';
+    
+    // file-type returns undefined for text files (no magic number)
+    if (!actualType) {
+      if (originalExt === 'txt') {
+        isSafe = true;
+        finalExt = 'txt';
+      }
+    } else {
+      const allowedExts = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip', 'rar', 'xz', 'tar', '7z'];
+      if (allowedExts.includes(actualType.ext)) {
+        isSafe = true;
+        finalExt = actualType.ext;
+      }
+    }
+
+    if (!isSafe) {
+      return res.status(400).json({ error: 'Định dạng file không được hỗ trợ. Cho phép: PDF, Office, ZIP, RAR, 7Z, TAR, TAR.XZ, TXT.' });
+    }
+
+    const uploadDir = path.join(__dirname, '../../storage/uploads');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+    const safeFileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${finalExt}`;
+    const destinationPath = path.join(uploadDir, safeFileName);
+    fs.writeFileSync(destinationPath, req.file.buffer);
+    
+    req.file.safeUrl = `/api/files/${safeFileName}`;
+    req.file.originalName = originalName;
+    next();
+  } catch (error) {
+    console.error('Lỗi khi quét file document:', error);
+    res.status(500).json({ error: 'Lỗi server khi xử lý tệp tải lên.' });
+  }
+};
+
 module.exports = {
-  // Xuất ra dạng mảng để gọi chuỗi middleware dễ dàng
-  uploadImage: [upload.single('file'), validateActualFileType]
+  uploadImage: [uploadImageMw.single('file'), validateImageFile],
+  uploadDocument: [uploadDocumentMw.single('file'), validateDocumentFile]
 };

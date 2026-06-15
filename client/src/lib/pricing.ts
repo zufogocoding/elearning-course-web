@@ -43,9 +43,7 @@ export function calculateCoursePricing(
       ? Number(courseDetail.discountPrice)
       : rawOriginalPrice;
 
-  const originalPrice = courseDetail?.discountPrice
-    ? rawOriginalPrice
-    : Math.round(rawOriginalPrice * 1.5);
+  const originalPrice = rawOriginalPrice;
 
   let couponDiscount = 0;
   if (couponApplied && discountType) {

@@ -166,7 +166,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
 
   // ── Pricing Calculation ──
   const rawPrice = courseDetail?.price ? Number(courseDetail.price) : 0;
-  const basePrice = courseDetail?.discountPrice ? Number(courseDetail.discountPrice) : rawPrice;
+  const basePrice = courseDetail?.discountPrice && courseDetail.discountPrice > 0 ? Number(courseDetail.discountPrice) : rawPrice;
   const displayOriginalPrice = courseDetail?.discountPrice ? rawPrice : Math.round(rawPrice * 1.35);
 
   let couponDiscount = 0;
@@ -262,6 +262,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                 </div>
               </div>
             </div>
+
 
             {/* Coupon Section */}
             <div className={`border ${divider} rounded-2xl ${sectionBg} shadow-sm`}>
@@ -461,10 +462,16 @@ export default function CheckoutPage({ params }: { params: Promise<{ id: string 
                       <p className={`text-2xl font-extrabold ${isFree ? "text-emerald-500" : text}`}>
                         {isFree ? "Miễn phí" : formatVND(finalPrice)}
                       </p>
-                      {couponApplied && couponDiscount > 0 && (
+                      {couponApplied && couponDiscount > 0 ? (
                         <p className="text-xs text-emerald-500 font-medium mt-0.5">
                           Tiết kiệm {formatVND(displayOriginalPrice - finalPrice)}!
                         </p>
+                      ) : (
+                        courseDetail?.discountPrice > 0 && (
+                          <p className="text-xs text-emerald-500 font-medium mt-0.5">
+                            Tiết kiệm {formatVND(rawPrice - finalPrice)}!
+                          </p>
+                        )
                       )}
                     </div>
                   </div>

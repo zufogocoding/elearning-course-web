@@ -426,7 +426,7 @@ export default function ProfilePage() {
                     return (
                       <Link
                         key={course.courseId}
-                        href={`/courses/${course.courseId}/learn`}
+                        href={`/courses/${course.slug}/learn`}
                         className={`border rounded-2xl overflow-hidden transition-all ${card} ${cardHover} group block`}
                       >
                         {/* Thumbnail */}

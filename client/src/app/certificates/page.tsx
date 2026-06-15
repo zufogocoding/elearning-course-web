@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { useTheme } from "@/components/ui/ThemeProvider";
+import { api } from "@/lib/api";
 import {
   Award,
   Download,
@@ -17,35 +18,42 @@ import {
   FileText,
 } from "lucide-react";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const CERTIFICATES = [
-  {
-    id: "CERT-2024-UX-7821",
-    course: "UI/UX Design Masterclass",
-    instructor: "Sarah Chen",
-    completionDate: "March 28, 2024",
-    version: "v2.1",
-    issueDate: "March 28, 2024",
-    duration: "48 lessons · 24 hours",
-    gradient: "from-violet-500 via-indigo-500 to-blue-600",
-    category: "Design",
-  },
-  {
-    id: "CERT-2024-DM-4456",
-    course: "Digital Marketing Strategy",
-    instructor: "Jordan Lee",
-    completionDate: "February 14, 2024",
-    version: "v1.3",
-    issueDate: "February 14, 2024",
-    duration: "52 lessons · 18 hours",
-    gradient: "from-emerald-500 via-teal-500 to-cyan-600",
-    category: "Marketing",
-  },
-];
+// Mock Data removed - using real API data
+
+interface Certificate {
+  id: string;
+  course: string;
+  instructor: string;
+  completionDate: string;
+  version?: string;
+  issueDate?: string;
+  duration?: string;
+  gradient?: string;
+  category?: string;
+}
 
 export default function CertificatesPage() {
   const { isDark } = useTheme();
-  const [previewCert, setPreviewCert] = useState<(typeof CERTIFICATES)[0] | null>(null);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [previewCert, setPreviewCert] = useState<Certificate | null>(null);
+
+  useEffect(() => {
+    const fetchCerts = async () => {
+      try {
+        const res = await api.get('/api/certificates/my-certificates');
+        if (res.ok) {
+          const data = await res.json();
+          setCertificates(data.certificates || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCerts();
+  }, []);
 
   // ─── Theme Tokens ───────────────────────────────────────────────────────────
   const bg = isDark ? "bg-[#0d0f1a]" : "bg-slate-50";
@@ -73,7 +81,7 @@ export default function CertificatesPage() {
                   </div>
                   <h1 className={`text-2xl font-extrabold tracking-tight ${text}`}>My Certificates</h1>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${pill}`}>
-                    {CERTIFICATES.length} earned
+                    {certificates.length} earned
                   </span>
                 </div>
                 <p className={`text-sm ${muted}`}>
@@ -86,7 +94,11 @@ export default function CertificatesPage() {
 
         {/* ── Certificates Grid ─────────────────────────────────────────── */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-          {CERTIFICATES.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center p-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+          ) : certificates.length === 0 ? (
             /* Empty State */
             <div className={`border rounded-2xl p-16 text-center ${card}`}>
               <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center ${isDark ? "bg-[#22263a]" : "bg-slate-100"}`}>
@@ -99,13 +111,13 @@ export default function CertificatesPage() {
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-5">
-              {CERTIFICATES.map((cert) => (
+              {certificates.map((cert) => (
                 <div
                   key={cert.id}
                   className={`border rounded-2xl overflow-hidden transition-all group ${card} ${cardHover}`}
                 >
                   {/* Gold/Indigo Banner */}
-                  <div className={`h-28 bg-gradient-to-r ${cert.gradient} relative flex items-center justify-between px-5`}>
+                  <div className={`h-28 bg-gradient-to-r ${cert.gradient || "from-indigo-500 to-purple-600"} relative flex items-center justify-between px-5`}>
                     <div>
                       <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">
                         Certificate of Completion
@@ -148,7 +160,7 @@ export default function CertificatesPage() {
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         isDark ? "bg-[#22263a] text-[#7a87a1]" : "bg-slate-100 text-slate-500"
                       }`}>
-                        Course Version {cert.version}
+                        Course Version {cert.version || "1.0"}
                       </span>
                     </div>
 

@@ -19,6 +19,11 @@ router.post('/lessons/reorder', courseContentController.reorderLessons);
 router.put('/lessons/:id', courseContentController.updateLesson);
 router.delete('/lessons/:id', courseContentController.deleteLesson);
 
+// Routes cho Tài liệu đính kèm (Attachments)
+const { uploadDocument } = require('../middleware/uploadMiddleware');
+router.post('/lessons/:lessonId/attachments', uploadDocument, courseContentController.uploadAttachment);
+router.delete('/attachments/:id', courseContentController.deleteAttachment);
+
 // Routes cho Curriculum (Giáo trình tổng quan)
 router.get(
     '/courses/:courseId/curriculum',

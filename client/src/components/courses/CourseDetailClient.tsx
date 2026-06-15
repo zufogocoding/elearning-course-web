@@ -85,6 +85,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
 
+
   useEffect(() => {
     const checkEnrollment = async () => {
       if (!user || !courseDetail) {
@@ -147,6 +148,8 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
       setCouponError("Lỗi kết nối khi kiểm tra mã giảm giá.");
     }
   };
+
+
 
   const toggleModule = (idx: number) => {
     setExpandedModules((prev) =>
@@ -531,6 +534,7 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                   <p className="text-xs text-emerald-500 mt-2 font-medium">{couponSuccess}</p>
                 )}
               </div>
+
             </div>
           </div>
 

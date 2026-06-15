@@ -36,4 +36,13 @@ jobs:
       working-directory: ./client
       run: npm run build
       
+    - name: Run Server Tests
+      working-directory: ./server
+      run: npm test
+      env:
+        DATABASE_URL: postgresql://test:test@localhost:5432/test
+        JWT_ACCESS_SECRET: test-secret
+        JWT_REFRESH_SECRET: test-refresh-secret
+        NODE_ENV: test
+      
     # Deploy step could be added here later (e.g., Vercel / Docker build)

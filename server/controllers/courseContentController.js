@@ -246,6 +246,7 @@ const getCourseCurriculum = async (req, res) => {
             where: { deletedAt: null },
             orderBy: { orderIndex: 'asc' },
             include: {
+              attachments: true,
               quiz: {
                 where: { deletedAt: null },
                 include: {
@@ -563,6 +564,85 @@ const reorderLessons = async (req, res) => {
   }
 };
 
+// ==========================================
+// QUẢN LÝ TÀI LIỆU ĐÍNH KÈM (ATTACHMENTS)
+// ==========================================
+
+// [POST] Upload tài liệu đính kèm
+const uploadAttachment = async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lessonId);
+    if (!lessonId || isNaN(lessonId)) {
+      return res.status(400).json({ error: 'lessonId không hợp lệ.' });
+    }
+
+    if (!req.file || !req.file.safeUrl) {
+      return res.status(400).json({ error: 'Không tìm thấy file tải lên.' });
+    }
+
+    // Validate lesson
+    const lesson = await prisma.lesson.findFirst({
+      where: { id: lessonId, deletedAt: null }
+    });
+    if (!lesson) {
+      return res.status(404).json({ error: 'Không tìm thấy bài học hoặc bài học đã bị xóa.' });
+    }
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        lessonId: lessonId,
+        fileName: req.file.originalName || req.file.originalname || 'unknown',
+        fileUrl: req.file.safeUrl,
+        fileType: req.file.mimetype || 'application/octet-stream',
+        fileSize: req.file.size || 0
+      }
+    });
+
+    res.status(201).json({ success: true, message: 'Tải file đính kèm thành công.', attachment });
+  } catch (error) {
+    console.error('Lỗi upload attachment:', error);
+    res.status(500).json({ error: 'Lỗi server khi lưu tài liệu đính kèm.' });
+  }
+};
+
+// [DELETE] Xóa tài liệu đính kèm
+const deleteAttachment = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: 'ID tài liệu không hợp lệ.' });
+    }
+
+    const attachment = await prisma.attachment.findUnique({
+      where: { id }
+    });
+
+    if (!attachment) {
+      return res.status(404).json({ error: 'Không tìm thấy tài liệu đính kèm.' });
+    }
+
+    await prisma.attachment.delete({
+      where: { id }
+    });
+
+    // Cố gắng xóa file vật lý
+    const fs = require('fs');
+    const path = require('path');
+    if (attachment.fileUrl.startsWith('/api/files/')) {
+      const fileName = attachment.fileUrl.replace('/api/files/', '');
+      const filePath = path.join(__dirname, '../../storage/uploads', fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Đã xóa tài liệu đính kèm.' });
+  } catch (error) {
+    console.error('Lỗi xoá attachment:', error);
+    res.status(500).json({ error: 'Lỗi server khi xóa tài liệu.' });
+  }
+};
+
 module.exports = {
   createSection,
   updateSection,
@@ -573,5 +653,7 @@ module.exports = {
   getCourseCurriculum,
   saveLessonQuiz,
   reorderSections,
-  reorderLessons
+  reorderLessons,
+  uploadAttachment,
+  deleteAttachment
 };

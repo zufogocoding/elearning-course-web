@@ -105,8 +105,16 @@ function PaymentResultContent() {
       }
       setCourseId(cId);
 
-      // Wait for IPN webhook to finish
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Gọi API xác thực thanh toán để force update Enrollment sang active
+      if (isSuccess && txnId) {
+        try {
+          await api.get(`/api/enrollments/verify-payment/${txnId}`);
+        } catch (err) {
+          console.error("Verification failed", err);
+        }
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
 
       try {
         const res = await api.get("/api/learning/my-courses");

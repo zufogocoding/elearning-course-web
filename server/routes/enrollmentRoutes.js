@@ -20,9 +20,10 @@ router.get('/vnpay-ipn', enrollmentController.vnpayIpn);
 router.post('/payos-webhook', enrollmentController.payosWebhook);
 
 // API Webhook nhận kết quả từ MoMo
-// URL đầy đủ sẽ là: POST /api/enrollments/momo-ipn
-// KHÔNG THÊM verifyToken ở đây vì đây là API để SERVER MoMo gọi ngầm dưới nền
 router.post('/momo-ipn', enrollmentController.momoIpn);
+
+// API Verify Payment dành riêng cho localhost/dev
+router.get('/verify-payment/:paymentId', authenticate, enrollmentController.verifyPayment);
 
 // 3. API Kiểm tra mã giảm giá
 // URL đầy đủ sẽ là: GET /api/enrollments/coupon/:code

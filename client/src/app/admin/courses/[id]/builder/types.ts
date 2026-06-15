@@ -33,6 +33,13 @@ export interface Lesson {
   isPreview: boolean;
   orderIndex: number;
   quiz?: Quiz | null;
+  attachments?: {
+    id: number;
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    fileSize: number;
+  }[];
 }
 
 export interface Section {

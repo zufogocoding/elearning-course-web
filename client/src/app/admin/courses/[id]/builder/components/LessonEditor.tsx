@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Loader2, Save, Video, FileText, HelpCircle } from "lucide-react";
+import { Loader2, Save, Video, FileText, HelpCircle, Paperclip, Trash2, Upload } from "lucide-react";
 import { api } from "@/lib/api";
 
 import { Lesson } from "../types";
@@ -21,6 +21,8 @@ export default function LessonEditor({
   const [contentUrl, setContentUrl] = useState(lesson.contentUrl || "");
   const [durationSeconds, setDurationSeconds] = useState(lesson.durationSeconds);
   const [isPreview, setIsPreview] = useState(lesson.isPreview);
+  const [attachments, setAttachments] = useState(lesson.attachments || []);
+  const [uploadingAtt, setUploadingAtt] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -30,6 +32,7 @@ export default function LessonEditor({
     setContentUrl(lesson.contentUrl || "");
     setDurationSeconds(lesson.durationSeconds);
     setIsPreview(lesson.isPreview);
+    setAttachments(lesson.attachments || []);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
@@ -120,6 +123,59 @@ export default function LessonEditor({
     triggerAutoSave({ title, contentUrl, durationSeconds, isPreview: val });
   };
 
+  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      alert("Kích thước file vượt quá giới hạn 20MB.");
+      return;
+    }
+
+    setUploadingAtt(true);
+    setSaveState("saving");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await api.post(`/api/content/lessons/${lesson.id}/attachments`, formData);
+      if (res.ok) {
+        const data = await res.json();
+        setAttachments((prev) => [...prev, data.attachment]);
+        setSaveState("saved");
+        onSaveSuccess();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Lỗi tải lên file đính kèm.");
+        setSaveState("error");
+      }
+    } catch {
+      alert("Lỗi kết nối.");
+      setSaveState("error");
+    } finally {
+      setUploadingAtt(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleDeleteAttachment = async (attId: number) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa file đính kèm này?")) return;
+    setSaveState("saving");
+    try {
+      const res = await api.delete(`/api/content/attachments/${attId}`);
+      if (res.ok) {
+        setAttachments((prev) => prev.filter((a) => a.id !== attId));
+        setSaveState("saved");
+        onSaveSuccess();
+      } else {
+        setSaveState("error");
+      }
+    } catch {
+      setSaveState("error");
+    }
+  };
+
   const card = isDark ? "bg-[#1a1d2e] border-[#252840]" : "bg-white border-slate-200";
   const text = isDark ? "text-[#e2e8f0]" : "text-slate-900";
   const muted = isDark ? "text-[#7a87a1]" : "text-slate-500";
@@ -201,6 +257,65 @@ export default function LessonEditor({
             />
             <span className={`font-semibold ${text}`}>Cho phép học thử miễn phí (Preview)</span>
           </label>
+        </div>
+
+        {/* Attachments Section */}
+        <div className={`mt-8 pt-6 border-t ${isDark ? 'border-[#252840]' : 'border-slate-200'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className={`text-sm font-bold ${text} flex items-center gap-2`}>
+                <Paperclip className="w-4 h-4 text-indigo-500" /> Tài liệu đính kèm
+              </h3>
+              <p className={`text-xs mt-1 ${muted}`}>Tải lên PDF, Word, Excel, ZIP (Tối đa 20MB/file)</p>
+            </div>
+            <div>
+              <label className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                isDark 
+                  ? "bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20" 
+                  : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+              }`}>
+                {uploadingAtt ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                {uploadingAtt ? "Đang tải..." : "Tải lên"}
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={handleUploadAttachment}
+                  disabled={uploadingAtt}
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.xz,.tar,.7z,.txt"
+                />
+              </label>
+            </div>
+          </div>
+
+          {attachments.length > 0 ? (
+            <div className="space-y-2">
+              {attachments.map((att) => (
+                <div key={att.id} className={`flex items-center justify-between p-3 rounded-xl border ${isDark ? 'border-[#252840] bg-[#22263a]' : 'border-slate-200 bg-slate-50'}`}>
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${isDark ? 'bg-[#1a1d2e]' : 'bg-white'} shadow-sm`}>
+                      <FileText className={`w-4 h-4 ${muted}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-xs font-semibold truncate ${text}`}>{att.fileName}</p>
+                      <p className={`text-[10px] ${muted}`}>{(att.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteAttachment(att.id)}
+                    className={`p-1.5 rounded-lg transition-colors shrink-0 ${isDark ? 'hover:bg-rose-500/20 text-rose-400' : 'hover:bg-rose-100 text-rose-600'}`}
+                    title="Xóa tài liệu"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`text-center py-6 border-2 border-dashed rounded-xl ${isDark ? 'border-[#252840] bg-[#1a1d2e]/50' : 'border-slate-200 bg-slate-50/50'}`}>
+              <Paperclip className={`w-6 h-6 mx-auto mb-2 opacity-30 ${muted}`} />
+              <p className={`text-xs ${muted}`}>Chưa có tài liệu đính kèm nào.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

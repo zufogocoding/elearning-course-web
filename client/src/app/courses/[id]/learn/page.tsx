@@ -27,8 +27,10 @@ interface Lesson {
   isPreview?: boolean;
 }
 interface Section { id: number; title: string; lessons: Lesson[]; expanded: boolean; }
-interface Attachment { name: string; size: string; type: string; }
-interface QAItem { id: number; user: string; avatar: string; question: string; time: string; answers: number; upvotes: number; }
+interface Attachment { id: number; fileName: string; fileSize: number; fileType: string; fileUrl: string; }
+interface ApiLesson { id: number; title: string; durationSeconds: number; isCompleted: boolean; isPreview: boolean; contentType: string; }
+interface ApiSection { id: number; title: string; lessons: ApiLesson[]; }
+
 
 /* ── Mock Data ── */
 const INITIAL_SECTIONS: Section[] = [
@@ -67,17 +69,9 @@ const INITIAL_SECTIONS: Section[] = [
   },
 ];
 
-const ATTACHMENTS: Attachment[] = [
-  { name: "Module 1 – Design Fundamentals.pdf", size: "2.4 MB", type: "PDF" },
-  { name: "Figma Shortcuts Cheatsheet.pdf", size: "1.1 MB", type: "PDF" },
-  { name: "Typography Scale Template.pdf", size: "845 KB", type: "PDF" },
-  { name: "Color Theory Workbook.pdf", size: "3.2 MB", type: "PDF" },
-];
+// ATTACHMENTS removed in favor of dynamic lesson attachments
 
-const QA_ITEMS: QAItem[] = [
-  { id: 1, user: "Alex M.", avatar: "AM", question: "At 8:42, which font pairing tool do you recommend for beginners?", time: "2 days ago", answers: 3, upvotes: 12 },
-  { id: 2, user: "Sarah K.", avatar: "SK", question: "Can we apply these typography techniques in mobile app design as well?", time: "5 days ago", answers: 1, upvotes: 8 },
-];
+
 
 /* ── Build theme helper – ALL indigo ── */
 function buildTheme(dark: boolean) {
@@ -194,18 +188,29 @@ export default function LearnPage() {
         setCompletedN(data.course.completedLessons);
         setTotalN(data.course.totalLessons);
 
-        const uiSections = data.sections.map((sec: any, sIdx: number) => ({
+        // Compute sequential locking: a lesson is locked if any preceding non-preview lesson is incomplete
+        const allLessonsFlat = data.sections.flatMap((sec: ApiSection) =>
+          sec.lessons.map((l: ApiLesson) => ({ id: l.id, isCompleted: l.isCompleted, isPreview: l.isPreview }))
+        );
+        let seenIncomplete = false;
+        const lockedMap: Record<number, boolean> = {};
+        for (const l of allLessonsFlat) {
+          lockedMap[l.id] = l.isPreview ? false : seenIncomplete;
+          if (!l.isPreview && !l.isCompleted) seenIncomplete = true;
+        }
+
+        const uiSections = data.sections.map((sec: ApiSection, sIdx: number) => ({
           id: sec.id,
           title: sec.title,
           expanded: sIdx === 0,
-          lessons: sec.lessons.map((les: any) => ({
+          lessons: sec.lessons.map((les: ApiLesson) => ({
             id: les.id,
             title: les.title,
             duration: les.durationSeconds
               ? `${Math.floor(les.durationSeconds / 60)}:${(les.durationSeconds % 60).toString().padStart(2, "0")}`
               : "05:00",
             completed: les.isCompleted,
-            locked: false,
+            locked: lockedMap[les.id] ?? false,
             type: les.contentType === "video" ? "video" : les.contentType === "quiz" ? "quiz" : "document",
             quizId: les.quizId,
             isPreview: les.isPreview
@@ -213,8 +218,8 @@ export default function LearnPage() {
         }));
         setSections(uiSections);
 
-        const allLes = uiSections.flatMap((s: any) => s.lessons);
-        const incomplete = allLes.find((l: any) => !l.completed);
+        const allLes = uiSections.flatMap((s: Section) => s.lessons);
+        const incomplete = allLes.find((l: Lesson) => !l.completed);
         const startLesson = incomplete || allLes[0];
         if (startLesson) {
           setCurrentLessonId(startLesson.id);
@@ -248,7 +253,7 @@ export default function LearnPage() {
         const res = await api.get(`/api/learning/lessons/${currentLessonId}`);
         if (res.ok) {
           const result = await res.json();
-          const detail = result.data.lesson;
+          const detail = { ...result.data.lesson, attachments: result.data.attachments };
           setCurrentLessonDetail(detail);
 
           if (detail.contentType === "quiz") {
@@ -266,16 +271,17 @@ export default function LearnPage() {
     loadLessonDetail();
   }, [currentLessonId]);
 
-  // Document read time counter
+  // Lesson time counter (for text, document, and video)
   useEffect(() => {
     let timer: any = null;
-    if (currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document") {
+    if (currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" || currentLessonDetail?.contentType === "video") {
+      const requiredTime = currentLessonDetail?.durationSeconds || 30; // fallback to 30 seconds
       timer = setInterval(() => {
         setDocumentReadTime((prev) => {
-          if (prev >= 29) {
+          if (prev >= requiredTime - 1) {
             clearInterval(timer);
             setDocumentReadComplete(true);
-            return 30;
+            return requiredTime;
           }
           return prev + 1;
         });
@@ -293,71 +299,7 @@ export default function LearnPage() {
   };
   const videoId = currentLessonDetail?.contentType === "video" ? getYoutubeId(currentLessonDetail.contentUrl) : null;
 
-  // Poll progress checkpoints to database while video is playing
-  useEffect(() => {
-    let ytPlayer: any = null;
-    let pollInterval: any = null;
 
-    if (videoId && currentLessonId) {
-      const initPlayer = () => {
-        try {
-          ytPlayer = new (window as any).YT.Player("yt-player", {
-            events: {
-              onStateChange: (event: any) => {
-                if (event.data === 1) { // 1 = PLAYING
-                  pollInterval = setInterval(() => {
-                    if (ytPlayer && ytPlayer.getCurrentTime) {
-                      const curr = Math.floor(ytPlayer.getCurrentTime());
-                      api.post(`/api/learning/lessons/${currentLessonId}/progress`, {
-                        currentTime: curr
-                      }).catch(console.error);
-                    }
-                  }, 10000); // Send update every 10 seconds
-                } else {
-                  if (pollInterval) {
-                    clearInterval(pollInterval);
-                    pollInterval = null;
-                  }
-                }
-              }
-            }
-          });
-        } catch (e) {
-          console.error("Failed to init YT player", e);
-        }
-      };
-
-      if ((window as any).YT && (window as any).YT.Player) {
-        initPlayer();
-      } else {
-        const previousOnReady = (window as any).onYouTubeIframeAPIReady;
-        (window as any).onYouTubeIframeAPIReady = () => {
-          if (previousOnReady) previousOnReady();
-          initPlayer();
-        };
-
-        if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-          const tag = document.createElement("script");
-          tag.src = "https://www.youtube.com/iframe_api";
-          const firstScriptTag = document.getElementsByTagName("script")[0];
-          if (firstScriptTag && firstScriptTag.parentNode) {
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-          } else {
-            document.head.appendChild(tag);
-          }
-        }
-      }
-    }
-
-    return () => {
-      if (pollInterval) clearInterval(pollInterval);
-      if (ytPlayer && ytPlayer.destroy) {
-        try {
-          ytPlayer.destroy();
-        } catch {}
-      }
-    };
-  }, [videoId, currentLessonId]);
 
   const handleStartQuiz = async () => {
     if (!currentLessonDetail?.quiz) return;
@@ -621,26 +563,31 @@ export default function LearnPage() {
                   </div>
                 )
               ) : currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151f] text-white p-6">
-                  <FileText className="w-16 h-16 text-indigo-400 mb-4 animate-pulse" />
-                  <h3 className="text-base font-bold mb-2">Đang đọc bài viết tài liệu: {currentLessonDetail.title}</h3>
-                  <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
-                    Hệ thống yêu cầu bạn ở lại trang để đọc bài viết trong ít nhất 30 giây trước khi có thể đánh dấu hoàn thành.
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-48 h-2 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${(documentReadTime / 30) * 100}%` }} />
+                (() => {
+                  const requiredTime = currentLessonDetail?.durationSeconds ?? 5;
+                  return (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151f] text-white p-6">
+                      <FileText className="w-16 h-16 text-indigo-400 mb-4 animate-pulse" />
+                      <h3 className="text-base font-bold mb-2">Đang đọc bài viết tài liệu: {currentLessonDetail.title}</h3>
+                      <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
+                        Hệ thống yêu cầu bạn ở lại trang để đọc bài viết trong ít nhất {requiredTime} giây trước khi có thể đánh dấu hoàn thành.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-48 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${(documentReadTime / requiredTime) * 100}%` }} />
+                        </div>
+                        <span className="text-xs font-semibold tabular-nums">
+                          {documentReadTime}/{requiredTime} giây
+                        </span>
+                      </div>
+                      {documentReadComplete && (
+                        <span className="mt-4 text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full animate-pulse">
+                          Bạn đã đạt yêu cầu thời gian đọc! Có thể nhấn "Mark Complete & Next".
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs font-semibold tabular-nums">
-                      {documentReadTime}/30 giây
-                    </span>
-                  </div>
-                  {documentReadComplete && (
-                    <span className="mt-4 text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full animate-pulse">
-                      Bạn đã đạt yêu cầu thời gian đọc! Có thể nhấn "Mark Complete & Next".
-                    </span>
-                  )}
-                </div>
+                  );
+                })()
               ) : currentLessonDetail?.contentType === "quiz" ? (
                 <div className="absolute inset-0 bg-[#0d0f1a] text-[#e2e8f0]">
                   {!quizAttempt ? (
@@ -671,11 +618,11 @@ export default function LearnPage() {
                         )}
                       </div>
                       <div className="flex-1 space-y-5 overflow-y-auto pr-1">
-                        {quizQuestions.map((q: any, qIdx: number) => (
+                        {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
                           <div key={q.id} className="space-y-2.5">
                             <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
                             <div className="grid grid-cols-1 gap-2 pl-2">
-                              {q.questionOptions?.map((opt: any) => (
+                              {q.questionOptions?.map((opt: QuizOption) => (
                                 <label
                                   key={opt.id}
                                   className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
@@ -805,7 +752,7 @@ export default function LearnPage() {
                   [
                     { key: "overview", label: "Overview", Icon: BookOpen },
                     { key: "attachments", label: "Attachments", Icon: Download },
-                    { key: "quiz", label: "Quiz / Q&A", Icon: HelpCircle },
+
                   ] as const
                 ).map(({ key, label, Icon }) => (
                   <button
@@ -900,91 +847,44 @@ export default function LearnPage() {
               {activeTab === "attachments" && (
                 <div className="space-y-3 animate-in fade-in duration-300 slide-in-from-bottom-2">
                   <p className={`text-sm ${t.muted} mb-4`}>
-                    Download course materials for this lesson and the entire course.
+                    Tài liệu tham khảo và đính kèm cho bài học này.
                   </p>
-                  {ATTACHMENTS.map((file, i) => (
-                    <div
-                      key={i}
-                      className={`border rounded-xl p-4 flex items-center justify-between gap-4 group transition-all ${t.surface} hover:border-indigo-500/40`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
-                          <FileText className="w-5 h-5 text-rose-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold truncate">{file.name}</p>
-                          <p className={`text-xs ${t.muted} mt-0.5`}>
-                            {file.type} &bull; {file.size}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        id={`download-${i}`}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${t.pill} hover:opacity-80`}
+                  {currentLessonDetail?.attachments && currentLessonDetail.attachments.length > 0 ? (
+                    currentLessonDetail.attachments.map((file: Attachment, i: number) => (
+                      <div
+                        key={i}
+                        className={`border rounded-xl p-4 flex items-center justify-between gap-4 group transition-all ${t.surface} hover:border-indigo-500/40`}
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        Download
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Quiz / Q&A */}
-              {activeTab === "quiz" && (
-                <div className="space-y-6 animate-in fade-in duration-300 slide-in-from-bottom-2">
-                  <div className={`border rounded-xl p-5 ${t.surface}`}>
-                    <h3 className="font-bold text-sm mb-3">Ask a Question</h3>
-                    <textarea
-                      rows={3}
-                      placeholder="Have a question about this lesson? Ask here…"
-                      value={newQuestion}
-                      onChange={(e) => setNewQuestion(e.target.value)}
-                      className={`w-full rounded-xl px-4 py-3 text-sm border resize-none outline-none focus:ring-2 transition-all ${t.input}`}
-                    />
-                    <button
-                      id="post-question-btn"
-                      className="mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-colors shadow-md shadow-indigo-500/20 disabled:opacity-50"
-                      disabled={!newQuestion.trim()}
-                    >
-                      Post Question
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className={`text-xs font-bold uppercase tracking-widest ${t.muted}`}>
-                      Recent Questions
-                    </h3>
-                    {QA_ITEMS.map((qa) => (
-                      <div key={qa.id} className={`border rounded-xl p-5 space-y-3 ${t.surface}`}>
-                        <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-xs font-extrabold shrink-0 shadow">
-                            {qa.avatar}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-rose-400" />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-2 flex-wrap">
-                              <p className="font-bold text-sm">{qa.user}</p>
-                              <p className={`text-xs ${t.muted}`}>{qa.time}</p>
-                              <span className={`ml-auto text-xs ${t.muted} shrink-0`}>
-                                {qa.answers} {qa.answers === 1 ? "answer" : "answers"}
-                              </span>
-                            </div>
-                            <p className="text-sm leading-relaxed mt-1.5">{qa.question}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{file.fileName}</p>
+                            <p className={`text-xs ${t.muted} mt-0.5`}>
+                              {file.fileType || 'Tài liệu'} &bull; {((file.fileSize || 0) / 1024 / 1024).toFixed(2)} MB
+                            </p>
                           </div>
                         </div>
-                        <div className={`flex items-center gap-4 pl-12 border-t pt-3 ${t.border}`}>
-                          <button className={`flex items-center gap-1.5 text-xs font-semibold ${t.muted} hover:text-indigo-400 transition-colors`}>
-                            ▲ {qa.upvotes} upvotes
-                          </button>
-                          <button className={`flex items-center gap-1.5 text-xs font-semibold ${t.muted} hover:text-indigo-400 transition-colors`}>
-                            <MessageSquare className="w-3.5 h-3.5" /> Reply
-                          </button>
-                        </div>
+                        <a
+                          href={file.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${t.pill} hover:opacity-80`}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </a>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className={`text-sm ${t.muted}`}>Không có tài liệu đính kèm nào cho bài học này.</p>
+                    </div>
+                  )}
                 </div>
               )}
+
             </div>
           </div>
         </div>
