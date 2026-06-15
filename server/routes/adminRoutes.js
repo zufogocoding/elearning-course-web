@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const couponController = require('../controllers/couponController');
+const adminTransactionController = require('../controllers/adminTransactionController');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 
 // Tất cả routes admin đều yêu cầu đăng nhập + quyền admin
@@ -19,5 +20,9 @@ router.get('/coupons', couponController.getAllCoupons);
 router.post('/coupons', couponController.createCoupon);
 router.put('/coupons/:id', couponController.updateCoupon);
 router.delete('/coupons/:id', couponController.deleteCoupon);
+
+// --- Transactions & Refunds Routes ---
+router.get('/transactions', adminTransactionController.getAllTransactions);
+router.post('/transactions/:id/refund', adminTransactionController.refundTransaction);
 
 module.exports = router;

@@ -18,6 +18,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
+import { formatVND } from "@/lib/pricing";
 
 interface DbCourse {
   id: number;
@@ -50,7 +51,7 @@ const mockGradients = [
 
 const categories = ["IT & Software", "Business", "Design", "Marketing", "Photography"];
 const levels = ["All", "Beginner", "Intermediate", "Advanced"];
-const prices = ["All", "Free", "Paid", "Under $50", "$50-$100", "Over $100"];
+const prices = ["Tất cả", "Miễn phí", "Có phí", "Dưới 200.000 ₫", "200.000 ₫ - 500.000 ₫", "Trên 500.000 ₫"];
 const ratings = [
   { label: "Từ 4.5 sao", value: 4.5 },
   { label: "Từ 4.0 sao", value: 4.0 },
@@ -98,7 +99,7 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
     initialCategory ? [initialCategory] : []
   );
   const [selectedLevel, setSelectedLevel] = useState("All");
-  const [selectedPrice, setSelectedPrice] = useState("All");
+  const [selectedPrice, setSelectedPrice] = useState("Tất cả");
   const [selectedRating, setSelectedRating] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("Phổ biến nhất");
@@ -123,9 +124,10 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
       try {
         const res = await api.get('/api/categories');
         if (res.ok) {
-          const data = await res.json();
+          const resBody = await res.json();
+          const categoriesData = resBody.data || [];
           const names: string[] = [];
-          data.forEach((cat: any) => {
+          categoriesData.forEach((cat: any) => {
             if (cat.name) names.push(cat.name);
             cat.children?.forEach((child: any) => {
               if (child.name) names.push(child.name);
@@ -186,12 +188,12 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
       return false;
     }
     // Price
-    if (selectedPrice !== "All") {
-      if (selectedPrice === "Free" && course.price > 0) return false;
-      if (selectedPrice === "Paid" && course.price === 0) return false;
-      if (selectedPrice === "Under $50" && course.price >= 50) return false;
-      if (selectedPrice === "$50-$100" && (course.price < 50 || course.price > 100)) return false;
-      if (selectedPrice === "Over $100" && course.price <= 100) return false;
+    if (selectedPrice !== "Tất cả") {
+      if (selectedPrice === "Miễn phí" && course.price > 0) return false;
+      if (selectedPrice === "Có phí" && course.price === 0) return false;
+      if (selectedPrice === "Dưới 200.000 ₫" && course.price >= 200000) return false;
+      if (selectedPrice === "200.000 ₫ - 500.000 ₫" && (course.price < 200000 || course.price > 500000)) return false;
+      if (selectedPrice === "Trên 500.000 ₫" && course.price <= 500000) return false;
     }
     // Rating
     if (selectedRating > 0 && course.rating < selectedRating) {
@@ -217,7 +219,7 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
   const clearFilters = () => {
     setSelectedCategories([]);
     setSelectedLevel("All");
-    setSelectedPrice("All");
+    setSelectedPrice("Tất cả");
     setSelectedRating(0);
     setSearchQuery("");
   };
@@ -225,7 +227,7 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
   const hasActiveFilters =
     selectedCategories.length > 0 ||
     selectedLevel !== "All" ||
-    selectedPrice !== "All" ||
+    selectedPrice !== "Tất cả" ||
     selectedRating > 0;
 
   const FilterSidebar = () => (
@@ -386,7 +388,7 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
             Bộ lọc
             {hasActiveFilters && (
               <span className="ml-1 w-5 h-5 bg-indigo-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                {selectedCategories.length + (selectedLevel !== "All" ? 1 : 0) + (selectedPrice !== "All" ? 1 : 0) + (selectedRating > 0 ? 1 : 0)}
+                {selectedCategories.length + (selectedLevel !== "All" ? 1 : 0) + (selectedPrice !== "Tất cả" ? 1 : 0) + (selectedRating > 0 ? 1 : 0)}
               </span>
             )}
           </button>
@@ -544,9 +546,9 @@ export default function CourseCatalogClient({ initialCourses, initialCategory }:
                       {/* Price Row */}
                       <div className={`flex items-center justify-between pt-2 border-t ${divider}`}>
                         <div className="flex items-baseline gap-2">
-                          <span className={`text-base font-extrabold ${text}`}>${course.price}</span>
+                          <span className={`text-base font-extrabold ${text}`}>{formatVND(course.price)}</span>
                           {course.originalPrice > course.price && (
-                            <span className={`text-xs line-through ${subtle}`}>${course.originalPrice.toFixed(2)}</span>
+                            <span className={`text-xs line-through ${subtle}`}>{formatVND(course.originalPrice)}</span>
                           )}
                         </div>
                         <Link

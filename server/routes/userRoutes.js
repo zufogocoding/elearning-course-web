@@ -9,6 +9,7 @@ router.use(authenticate);
 
 // IMPORTANT: /me must come BEFORE /:id to avoid route shadowing
 router.get('/me', userController.getMe);
+router.get('/me/transactions', userController.getMyTransactions);
 router.put('/me', validateUpdateMe, userController.updateMe);
 
 module.exports = router;

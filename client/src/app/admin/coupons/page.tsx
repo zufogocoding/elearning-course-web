@@ -6,6 +6,7 @@ import AdminLayout from "@/components/layout/AdminLayout";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { api } from "@/lib/api";
 import { useToast } from "@/contexts/ToastContext";
+import { formatVND } from "@/lib/pricing";
 
 interface Coupon {
   id: string;
@@ -253,11 +254,11 @@ export default function ManageCouponsPage() {
                               : isDark ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-50 text-emerald-700"
                           }`}
                         >
-                          {coupon.discountType === "Percent" ? "% Phần trăm" : "$ Cố định"}
+                          {coupon.discountType === "Percent" ? "% Phần trăm" : "₫ Cố định"}
                         </span>
                       </td>
                       <td className={`px-4 py-3.5 whitespace-nowrap font-semibold ${text}`}>
-                        {coupon.discountType === "Percent" ? `${coupon.discountValue}%` : `$${coupon.discountValue}`}
+                        {coupon.discountType === "Percent" ? `${coupon.discountValue}%` : formatVND(coupon.discountValue)}
                       </td>
                       <td className={`px-4 py-3.5 whitespace-nowrap text-xs font-medium ${muted}`}>
                         {coupon.validFrom} <span className="mx-1 opacity-50">-</span> {coupon.validTo}
@@ -339,7 +340,7 @@ export default function ManageCouponsPage() {
                         className={`w-full px-3 py-2.5 border rounded-xl outline-none transition-all text-sm font-semibold appearance-none ${input}`}
                       >
                         <option value="Percent">Phần trăm (%)</option>
-                        <option value="Fixed">Số tiền cố định ($)</option>
+                        <option value="Fixed">Số tiền cố định (₫)</option>
                       </select>
                     </div>
                   </div>

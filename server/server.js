@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { initEmailTransporter } = require('./lib/email');
 const errorHandler = require('./middleware/errorMiddleware');
+const { startCronJobs } = require('./lib/cronJobs');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -62,10 +63,11 @@ app.use('/api/learning', learningRoutes);
 app.use(errorHandler);
 
 // Khởi động server
-app.listen(PORT, async () => {
-  console.log(`Backend REST API đang chạy tại http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`Backend REST API đang chạy tại http://0.0.0.0:${PORT}`);
   try {
     await initEmailTransporter();
+    startCronJobs();
   } catch (error) {
     console.error('Lỗi khi khởi tạo email service:', error);
   }

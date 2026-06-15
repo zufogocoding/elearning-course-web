@@ -3,9 +3,8 @@ import { z } from "zod";
 // 1. Schema Đăng ký
 export const registerSchema = z.object({
   username: z.string()
-    .min(3, "Username phải có ít nhất 3 ký tự")
-    .max(30, "Username không được vượt quá 30 ký tự")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username chỉ chứa chữ cái, chữ số và dấu gạch dưới"),
+    .min(3, "Tên hiển thị phải có ít nhất 3 ký tự")
+    .max(50, "Tên hiển thị không được vượt quá 50 ký tự"),
   email: z.string()
     .min(1, "Email là bắt buộc")
     .email("Email không đúng định dạng"),
@@ -41,11 +40,10 @@ export const resetPasswordSchema = z.object({
 // 4. Schema Cập nhật Hồ sơ cá nhân (Profile Settings)
 export const updateMeSchema = z.object({
   username: z.string()
-    .min(3, "Username phải có ít nhất 3 ký tự")
-    .max(30, "Username không được vượt quá 30 ký tự")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username chỉ chứa chữ cái, chữ số và dấu gạch dưới"),
+    .min(3, "Tên hiển thị phải có ít nhất 3 ký tự")
+    .max(50, "Tên hiển thị không được vượt quá 50 ký tự"),
   bio: z.string().max(200, "Bio không được vượt quá 200 ký tự").optional(),
-  avatarUrl: z.string().url("Định dạng ảnh URL không hợp lệ").or(z.literal("")).optional(),
+  avatarUrl: z.string().optional(),
   currentPassword: z.string().optional(),
   newPassword: z.string().min(6, "Mật khẩu mới phải có ít nhất 6 ký tự").optional(),
 }).superRefine((data, ctx) => {
