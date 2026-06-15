@@ -46,14 +46,19 @@ const createPayment = async (req, res) => {
 
   try {
     // 1. Kiểm tra khóa học
-    const course = await prisma.course.findUnique({ where: { id: parseInt(courseId) } });
+    const parsedCourseId = parseInt(courseId, 10);
+    if (!parsedCourseId || isNaN(parsedCourseId) || parsedCourseId <= 0) {
+      return res.status(400).json({ error: 'courseId không hợp lệ.' });
+    }
+
+    const course = await prisma.course.findUnique({ where: { id: parsedCourseId } });
     if (!course || course.deletedAt) {
       return res.status(404).json({ error: 'Khóa học không tồn tại hoặc đã bị xóa' });
     }
 
     // 2. Kiểm tra user đã mua khóa này chưa (tránh mua trùng)
     const existing = await prisma.enrollment.findUnique({
-      where: { userId_courseId: { userId, courseId: parseInt(courseId) } }
+      where: { userId_courseId: { userId, courseId: parsedCourseId } }
     });
     if (existing && existing.status === 'active') {
       return res.status(409).json({ error: 'Bạn đã sở hữu khóa học này rồi' });
@@ -64,7 +69,7 @@ const createPayment = async (req, res) => {
     let appliedCoupon = null;
 
     if (couponCode) {
-      appliedCoupon = await prisma.coupon.findUnique({ where: { code: couponCode } });
+      appliedCoupon = await prisma.coupon.findUnique({ where: { code: couponCode.toUpperCase() } });
       const nowTimestamp = new Date().getTime();
       
       // Validate Coupon
@@ -89,7 +94,7 @@ const createPayment = async (req, res) => {
         where: { couponId: appliedCoupon.id }
       });
       if (couponCourses.length > 0) {
-        const isApplicable = couponCourses.some(cc => cc.courseId === parseInt(courseId));
+        const isApplicable = couponCourses.some(cc => cc.courseId === parsedCourseId);
         if (!isApplicable) {
           return res.status(400).json({ error: 'Mã giảm giá này không áp dụng cho khóa học hiện tại.' });
         }
@@ -110,14 +115,14 @@ const createPayment = async (req, res) => {
       
       // Tạo hoặc cập nhật Enrollment
       const enrollment = await tx.enrollment.upsert({
-        where: { userId_courseId: { userId, courseId: parseInt(courseId) } },
+        where: { userId_courseId: { userId, courseId: parsedCourseId } },
         update: { 
           status: isFree ? 'active' : 'pending', 
           couponId: appliedCoupon?.id 
         },
         create: {
           userId,
-          courseId: parseInt(courseId),
+          courseId: parsedCourseId,
           couponId: appliedCoupon?.id,
           status: isFree ? 'active' : 'pending'
         }
@@ -155,17 +160,27 @@ const createPayment = async (req, res) => {
       const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
 
       if (!clientId || !apiKey || !checksumKey) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('--- RUNNING IN PAYOS MOCK MODE (DEV ONLY, NO KEYS DETECTED) ---');
+          const finalAmountInt = Math.round(finalAmount);
+          const returnUrl = `${process.env.CLIENT_URL}/payment-result?vnp_ResponseCode=00&vnp_TxnRef=${result.payment.id}&vnp_Amount=${finalAmountInt * 100}&vnp_OrderInfo=courseId:${parsedCourseId}`;
+          return res.status(200).json({
+            message: 'Vui lòng hoàn tất thanh toán (MOCK)',
+            paymentUrl: returnUrl
+          });
+        }
         console.error('PayOS configuration missing in environment');
         return res.status(500).json({ error: 'Chưa cấu hình thông tin thanh toán PayOS' });
       }
 
       const finalAmountInt = Math.round(finalAmount);
-      const returnUrl = `${process.env.CLIENT_URL}/payment-result?vnp_ResponseCode=00&vnp_TxnRef=${result.payment.id}&vnp_Amount=${finalAmountInt * 100}&vnp_OrderInfo=courseId:${courseId}`;
-      const cancelUrl = `${process.env.CLIENT_URL}/payment-result?vnp_ResponseCode=24&vnp_TxnRef=${result.payment.id}&vnp_OrderInfo=courseId:${courseId}`;
+      const orderCode = result.payment.id * 1000 + (Math.floor(Math.random() * 900) + 100);
+      const returnUrl = `${process.env.CLIENT_URL}/payment-result?vnp_ResponseCode=00&vnp_TxnRef=${result.payment.id}&vnp_Amount=${finalAmountInt * 100}&vnp_OrderInfo=courseId:${parsedCourseId}`;
+      const cancelUrl = `${process.env.CLIENT_URL}/payment-result?vnp_ResponseCode=24&vnp_TxnRef=${result.payment.id}&vnp_OrderInfo=courseId:${parsedCourseId}`;
       const desc = `CQ${result.payment.id}`;
 
       const payosData = {
-        orderCode: result.payment.id,
+        orderCode: orderCode,
         amount: finalAmountInt,
         description: desc,
         cancelUrl: cancelUrl,
@@ -174,6 +189,12 @@ const createPayment = async (req, res) => {
 
       const payosSignature = createPayOSSignature(payosData, checksumKey);
       payosData.signature = payosSignature;
+
+      // Lưu orderCode vào gatewayTransactionId để đối chiếu webhook sau này
+      await prisma.paymentTransaction.update({
+        where: { id: result.payment.id },
+        data: { gatewayTransactionId: orderCode.toString() }
+      });
 
       try {
         const payosResponse = await axios.post(
@@ -238,9 +259,9 @@ const createPayment = async (req, res) => {
         'vnp_Locale': 'vn',
         'vnp_CurrCode': 'VND',
         'vnp_TxnRef': result.payment.id.toString(),
-        'vnp_OrderInfo': `Thanh toan khoa hoc ${courseId}`,
+        'vnp_OrderInfo': `Thanh toan khoa hoc ${parsedCourseId}`,
         'vnp_OrderType': 'other',
-        'vnp_Amount': finalAmount * 100,
+        'vnp_Amount': Math.round(finalAmount * 100),
         'vnp_ReturnUrl': returnUrl,
         'vnp_IpAddr': ipAddr,
         'vnp_CreateDate': createDate,
@@ -250,7 +271,7 @@ const createPayment = async (req, res) => {
       vnp_Params = sortObject(vnp_Params);
       const signData = querystring.stringify(vnp_Params, { encode: false });
       const hmac = crypto.createHmac("sha512", secretKey);
-      const signed = hmac.update(new Buffer.from(signData, 'utf-8')).digest("hex"); 
+      const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex"); 
       vnp_Params['vnp_SecureHash'] = signed;
 
       const paymentUrl = vnpUrl + '?' + querystring.stringify(vnp_Params, { encode: false });
@@ -288,7 +309,7 @@ const vnpayIpn = async (req, res) => {
 
   const signData = querystring.stringify(vnp_Params, { encode: false });
   const hmac = crypto.createHmac("sha512", secretKey);
-  const signed = hmac.update(new Buffer.from(signData, 'utf-8')).digest("hex");     
+  const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex");     
 
   // 1. Kiểm tra chữ ký bảo mật (Chống giả mạo request)
   if (secureHash === signed) {
@@ -307,6 +328,11 @@ const vnpayIpn = async (req, res) => {
         return res.status(200).json({ RspCode: '01', Message: 'Không tìm thấy giao dịch' });
       }
 
+      // Kiểm tra tính toàn vẹn của số tiền (Amount Verification)
+      if (parseInt(vnp_Params['vnp_Amount'], 10) !== Math.round(Number(payment.amount) * 100)) {
+        return res.status(200).json({ RspCode: '04', Message: 'Số tiền thanh toán không hợp lệ' });
+      }
+
       if (payment.status === 'completed') {
         return res.status(200).json({ RspCode: '02', Message: 'Giao dịch đã được xác nhận trước đó' });
       }
@@ -314,23 +340,47 @@ const vnpayIpn = async (req, res) => {
       // 3. Cập nhật trạng thái
       if (responseCode === '00') {
         // Mã '00' là khách đã thanh toán thành công
-        await prisma.$transaction([
-          prisma.paymentTransaction.update({
+        const transactionResult = await prisma.$transaction(async (tx) => {
+          // Lấy lại thông tin thanh toán trong transaction context
+          const txPayment = await tx.paymentTransaction.findUnique({
+            where: { id: paymentId },
+            include: { enrollment: true }
+          });
+
+          if (txPayment.status === 'completed') {
+            return { alreadyCompleted: true };
+          }
+
+          // Kiểm tra và cập nhật lượt dùng Coupon trong transaction để tránh Race Condition
+          if (txPayment.enrollment.couponId) {
+            const coupon = await tx.coupon.findUnique({
+              where: { id: txPayment.enrollment.couponId }
+            });
+            if (coupon && coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+              throw new Error('Mã giảm giá đã hết lượt sử dụng');
+            }
+            await tx.coupon.update({
+              where: { id: txPayment.enrollment.couponId },
+              data: { usedCount: { increment: 1 } }
+            });
+          }
+
+          await tx.paymentTransaction.update({
             where: { id: paymentId },
             data: { status: 'completed', gatewayTransactionId }
-          }),
-          prisma.enrollment.update({
-            where: { id: payment.enrollmentId },
+          });
+
+          await tx.enrollment.update({
+            where: { id: txPayment.enrollmentId },
             data: { status: 'active' }
-          }),
-          // Tăng lượt dùng mã giảm giá (nếu có)
-          ...(payment.enrollment.couponId ? [
-            prisma.coupon.update({
-              where: { id: payment.enrollment.couponId },
-              data: { usedCount: { increment: 1 } }
-            })
-          ] : [])
-        ]);
+          });
+
+          return { success: true };
+        });
+
+        if (transactionResult.alreadyCompleted) {
+          return res.status(200).json({ RspCode: '02', Message: 'Giao dịch đã được xác nhận trước đó' });
+        }
         
         return res.status(200).json({ RspCode: '00', Message: 'Xác nhận thành công' });
       } else {
@@ -350,6 +400,9 @@ const vnpayIpn = async (req, res) => {
       }
     } catch (error) {
       console.error('Lỗi xử lý IPN:', error);
+      if (error.message === 'Mã giảm giá đã hết lượt sử dụng') {
+        return res.status(200).json({ RspCode: '99', Message: error.message });
+      }
       return res.status(200).json({ RspCode: '99', Message: 'Lỗi không xác định' });
     }
   } else {
@@ -370,7 +423,7 @@ const validateCoupon = async (req, res) => {
       where: { code: code.toUpperCase() }
     });
 
-    //LẤY TIMESTAMP UTC CỦA SERVER
+    // LẤY TIMESTAMP UTC CỦA SERVER
     const nowTimestamp = new Date().getTime();
 
     if (!coupon || !coupon.isActive) {
@@ -391,7 +444,10 @@ const validateCoupon = async (req, res) => {
 
     // Kiểm tra xem coupon có áp dụng cho khóa học này không
     if (courseId) {
-      const parsedCourseId = parseInt(courseId);
+      const parsedCourseId = parseInt(courseId, 10);
+      if (isNaN(parsedCourseId) || parsedCourseId <= 0) {
+        return res.status(400).json({ error: 'courseId không hợp lệ.' });
+      }
       const couponCourses = await prisma.couponCourse.findMany({
         where: { couponId: coupon.id }
       });
@@ -457,47 +513,88 @@ const payosWebhook = async (req, res) => {
   }
 
   // 2. Chữ ký hợp lệ, xử lý đơn hàng
-  const orderCode = data.orderCode; // Đây là ID của PaymentTransaction
-  const paymentId = parseInt(orderCode);
+  const orderCode = data.orderCode; // Đây là mã orderCode ngẫu nhiên duy nhất
+  let paymentId = Math.floor(orderCode / 1000); // Lấy ID gốc của PaymentTransaction
 
   try {
-    const payment = await prisma.paymentTransaction.findUnique({
+    let payment = await prisma.paymentTransaction.findUnique({
       where: { id: paymentId },
       include: { enrollment: true }
     });
 
     if (!payment) {
+      // Fallback đối soát trực tiếp theo ID trong trường hợp giao dịch cũ
+      paymentId = orderCode;
+      payment = await prisma.paymentTransaction.findUnique({
+        where: { id: paymentId },
+        include: { enrollment: true }
+      });
+    }
+
+    if (!payment) {
       return res.status(200).json({ message: 'Không tìm thấy giao dịch' });
+    }
+
+    // Kiểm tra tính toàn vẹn của số tiền (Amount Verification)
+    if (Math.round(Number(data.amount)) !== Math.round(Number(payment.amount))) {
+      return res.status(400).json({ error: 'Số tiền thanh toán không khớp' });
     }
 
     if (payment.status === 'completed') {
       return res.status(200).json({ message: 'Giao dịch đã được xác nhận trước đó' });
     }
 
-    if (payload.code === '00') {
+    // Kiểm tra mã trạng thái giao dịch thực tế trong data.code
+    if (data.code === '00') {
       // Thanh toán thành công
-      await prisma.$transaction([
-        prisma.paymentTransaction.update({
-          where: { id: paymentId },
-          data: { status: 'completed', gatewayTransactionId: data.paymentLinkId }
-        }),
-        prisma.enrollment.update({
-          where: { id: payment.enrollmentId },
-          data: { status: 'active' }
-        }),
-        ...(payment.enrollment.couponId ? [
-          prisma.coupon.update({
-            where: { id: payment.enrollment.couponId },
+      const transactionResult = await prisma.$transaction(async (tx) => {
+        // Lấy lại thông tin thanh toán trong transaction context
+        const txPayment = await tx.paymentTransaction.findUnique({
+          where: { id: payment.id },
+          include: { enrollment: true }
+        });
+
+        if (txPayment.status === 'completed') {
+          return { alreadyCompleted: true };
+        }
+
+        // Kiểm tra và cập nhật lượt dùng Coupon trong transaction để tránh Race Condition
+        if (txPayment.enrollment.couponId) {
+          const coupon = await tx.coupon.findUnique({
+            where: { id: txPayment.enrollment.couponId }
+          });
+          if (coupon && coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+            throw new Error('Mã giảm giá đã hết lượt sử dụng');
+          }
+          await tx.coupon.update({
+            where: { id: txPayment.enrollment.couponId },
             data: { usedCount: { increment: 1 } }
-          })
-        ] : [])
-      ]);
+          });
+        }
+
+        await tx.paymentTransaction.update({
+          where: { id: txPayment.id },
+          data: { status: 'completed', gatewayTransactionId: data.paymentLinkId }
+        });
+
+        await tx.enrollment.update({
+          where: { id: txPayment.enrollmentId },
+          data: { status: 'active' }
+        });
+
+        return { success: true };
+      });
+
+      if (transactionResult.alreadyCompleted) {
+        return res.status(200).json({ message: 'Giao dịch đã được xác nhận trước đó' });
+      }
+
       return res.status(200).json({ message: 'Xác nhận thành công' });
     } else {
       // Giao dịch thất bại
       await prisma.$transaction([
         prisma.paymentTransaction.update({
-          where: { id: paymentId },
+          where: { id: payment.id },
           data: { status: 'failed', gatewayTransactionId: data.paymentLinkId }
         }),
         prisma.enrollment.update({
@@ -509,6 +606,9 @@ const payosWebhook = async (req, res) => {
     }
   } catch (error) {
     console.error('Lỗi xử lý PayOS Webhook:', error);
+    if (error.message === 'Mã giảm giá đã hết lượt sử dụng') {
+      return res.status(400).json({ error: error.message });
+    }
     return res.status(500).json({ error: 'Lỗi không xác định' });
   }
 };

@@ -27,7 +27,7 @@ const PORT = process.env.PORT || 5000;
 // Security: Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // limit each IP to 200 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 200 : 10000, // limit each IP to 200 requests in prod, 10000 in dev
   message: { success: false, error: 'Quá nhiều request từ IP này, vui lòng thử lại sau.' }
 });
 

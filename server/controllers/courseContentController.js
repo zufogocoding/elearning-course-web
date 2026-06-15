@@ -13,9 +13,18 @@ const createSection = async (req, res) => {
       return res.status(400).json({ error: 'courseId và title là bắt buộc.' });
     }
 
+    const parsedCourseId = parseInt(courseId, 10);
+    const course = await prisma.course.findFirst({
+      where: { id: parsedCourseId, deletedAt: null }
+    });
+
+    if (!course) {
+      return res.status(404).json({ error: 'Khóa học không tồn tại hoặc đã bị xóa.' });
+    }
+
     const section = await prisma.section.create({
       data: {
-        courseId: parseInt(courseId),
+        courseId: parsedCourseId,
         title,
         orderIndex: parseInt(orderIndex) || 0,
       }
@@ -72,6 +81,13 @@ const deleteSection = async (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy chương hoặc chương đã bị xóa.' });
     }
 
+    // Lấy danh sách ID các bài học đang hoạt động trong chương này
+    const activeLessons = await prisma.lesson.findMany({
+      where: { sectionId: parsedId, deletedAt: null },
+      select: { id: true }
+    });
+    const lessonIds = activeLessons.map(l => l.id);
+
     await prisma.$transaction([
       prisma.section.update({
         where: { id: parsedId },
@@ -80,7 +96,13 @@ const deleteSection = async (req, res) => {
       prisma.lesson.updateMany({
         where: { sectionId: parsedId, deletedAt: null },
         data: { deletedAt: new Date() }
-      })
+      }),
+      ...(lessonIds.length > 0 ? [
+        prisma.quiz.updateMany({
+          where: { lessonId: { in: lessonIds }, deletedAt: null },
+          data: { deletedAt: new Date() }
+        })
+      ] : [])
     ]);
 
     res.status(200).json({ message: 'Chương và các bài học bên trong đã được xóa mềm.' });
@@ -106,9 +128,18 @@ const createLesson = async (req, res) => {
       return res.status(400).json({ error: 'sectionId, title và contentType là bắt buộc.' });
     }
 
+    const parsedSectionId = parseInt(sectionId, 10);
+    const section = await prisma.section.findFirst({
+      where: { id: parsedSectionId, deletedAt: null }
+    });
+
+    if (!section) {
+      return res.status(404).json({ error: 'Chương học không tồn tại hoặc đã bị xóa.' });
+    }
+
     const lesson = await prisma.lesson.create({
       data: {
-        sectionId: parseInt(sectionId),
+        sectionId: parsedSectionId,
         title,
         contentType, // "video", "text", "quiz"
         contentUrl,
@@ -283,14 +314,45 @@ const saveLessonQuiz = async (req, res) => {
       return res.status(400).json({ error: 'Giới hạn thời gian không được âm.' });
     }
 
-    // 3. DoS prevention (restrict nested array lengths)
-    if (Array.isArray(questions)) {
+    // 3. Schema & Nested validation + DoS prevention
+    if (questions !== undefined) {
+      if (!Array.isArray(questions)) {
+        return res.status(400).json({ error: 'questions phải là một mảng.' });
+      }
       if (questions.length > 100) {
         return res.status(400).json({ error: 'Số lượng câu hỏi vượt quá giới hạn (tối đa 100).' });
       }
-      for (const q of questions) {
-        if (Array.isArray(q.options) && q.options.length > 10) {
-          return res.status(400).json({ error: 'Số lượng lựa chọn cho mỗi câu hỏi vượt quá giới hạn (tối đa 10).' });
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        if (!q.questionText || typeof q.questionText !== 'string' || !q.questionText.trim()) {
+          return res.status(400).json({ error: `Nội dung câu hỏi thứ ${i + 1} không được để trống.` });
+        }
+        if (q.questionText.length > 5000) {
+          return res.status(400).json({ error: `Nội dung câu hỏi thứ ${i + 1} quá dài (tối đa 5000 ký tự).` });
+        }
+        if (!Array.isArray(q.options) || q.options.length === 0) {
+          return res.status(400).json({ error: `Câu hỏi thứ ${i + 1} phải có ít nhất một lựa chọn trả lời.` });
+        }
+        if (q.options.length > 10) {
+          return res.status(400).json({ error: `Câu hỏi thứ ${i + 1} có quá nhiều lựa chọn (tối đa 10).` });
+        }
+        
+        let hasCorrect = false;
+        for (let j = 0; j < q.options.length; j++) {
+          const opt = q.options[j];
+          if (!opt.optionText || typeof opt.optionText !== 'string' || !opt.optionText.trim()) {
+            return res.status(400).json({ error: `Nội dung lựa chọn thứ ${j + 1} của câu hỏi thứ ${i + 1} không được để trống.` });
+          }
+          if (opt.optionText.length > 1000) {
+            return res.status(400).json({ error: `Nội dung lựa chọn thứ ${j + 1} của câu hỏi thứ ${i + 1} quá dài (tối đa 1000 ký tự).` });
+          }
+          if (opt.isCorrect) {
+            hasCorrect = true;
+          }
+        }
+        
+        if (!hasCorrect) {
+          return res.status(400).json({ error: `Câu hỏi thứ ${i + 1} phải có ít nhất một đáp án đúng.` });
         }
       }
     }
@@ -436,6 +498,14 @@ const reorderSections = async (req, res) => {
       return res.status(400).json({ error: 'Mảng sections là bắt buộc.' });
     }
 
+    const sectionIds = sections.map(s => parseInt(s.id));
+    const activeSectionsCount = await prisma.section.count({
+      where: { id: { in: sectionIds }, deletedAt: null }
+    });
+    if (activeSectionsCount !== sections.length) {
+      return res.status(400).json({ error: 'Một hoặc nhiều chương không tồn tại hoặc đã bị xóa.' });
+    }
+
     await prisma.$transaction(
       sections.map(s => prisma.section.update({
         where: { id: parseInt(s.id) },
@@ -456,6 +526,24 @@ const reorderLessons = async (req, res) => {
     const { lessons } = req.body;
     if (!Array.isArray(lessons)) {
       return res.status(400).json({ error: 'Mảng lessons là bắt buộc.' });
+    }
+
+    const lessonIds = lessons.map(l => parseInt(l.id));
+    const activeLessonsCount = await prisma.lesson.count({
+      where: { id: { in: lessonIds }, deletedAt: null }
+    });
+    if (activeLessonsCount !== lessons.length) {
+      return res.status(400).json({ error: 'Một hoặc nhiều bài học không tồn tại hoặc đã bị xóa.' });
+    }
+
+    const targetSectionIds = [...new Set(lessons.filter(l => l.sectionId !== undefined).map(l => parseInt(l.sectionId)))];
+    if (targetSectionIds.length > 0) {
+      const activeSectionsCount = await prisma.section.count({
+        where: { id: { in: targetSectionIds }, deletedAt: null }
+      });
+      if (activeSectionsCount !== targetSectionIds.length) {
+        return res.status(400).json({ error: 'Một hoặc nhiều chương đích không tồn tại hoặc đã bị xóa.' });
+      }
     }
 
     await prisma.$transaction(
