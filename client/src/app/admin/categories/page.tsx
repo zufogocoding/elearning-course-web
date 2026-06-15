@@ -10,9 +10,11 @@ import {
     Loader2,
     Plus,
     RefreshCcw,
+    Save,
     Search,
     Tags,
     Trash2,
+    X,
 } from 'lucide-react';
 
 type Category = {
@@ -24,6 +26,13 @@ type Category = {
     children?: Category[];
 };
 
+type CategoryFormData = {
+    name: string;
+    slug: string;
+    description: string;
+    parentId: string;
+};
+
 type CategoryTreeItemProps = {
     category: Category;
     level: number;
@@ -31,6 +40,33 @@ type CategoryTreeItemProps = {
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+const initialFormData: CategoryFormData = {
+    name: '',
+    slug: '',
+    description: '',
+    parentId: '',
+};
+
+function generateSlug(value: string) {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+}
+
+function flattenCategories(categoryList: Category[]): Category[] {
+    return categoryList.flatMap((category) => [
+        category,
+        ...flattenCategories(category.children || []),
+    ]);
+}
 
 function CategoryTreeItem({ category, level }: CategoryTreeItemProps) {
     const children = category.children || [];
@@ -123,6 +159,9 @@ export default function AdminCategoriesPage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [keyword, setKeyword] = useState<string>('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+    const [formData, setFormData] = useState<CategoryFormData>(initialFormData);
+    const [submitting, setSubmitting] = useState<boolean>(false);
 
     const getAuthHeaders = () => {
         if (typeof window === 'undefined') return {};
@@ -192,6 +231,8 @@ export default function AdminCategoriesPage() {
         void loadCategories(false);
     }, [loadCategories]);
 
+    const categoryOptions = flattenCategories(categories);
+
     const filterCategoryTree = (
         categoryList: Category[],
         searchKeyword: string
@@ -225,6 +266,86 @@ export default function AdminCategoriesPage() {
 
     const filteredCategories = filterCategoryTree(categories, keyword);
 
+    const openCreateModal = () => {
+        setFormData(initialFormData);
+        setIsCreateModalOpen(true);
+    };
+
+    const closeCreateModal = () => {
+        if (submitting) return;
+
+        setIsCreateModalOpen(false);
+        setFormData(initialFormData);
+    };
+
+    const handleFormChange = (
+        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    ) => {
+        const { name, value } = event.target;
+
+        if (name === 'name') {
+            setFormData((currentFormData) => ({
+                ...currentFormData,
+                name: value,
+                slug: generateSlug(value),
+            }));
+            return;
+        }
+
+        setFormData((currentFormData) => ({
+            ...currentFormData,
+            [name]: value,
+        }));
+    };
+
+    const handleCreateCategory = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!formData.name.trim()) {
+            setErrorMessage('Vui lòng nhập tên danh mục.');
+            return;
+        }
+
+        if (!formData.slug.trim()) {
+            setErrorMessage('Vui lòng nhập slug danh mục.');
+            return;
+        }
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await axios.post(
+                `${API_BASE_URL}/api/categories`,
+                {
+                    name: formData.name.trim(),
+                    slug: formData.slug.trim(),
+                    description: formData.description.trim() || null,
+                    parentId: formData.parentId ? Number(formData.parentId) : null,
+                },
+                {
+                    headers: getAuthHeaders(),
+                }
+            );
+
+            setIsCreateModalOpen(false);
+            setFormData(initialFormData);
+            await loadCategories();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể thêm danh mục.'
+                );
+            } else {
+                setErrorMessage('Không thể thêm danh mục.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <main className="min-h-screen bg-slate-50 p-6">
             <div className="mx-auto max-w-6xl space-y-6">
@@ -247,6 +368,7 @@ export default function AdminCategoriesPage() {
 
                         <button
                             type="button"
+                            onClick={openCreateModal}
                             className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
                         >
                             <Plus className="h-4 w-4" />
@@ -342,6 +464,122 @@ export default function AdminCategoriesPage() {
                     </section>
                 )}
             </div>
+
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                    <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
+                        <div className="flex items-center justify-between border-b border-slate-200 p-5">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">
+                                    Thêm danh mục
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Tạo danh mục cha hoặc danh mục con cho khóa học.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={closeCreateModal}
+                                disabled={submitting}
+                                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateCategory} className="space-y-4 p-5">
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">
+                                    Tên danh mục
+                                </label>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleFormChange}
+                                    placeholder="Ví dụ: Lập trình Web"
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">
+                                    Slug
+                                </label>
+                                <input
+                                    type="text"
+                                    name="slug"
+                                    value={formData.slug}
+                                    onChange={handleFormChange}
+                                    placeholder="lap-trinh-web"
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Slug sẽ tự tạo theo tên danh mục và có thể chỉnh sửa.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">
+                                    Mô tả
+                                </label>
+                                <textarea
+                                    name="description"
+                                    value={formData.description}
+                                    onChange={handleFormChange}
+                                    rows={3}
+                                    placeholder="Nhập mô tả ngắn cho danh mục"
+                                    className="w-full resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-slate-700">
+                                    Danh mục cha
+                                </label>
+                                <select
+                                    name="parentId"
+                                    value={formData.parentId}
+                                    onChange={handleFormChange}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                >
+                                    <option value="">Không có danh mục cha</option>
+                                    {categoryOptions.map((category) => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={closeCreateModal}
+                                    disabled={submitting}
+                                    className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    Hủy
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {submitting ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    Lưu danh mục
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
