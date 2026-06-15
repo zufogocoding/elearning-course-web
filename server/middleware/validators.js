@@ -9,8 +9,9 @@ const validate = (schema) => (req, res, next) => {
     next();
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Map Zod errors into a clean, user-friendly error string
-      const errorMessage = error.errors.map((err) => err.message).join('. ');
+      // Zod v4: dùng error.issues thay vì error.errors
+      const issues = error.issues || error.errors || [];
+      const errorMessage = issues.map((err) => err.message).join('. ');
       return res.status(400).json({ error: errorMessage });
     }
     next(error);
@@ -47,12 +48,11 @@ const resetPasswordSchema = z.object({
 // 4. Schema Cập nhật Profile cá nhân
 const updateMeSchema = z.object({
   username: z.string()
-    .min(3, "Username phải có ít nhất 3 ký tự")
-    .max(30, "Username không được vượt quá 30 ký tự")
-    .regex(/^[a-zA-Z0-9_]+$/, "Username chỉ được chứa chữ cái, chữ số và dấu gạch dưới")
+    .min(3, "Tên hiển thị phải có ít nhất 3 ký tự")
+    .max(50, "Tên hiển thị không được vượt quá 50 ký tự")
     .optional(),
-  bio: z.string().max(200, "Bio không được vượt quá 200 ký tự").optional().nullable(),
-  avatarUrl: z.string().url("Avatar URL không hợp lệ").or(z.literal("")).optional().nullable(),
+  bio: z.string().max(500, "Bio không được vượt quá 500 ký tự").optional().nullable(),
+  avatarUrl: z.string().optional().nullable(),
   currentPassword: z.string().optional(),
   newPassword: z.string().min(6, "Mật khẩu mới phải có ít nhất 6 ký tự").optional(),
 }).superRefine((data, ctx) => {

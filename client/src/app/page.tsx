@@ -28,6 +28,7 @@ import Footer from "@/components/layout/Footer";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatVND } from "@/lib/pricing";
 
 // Interfaces
 interface Category {
@@ -358,7 +359,7 @@ export default function Home() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {courses.map((course) => {
+                {courses.slice(0, 6).map((course) => {
                   return (
                     <Link
                       key={course.id}
@@ -393,11 +394,11 @@ export default function Home() {
                           <div className="flex flex-col">
                              {course.discountPrice ? (
                                 <>
-                                  <span className={`text-sm line-through font-medium ${subtle}`}>${course.price}</span>
-                                  <span className={`text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none mt-0.5`}>${course.discountPrice}</span>
+                                  <span className={`text-sm line-through font-medium ${subtle}`}>{formatVND(course.price)}</span>
+                                  <span className={`text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none mt-0.5`}>{formatVND(course.discountPrice)}</span>
                                 </>
                              ) : (
-                                <span className={`text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none mt-0.5`}>${course.price}</span>
+                                <span className={`text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none mt-0.5`}>{formatVND(course.price)}</span>
                              )}
                           </div>
                           

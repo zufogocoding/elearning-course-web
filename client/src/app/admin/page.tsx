@@ -2,6 +2,7 @@
 
 import AdminLayout from "@/components/layout/AdminLayout";
 import { useTheme } from "@/components/ui/ThemeProvider";
+import { formatVND } from "@/lib/pricing";
 import {
   DollarSign,
   Users,
@@ -21,7 +22,7 @@ const STATS = [
   {
     id: "stat-revenue",
     label: "Tổng doanh thu",
-    value: "$48,392",
+    value: "1.209.800.000 ₫",
     trend: "+12.5% tháng này",
     trendUp: true,
     icon: DollarSign,
@@ -61,28 +62,28 @@ const STATS = [
 ];
 
 const REVENUE_BARS = [
-  { month: "Tháng 1", value: 6200, height: 55 },
-  { month: "Tháng 2", value: 5800, height: 50 },
-  { month: "Tháng 3", value: 7900, height: 70 },
-  { month: "Tháng 4", value: 8400, height: 74 },
-  { month: "Tháng 5", value: 9100, height: 80 },
-  { month: "Tháng 6", value: 11100, height: 100 },
+  { month: "Tháng 1", value: 155000000, height: 55 },
+  { month: "Tháng 2", value: 145000000, height: 50 },
+  { month: "Tháng 3", value: 197500000, height: 70 },
+  { month: "Tháng 4", value: 210000000, height: 74 },
+  { month: "Tháng 5", value: 227500000, height: 80 },
+  { month: "Tháng 6", value: 277500000, height: 100 },
 ];
 
 const ENROLLMENTS = [
-  { date: "12 Thg 6", student: "Alice Wang", course: "UI/UX Design Masterclass", amount: "$89.99", status: "Hoàn thành" },
-  { date: "11 Thg 6", student: "Brian Torres", course: "Advanced React Patterns", amount: "$74.99", status: "Hoàn thành" },
-  { date: "11 Thg 6", student: "Clara Singh", course: "Digital Marketing Strategy", amount: "$59.99", status: "Chờ xử lý" },
-  { date: "10 Thg 6", student: "David Kim", course: "Python for Data Science", amount: "$99.99", status: "Hoàn thành" },
-  { date: "09 Thg 6", student: "Emma Davis", course: "Intro to AI & ML", amount: "$89.99", status: "Hoàn tiền" },
+  { date: "12 Thg 6", student: "Alice Wang", course: "UI/UX Design Masterclass", amount: "2.249.000 ₫", status: "Hoàn thành" },
+  { date: "11 Thg 6", student: "Brian Torres", course: "Advanced React Patterns", amount: "1.875.000 ₫", status: "Hoàn thành" },
+  { date: "11 Thg 6", student: "Clara Singh", course: "Digital Marketing Strategy", amount: "1.499.000 ₫", status: "Chờ xử lý" },
+  { date: "10 Thg 6", student: "David Kim", course: "Python for Data Science", amount: "2.499.000 ₫", status: "Hoàn thành" },
+  { date: "09 Thg 6", student: "Emma Davis", course: "Intro to AI & ML", amount: "2.249.000 ₫", status: "Hoàn tiền" },
 ];
 
 const TOP_COURSES = [
-  { rank: 1, title: "UI/UX Design Masterclass", students: 312, revenue: "$28,009" },
-  { rank: 2, title: "Advanced React Patterns", students: 241, revenue: "$18,064" },
-  { rank: 3, title: "Python for Data Science", students: 198, revenue: "$19,702" },
-  { rank: 4, title: "Digital Marketing Strategy", students: 187, revenue: "$11,215" },
-  { rank: 5, title: "Intro to AI & ML", students: 156, revenue: "$14,010" },
+  { rank: 1, title: "UI/UX Design Masterclass", students: 312, revenue: "700.225.000 ₫" },
+  { rank: 2, title: "Advanced React Patterns", students: 241, revenue: "451.600.000 ₫" },
+  { rank: 3, title: "Python for Data Science", students: 198, revenue: "492.550.000 ₫" },
+  { rank: 4, title: "Digital Marketing Strategy", students: 187, revenue: "280.375.000 ₫" },
+  { rank: 5, title: "Intro to AI & ML", students: 156, revenue: "350.250.000 ₫" },
 ];
 
 export default function AdminDashboardPage() {
@@ -155,15 +156,15 @@ export default function AdminDashboardPage() {
             {REVENUE_BARS.map((bar) => (
               <div key={bar.month} className="flex-1 flex flex-col items-center gap-2">
                 <span className={`text-[10px] font-semibold ${muted}`}>
-                  ${(bar.value / 1000).toFixed(1)}k
+                  {(bar.value / 1000000).toFixed(1)}M
                 </span>
-                <div className="w-full flex items-end" style={{ height: "100px" }}>
+                <div className="w-full flex items-end relative group" style={{ height: "100px" }}>
                   <div
-                    className="w-full rounded-t-lg bg-indigo-600 hover:bg-indigo-500 transition-colors cursor-default relative group"
+                    className={`w-full max-w-[32px] mx-auto rounded-t-lg bg-gradient-to-t from-indigo-500 to-purple-600 group-hover:from-indigo-600 group-hover:to-purple-700 transition-all duration-300`}
                     style={{ height: `${bar.height}%` }}
                   >
                     <div className={`absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap ${isDark ? "bg-[#22263a] text-white" : "bg-slate-800 text-white"}`}>
-                      ${bar.value.toLocaleString()}
+                      {formatVND(bar.value)}
                     </div>
                   </div>
                 </div>
