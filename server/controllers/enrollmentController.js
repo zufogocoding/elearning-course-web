@@ -240,6 +240,57 @@ const createPayment = async (req, res) => {
         }
         return res.status(500).json({ error: 'Không thể kết nối tới cổng thanh toán PayOS' });
       }
+    } else if (paymentMethod === 'momo') {
+      const partnerCode = process.env.MOMO_PARTNER_CODE || 'MOCK_MOMO';
+      const accessKey = process.env.MOMO_ACCESS_KEY || 'MOCK_MOMO';
+      const secretKey = process.env.MOMO_SECRET_KEY || 'MOCK_MOMO';
+      const momoApiUrl = process.env.MOMO_API_URL || 'https://test-payment.momo.vn/v2/gateway/api/create';
+      
+      const orderInfo = `Thanh toan khoa hoc ${parsedCourseId}`;
+      const amount = Math.round(finalAmount).toString();
+      const orderId = result.payment.id + "_" + Date.now();
+      const requestId = orderId;
+      const redirectUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/payment-result`;
+      const ipnUrl = `${process.env.API_URL || 'http://localhost:5000'}/api/enrollments/momo-ipn`;
+      const requestType = "captureWallet";
+      const extraData = "";
+
+      const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
+      const signature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');
+
+      const requestBody = {
+        partnerCode,
+        partnerName: "Test",
+        storeId: "MomoTestStore",
+        requestId,
+        amount,
+        orderId,
+        orderInfo,
+        redirectUrl,
+        ipnUrl,
+        lang: "vi",
+        requestType,
+        autoCapture: true,
+        extraData,
+        signature
+      };
+
+      try {
+        const response = await axios.post(momoApiUrl, requestBody);
+        
+        if (response.data && response.data.payUrl) {
+           return res.status(200).json({
+             message: 'Vui lòng hoàn tất thanh toán (MoMo)',
+             paymentUrl: response.data.payUrl
+           });
+        } else {
+           console.error('MoMo API error:', response.data);
+           return res.status(500).json({ error: 'Lỗi khi gọi API MoMo' });
+        }
+      } catch (err) {
+        console.error('MoMo request failed:', err.response?.data || err.message);
+        return res.status(500).json({ error: 'Không thể kết nối cổng MoMo' });
+      }
     } else {
       // VNPAY
       const tmnCode = process.env.VNP_TMN_CODE;
@@ -613,9 +664,103 @@ const payosWebhook = async (req, res) => {
   }
 };
 
+// ============================================
+// API 5: XỬ LÝ KẾT QUẢ TỪ MOMO (IPN Webhook)
+// ============================================
+const momoIpn = async (req, res) => {
+  const {
+    partnerCode,
+    orderId,
+    requestId,
+    amount,
+    orderInfo,
+    orderType,
+    transId,
+    resultCode,
+    message,
+    payType,
+    responseTime,
+    extraData,
+    signature
+  } = req.body;
+
+  const accessKey = process.env.MOMO_ACCESS_KEY || 'MOCK_MOMO';
+  const secretKey = process.env.MOMO_SECRET_KEY || 'MOCK_MOMO';
+
+  const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&orderType=${orderType}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
+  
+  const checkSignature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');
+
+  if (signature !== checkSignature) {
+    return res.status(400).json({ message: "Signature mismatch" });
+  }
+
+  const paymentIdStr = orderId.split('_')[0];
+  const paymentId = parseInt(paymentIdStr, 10);
+
+  try {
+    const payment = await prisma.paymentTransaction.findUnique({
+      where: { id: paymentId },
+      include: { enrollment: true }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: "Giao dịch không tồn tại" });
+    }
+
+    if (Math.round(Number(payment.amount)) !== Number(amount)) {
+      return res.status(400).json({ message: "Số tiền không hợp lệ" });
+    }
+
+    if (payment.status === 'completed') {
+      return res.status(204).json({ message: "Giao dịch đã hoàn tất trước đó" });
+    }
+
+    if (resultCode === 0) {
+      await prisma.$transaction(async (tx) => {
+        if (payment.enrollment.couponId) {
+          const coupon = await tx.coupon.findUnique({ where: { id: payment.enrollment.couponId }});
+          if (coupon && coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+            throw new Error('Mã giảm giá đã hết lượt sử dụng');
+          }
+          await tx.coupon.update({
+            where: { id: payment.enrollment.couponId },
+            data: { usedCount: { increment: 1 } }
+          });
+        }
+        await tx.paymentTransaction.update({
+          where: { id: paymentId },
+          data: { status: 'completed', gatewayTransactionId: transId.toString() }
+        });
+        await tx.enrollment.update({
+          where: { id: payment.enrollmentId },
+          data: { status: 'active' }
+        });
+      });
+      return res.status(204).json({ message: "Thành công" });
+    } else {
+      await prisma.$transaction([
+        prisma.paymentTransaction.update({
+          where: { id: paymentId },
+          data: { status: 'failed', gatewayTransactionId: transId.toString() }
+        }),
+        prisma.enrollment.update({
+          where: { id: payment.enrollmentId },
+          data: { status: 'revoked' }
+        })
+      ]);
+      return res.status(204).json({ message: "Thất bại" });
+    }
+  } catch (error) {
+    console.error('Lỗi xử lý MoMo IPN:', error);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
 module.exports = {
   createPayment,
   vnpayIpn,
   validateCoupon,
-  payosWebhook
+  payosWebhook,
+  momoIpn
 };
