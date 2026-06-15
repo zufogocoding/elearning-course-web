@@ -7,7 +7,9 @@ import type { ChangeEvent, FormEvent } from 'react';
 import axios from 'axios';
 import {
     AlertCircle,
+    ArrowDown,
     ArrowLeft,
+    ArrowUp,
     BookOpen,
     ChevronDown,
     ChevronRight,
@@ -149,27 +151,28 @@ function normalizeCourseResponse(responseData: unknown): Course | null {
         course?: Course;
     };
 
-    if (isCourse(root?.course)) {
-        return root.course;
-    }
+    if (isCourse(root?.course)) return root.course;
+    if (isCourse(root?.data)) return root.data;
 
-    if (isCourse(root?.data)) {
-        return root.data;
-    }
+    const nestedData = root?.data as { course?: Course };
 
-    const nestedData = root?.data as {
-        course?: Course;
-    };
-
-    if (isCourse(nestedData?.course)) {
-        return nestedData.course;
-    }
-
-    if (isCourse(responseData)) {
-        return responseData;
-    }
+    if (isCourse(nestedData?.course)) return nestedData.course;
+    if (isCourse(responseData)) return responseData;
 
     return null;
+}
+
+function sortLessons(lessons: Lesson[] = []) {
+    return [...lessons].sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+function sortSections(sections: Section[] = []) {
+    return [...sections]
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((section) => ({
+            ...section,
+            lessons: sortLessons(section.lessons || []),
+        }));
 }
 
 function formatDuration(durationSeconds: number | null) {
@@ -216,6 +219,35 @@ function getContentTypeLabel(contentType: string) {
     if (contentType === 'text') return 'Bài đọc';
 
     return contentType;
+}
+
+function getLessonPayloadFromForm(
+    formData: LessonFormData,
+    sectionId?: number
+) {
+    return {
+        sectionId,
+        title: formData.title.trim(),
+        contentType: formData.contentType,
+        contentUrl: formData.contentUrl.trim() || null,
+        durationSeconds: formData.durationSeconds.trim()
+            ? Number(formData.durationSeconds)
+            : null,
+        isPreview: formData.isPreview,
+        orderIndex: Number(formData.orderIndex),
+    };
+}
+
+function getLessonPayloadFromLesson(lesson: Lesson, sectionId: number) {
+    return {
+        sectionId,
+        title: lesson.title,
+        contentType: lesson.contentType,
+        contentUrl: lesson.contentUrl,
+        durationSeconds: lesson.durationSeconds,
+        isPreview: lesson.isPreview,
+        orderIndex: lesson.orderIndex,
+    };
 }
 
 function SectionFormModal({
@@ -399,9 +431,6 @@ function LessonFormModal({
                             placeholder="Ví dụ: https://youtube.com/... hoặc đường dẫn tài liệu"
                             className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
                         />
-                        <p className="mt-1 text-xs text-slate-500">
-                            Có thể để trống nếu bài học dạng text/quiz chưa cần URL.
-                        </p>
                     </div>
 
                     <div>
@@ -655,6 +684,7 @@ export default function CourseContentEditorPage() {
         initialLessonFormData
     );
     const [submitting, setSubmitting] = useState<boolean>(false);
+    const [reordering, setReordering] = useState<boolean>(false);
 
     const loadCourseContent = useCallback(
         async (showLoading = true) => {
@@ -675,7 +705,7 @@ export default function CourseContentEditorPage() {
                 );
 
                 const courseData = normalizeCourseResponse(response.data);
-                const sectionData = courseData?.sections || [];
+                const sectionData = sortSections(courseData?.sections || []);
 
                 setCourse(courseData);
                 setSections(Array.isArray(sectionData) ? sectionData : []);
@@ -955,18 +985,6 @@ export default function CourseContentEditorPage() {
         return true;
     };
 
-    const getLessonPayload = () => ({
-        sectionId: selectedSectionForLesson?.id,
-        title: lessonFormData.title.trim(),
-        contentType: lessonFormData.contentType,
-        contentUrl: lessonFormData.contentUrl.trim() || null,
-        durationSeconds: lessonFormData.durationSeconds.trim()
-            ? Number(lessonFormData.durationSeconds)
-            : null,
-        isPreview: lessonFormData.isPreview,
-        orderIndex: Number(lessonFormData.orderIndex),
-    });
-
     const handleCreateSection = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -1099,7 +1117,7 @@ export default function CourseContentEditorPage() {
         try {
             await axios.post(
                 `${API_BASE_URL}/api/content/lessons`,
-                getLessonPayload(),
+                getLessonPayloadFromForm(lessonFormData, selectedSectionForLesson.id),
                 {
                     headers: getAuthHeaders(),
                 }
@@ -1137,7 +1155,7 @@ export default function CourseContentEditorPage() {
         try {
             await axios.put(
                 `${API_BASE_URL}/api/content/lessons/${editingLesson.id}`,
-                getLessonPayload(),
+                getLessonPayloadFromForm(lessonFormData, selectedSectionForLesson.id),
                 {
                     headers: getAuthHeaders(),
                 }
@@ -1192,6 +1210,113 @@ export default function CourseContentEditorPage() {
             }
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleMoveSection = async (sectionIndex: number, direction: 'up' | 'down') => {
+        const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1;
+
+        if (targetIndex < 0 || targetIndex >= sections.length) return;
+
+        const currentSection = sections[sectionIndex];
+        const targetSection = sections[targetIndex];
+
+        setReordering(true);
+        setErrorMessage(null);
+
+        try {
+            await Promise.all([
+                axios.put(
+                    `${API_BASE_URL}/api/content/sections/${currentSection.id}`,
+                    {
+                        title: currentSection.title,
+                        orderIndex: targetSection.orderIndex,
+                    },
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                ),
+                axios.put(
+                    `${API_BASE_URL}/api/content/sections/${targetSection.id}`,
+                    {
+                        title: targetSection.title,
+                        orderIndex: currentSection.orderIndex,
+                    },
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                ),
+            ]);
+
+            await loadCourseContent();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể sắp xếp chương.'
+                );
+            } else {
+                setErrorMessage('Không thể sắp xếp chương.');
+            }
+        } finally {
+            setReordering(false);
+        }
+    };
+
+    const handleMoveLesson = async (
+        section: Section,
+        lessonIndex: number,
+        direction: 'up' | 'down'
+    ) => {
+        const lessons = section.lessons || [];
+        const targetIndex = direction === 'up' ? lessonIndex - 1 : lessonIndex + 1;
+
+        if (targetIndex < 0 || targetIndex >= lessons.length) return;
+
+        const currentLesson = lessons[lessonIndex];
+        const targetLesson = lessons[targetIndex];
+
+        setReordering(true);
+        setErrorMessage(null);
+
+        try {
+            await Promise.all([
+                axios.put(
+                    `${API_BASE_URL}/api/content/lessons/${currentLesson.id}`,
+                    {
+                        ...getLessonPayloadFromLesson(currentLesson, section.id),
+                        orderIndex: targetLesson.orderIndex,
+                    },
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                ),
+                axios.put(
+                    `${API_BASE_URL}/api/content/lessons/${targetLesson.id}`,
+                    {
+                        ...getLessonPayloadFromLesson(targetLesson, section.id),
+                        orderIndex: currentLesson.orderIndex,
+                    },
+                    {
+                        headers: getAuthHeaders(),
+                    }
+                ),
+            ]);
+
+            await loadCourseContent();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                setErrorMessage(
+                    error.response?.data?.error ||
+                    error.response?.data?.message ||
+                    'Không thể sắp xếp bài học.'
+                );
+            } else {
+                setErrorMessage('Không thể sắp xếp bài học.');
+            }
+        } finally {
+            setReordering(false);
         }
     };
 
@@ -1273,10 +1398,10 @@ export default function CourseContentEditorPage() {
                         <button
                             type="button"
                             onClick={() => void loadCourseContent()}
-                            disabled={loading}
+                            disabled={loading || reordering}
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {loading ? (
+                            {loading || reordering ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                                 <RefreshCcw className="h-4 w-4" />
@@ -1337,6 +1462,9 @@ export default function CourseContentEditorPage() {
                 {!loading && filteredSections.length > 0 && (
                     <section className="space-y-3">
                         {filteredSections.map((section) => {
+                            const sectionIndex = sections.findIndex(
+                                (item) => item.id === section.id
+                            );
                             const isExpanded = expandedSectionIds.includes(section.id);
                             const lessons = section.lessons || [];
 
@@ -1383,6 +1511,30 @@ export default function CourseContentEditorPage() {
                                         <div className="flex flex-wrap items-center justify-end gap-2">
                                             <button
                                                 type="button"
+                                                onClick={() => void handleMoveSection(sectionIndex, 'up')}
+                                                disabled={reordering || sectionIndex <= 0}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                                <ArrowUp className="h-3.5 w-3.5" />
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    void handleMoveSection(sectionIndex, 'down')
+                                                }
+                                                disabled={
+                                                    reordering ||
+                                                    sectionIndex < 0 ||
+                                                    sectionIndex >= sections.length - 1
+                                                }
+                                                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                                <ArrowDown className="h-3.5 w-3.5" />
+                                            </button>
+
+                                            <button
+                                                type="button"
                                                 onClick={() => openCreateLessonModal(section)}
                                                 className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-50"
                                             >
@@ -1425,7 +1577,7 @@ export default function CourseContentEditorPage() {
                                                 </div>
                                             ) : (
                                                 <div className="space-y-3">
-                                                    {lessons.map((lesson) => (
+                                                    {lessons.map((lesson, lessonIndex) => (
                                                         <div
                                                             key={lesson.id}
                                                             className="rounded-xl border border-slate-200 bg-white p-4"
@@ -1468,7 +1620,40 @@ export default function CourseContentEditorPage() {
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-2">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            void handleMoveLesson(
+                                                                                section,
+                                                                                lessonIndex,
+                                                                                'up'
+                                                                            )
+                                                                        }
+                                                                        disabled={reordering || lessonIndex <= 0}
+                                                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                    >
+                                                                        <ArrowUp className="h-3.5 w-3.5" />
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            void handleMoveLesson(
+                                                                                section,
+                                                                                lessonIndex,
+                                                                                'down'
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            reordering ||
+                                                                            lessonIndex >= lessons.length - 1
+                                                                        }
+                                                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                    >
+                                                                        <ArrowDown className="h-3.5 w-3.5" />
+                                                                    </button>
+
                                                                     <button
                                                                         type="button"
                                                                         onClick={() =>
