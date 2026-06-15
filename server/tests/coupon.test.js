@@ -3,14 +3,16 @@ const prisma = require('../lib/prisma');
 
 // Mock bảng coupon
 jest.mock('../lib/prisma', () => ({
-  coupon: { findUnique: jest.fn() }
+  coupon: { findUnique: jest.fn() },
+  enrollment: { findMany: jest.fn() },
+  couponCourse: { findMany: jest.fn() }
 }));
 
 describe('Kiểm thử Bảo mật Logic Coupon (Time Bypass & Usage Limit)', () => {
   let req, res;
 
   beforeEach(() => {
-    req = { params: { code: 'TEST_CODE' } };
+    req = { params: { code: 'TEST_CODE' }, query: { courseId: 1 } };
     res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn()
@@ -81,6 +83,7 @@ describe('Kiểm thử Bảo mật Logic Coupon (Time Bypass & Usage Limit)', ()
 
   // 🟢 TEST CASE 4: THÀNH CÔNG HỢP LỆ
   it('Phải cho phép áp dụng nếu hợp lệ', async () => {
+    req.user = { id: 1 };
     jest.useFakeTimers().setSystemTime(new Date('2026-06-20T12:00:00Z'));
 
     prisma.coupon.findUnique.mockResolvedValue({
@@ -94,6 +97,9 @@ describe('Kiểm thử Bảo mật Logic Coupon (Time Bypass & Usage Limit)', ()
       discountType: 'percent',
       discountValue: 20
     });
+    
+    prisma.enrollment.findMany.mockResolvedValue([]);
+    prisma.couponCourse.findMany.mockResolvedValue([]);
 
     await validateCoupon(req, res);
 
