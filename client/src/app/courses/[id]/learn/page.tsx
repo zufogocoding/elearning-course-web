@@ -25,10 +25,11 @@ interface Lesson {
   id: number; title: string; duration: string;
   completed: boolean; locked: boolean; type: LessonType;
   isPreview?: boolean;
+  quizId?: number;
 }
 interface Section { id: number; title: string; lessons: Lesson[]; expanded: boolean; }
 interface Attachment { id: number; fileName: string; fileSize: number; fileType: string; fileUrl: string; }
-interface ApiLesson { id: number; title: string; durationSeconds: number; isCompleted: boolean; isPreview: boolean; contentType: string; }
+interface ApiLesson { id: number; title: string; durationSeconds: number; isCompleted: boolean; isPreview: boolean; contentType: string; quizId?: number; }
 interface ApiSection { id: number; title: string; lessons: ApiLesson[]; }
 
 
