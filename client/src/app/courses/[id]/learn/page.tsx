@@ -6,12 +6,13 @@ import {
   Download, HelpCircle, Sun, Moon, X, FileText, BookOpen,
   Clock, Lock, Circle, SkipForward, SkipBack, Volume2,
   Maximize, Settings, MessageSquare, PanelRightClose, PanelRightOpen, Star,
-  AlertCircle, Trophy, ArrowRight
+  AlertCircle, Trophy, ArrowRight, Award
 } from "lucide-react";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import confetti from "canvas-confetti";
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -116,6 +117,7 @@ export default function LearnPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "attachments" | "quiz">("overview");
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   const [courseDetail, setCourseDetail] = useState<any>(null);
   const [loadingCourse, setLoadingCourse] = useState(true);
@@ -448,7 +450,13 @@ export default function LearnPage() {
           if (nextData.data.nextLesson) {
             setCurrentLessonId(nextData.data.nextLesson.id);
           } else {
-            alert("Chúc mừng! Bạn đã hoàn thành bài học cuối cùng của khóa học.");
+            setShowCompletionModal(true);
+            confetti({
+              particleCount: 150,
+              spread: 100,
+              origin: { y: 0.6 },
+              colors: ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981']
+            });
           }
         }
       } else {
@@ -806,11 +814,21 @@ export default function LearnPage() {
                     !currentLesson?.completed &&
                     !documentReadComplete
                   }
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${
+                    currentLesson?.completed 
+                      ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/25 hover:shadow-emerald-500/40" 
+                      : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/25 hover:shadow-indigo-500/40"
+                  }`}
                 >
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Mark Complete &amp; Next</span>
-                  <span className="sm:hidden">Complete</span>
+                  {currentLesson?.completed ? <ChevronRight className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                  <span className="hidden sm:inline">
+                    {currentLesson?.completed 
+                      ? (curIdx === flatUnlocked.length - 1 ? "Finish Course" : "Next Lesson")
+                      : "Mark Complete & Next"}
+                  </span>
+                  <span className="sm:hidden">
+                    {currentLesson?.completed ? "Next" : "Complete"}
+                  </span>
                 </button>
               )}
             </div>
@@ -1101,6 +1119,54 @@ export default function LearnPage() {
           </div>
         </aside>
       </div>
+
+      {/* Course Completion Modal */}
+      {showCompletionModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+        >
+          <div
+            className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-all text-center p-8 ${
+              isDark ? "bg-[#0d0f1a] border border-[#252840]" : "bg-white border border-slate-200"
+            }`}
+          >
+            <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30">
+              <Trophy className="w-10 h-10 text-white" />
+            </div>
+            
+            <h2 className={`text-2xl font-extrabold mb-2 ${isDark ? "text-white" : "text-slate-900"}`}>
+              Course Completed!
+            </h2>
+            <p className={`text-sm mb-8 ${isDark ? "text-[#a0aec0]" : "text-slate-500"}`}>
+              Congratulations! You have successfully completed all lessons in this course. Your certificate is now ready.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => router.push("/certificates")}
+                className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20"
+              >
+                <Award className="w-4 h-4" />
+                View Certificate
+              </button>
+              <button
+                onClick={() => {
+                  setShowCompletionModal(false);
+                  router.push(`/courses/${courseSlug}`);
+                }}
+                className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 border text-sm font-bold rounded-xl transition-all ${
+                  isDark 
+                    ? "border-[#252840] text-[#e2e8f0] hover:bg-[#1a1d2e]" 
+                    : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Back to Course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
