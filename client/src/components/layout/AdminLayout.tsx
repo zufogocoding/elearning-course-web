@@ -37,13 +37,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleAdminAutoLogin = async () => {
     // Chỉ chạy trong môi trường dev — credentials không bao giờ ship lên production
     if (process.env.NODE_ENV === 'production') return;
+    
+    const devEmail = process.env.NEXT_PUBLIC_DEV_ADMIN_EMAIL;
+    const devPassword = process.env.NEXT_PUBLIC_DEV_ADMIN_PASSWORD;
+    
+    if (!devEmail || !devPassword) {
+      alert("Chưa cấu hình tài khoản dev (NEXT_PUBLIC_DEV_ADMIN_EMAIL / PASSWORD)");
+      return;
+    }
+    
     try {
       const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/login`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: "admin@email.com", password: "password123" }),
+            body: JSON.stringify({ email: devEmail, password: devPassword }),
           }
       );
 

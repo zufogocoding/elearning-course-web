@@ -68,7 +68,7 @@ async function main() {
   console.log(`Signature: ${signature}`);
 
   // 4. Gửi HTTP POST request đến API Webhook của Backend
-  const targetUrl = 'http://localhost:5000/api/enrollments/payos-webhook';
+  const targetUrl = process.env.WEBHOOK_TARGET_URL || 'http://localhost:5000/api/enrollments/payos-webhook';
   console.log(`Sending simulated webhook to: ${targetUrl}...`);
 
   try {

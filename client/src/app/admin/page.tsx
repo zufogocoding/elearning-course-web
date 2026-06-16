@@ -63,7 +63,7 @@ export default function AdminDashboardPage() {
     {
       id: "stat-students",
       label: "Tổng số học viên",
-      value: statsData ? statsData.totalUsers.toString() : "0",
+      value: statsData ? statsData?.totalUsers?.toString() ?? "0" : "0",
       trend: "Hoạt động",
       trendUp: true,
       icon: Users,
@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
     {
       id: "stat-courses",
       label: "Khóa học",
-      value: statsData ? statsData.totalCourses.toString() : "0",
+      value: statsData ? statsData?.totalCourses?.toString() ?? "0" : "0",
       trend: "Hoạt động",
       trendUp: true,
       icon: BookOpen,
@@ -83,7 +83,7 @@ export default function AdminDashboardPage() {
     {
       id: "stat-enrollments",
       label: "Lượt đăng ký active",
-      value: statsData ? statsData.activeEnrollments.toString() : "0",
+      value: statsData ? statsData?.activeEnrollments?.toString() ?? "0" : "0",
       trend: "Hoạt động",
       trendUp: true,
       icon: Star,

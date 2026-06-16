@@ -20,6 +20,11 @@ const formatTime = (seconds: number) => {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 };
 
+const isValidUrl = (url: string) => {
+  if (!url) return false;
+  return url.startsWith("http://") || url.startsWith("https://");
+};
+
 /* ── Types ── */
 type LessonType = "video" | "quiz" | "document";
 interface Lesson {
@@ -193,17 +198,6 @@ export default function LearnPage() {
         setCompletedN(data.course.completedLessons);
         setTotalN(data.course.totalLessons);
 
-        // Compute sequential locking: a lesson is locked if any preceding non-preview lesson is incomplete
-        const allLessonsFlat = data.sections.flatMap((sec: ApiSection) =>
-          sec.lessons.map((l: ApiLesson) => ({ id: l.id, isCompleted: l.isCompleted, isPreview: l.isPreview }))
-        );
-        let seenIncomplete = false;
-        const lockedMap: Record<number, boolean> = {};
-        for (const l of allLessonsFlat) {
-          lockedMap[l.id] = l.isPreview ? false : seenIncomplete;
-          if (!l.isPreview && !l.isCompleted) seenIncomplete = true;
-        }
-
         const uiSections = data.sections.map((sec: ApiSection, sIdx: number) => ({
           id: sec.id,
           title: sec.title,
@@ -215,7 +209,7 @@ export default function LearnPage() {
               ? `${Math.floor(les.durationSeconds / 60)}:${(les.durationSeconds % 60).toString().padStart(2, "0")}`
               : "05:00",
             completed: les.isCompleted,
-            locked: lockedMap[les.id] ?? false,
+            locked: false,
             type: les.contentType === "video" ? "video" : les.contentType === "quiz" ? "quiz" : "document",
             quizId: les.quizId,
             isPreview: les.isPreview
@@ -621,7 +615,7 @@ export default function LearnPage() {
                               <p className="text-[10px] text-slate-500 mt-1 max-w-sm truncate">{currentLessonDetail.contentUrl}</p>
                             </div>
                             <a
-                              href={currentLessonDetail.contentUrl}
+                              href={isValidUrl(currentLessonDetail.contentUrl) ? currentLessonDetail.contentUrl : "#"}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5"

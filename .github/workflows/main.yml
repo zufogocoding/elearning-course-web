@@ -10,6 +10,21 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
     - uses: actions/checkout@v3
 
@@ -38,7 +53,9 @@ jobs:
       
     - name: Run Server Tests
       working-directory: ./server
-      run: npm test
+      run: |
+        npx prisma migrate deploy
+        npm test
       env:
         DATABASE_URL: postgresql://test:test@localhost:5432/test
         JWT_ACCESS_SECRET: test-secret
