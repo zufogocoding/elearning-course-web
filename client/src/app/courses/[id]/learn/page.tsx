@@ -32,7 +32,7 @@ interface Attachment { id: number; fileName: string; fileSize: number; fileType:
 interface ApiLesson { id: number; title: string; durationSeconds: number; isCompleted: boolean; isPreview: boolean; contentType: string; quizId?: number; }
 interface ApiSection { id: number; title: string; lessons: ApiLesson[]; }
 interface QuizOption { id: number; optionText: string; isCorrect?: boolean; }
-interface QuizQuestion { id: number; questionText: string; explanation?: string | null; questionOptions: QuizOption[]; }
+interface QuizQuestion { id: number; questionText: string; explanation?: string | null; questionOptions?: QuizOption[]; options?: QuizOption[]; }
 
 
 /* ── Mock Data ── */
@@ -569,25 +569,61 @@ export default function LearnPage() {
                 (() => {
                   const requiredTime = currentLessonDetail?.durationSeconds ?? 5;
                   return (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151f] text-white p-6">
-                      <FileText className="w-16 h-16 text-indigo-400 mb-4 animate-pulse" />
-                      <h3 className="text-base font-bold mb-2">Đang đọc bài viết tài liệu: {currentLessonDetail.title}</h3>
-                      <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
-                        Hệ thống yêu cầu bạn ở lại trang để đọc bài viết trong ít nhất {requiredTime} giây trước khi có thể đánh dấu hoàn thành.
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <div className="w-48 h-2 bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${(documentReadTime / requiredTime) * 100}%` }} />
+                    <div className="absolute inset-0 flex flex-col bg-[#13151f] text-white p-5 overflow-hidden text-left">
+                      {/* Top countdown progress banner */}
+                      <div className={`p-3 rounded-xl flex items-center justify-between gap-4 border mb-4 shrink-0 ${
+                        documentReadComplete
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          {documentReadComplete ? (
+                            <CheckCircle className="w-4 h-4 text-emerald-400" />
+                          ) : (
+                            <Clock className="w-4 h-4 text-indigo-400 animate-spin" style={{ animationDuration: '3s' }} />
+                          )}
+                          <span className="text-[11px] font-bold">
+                            {documentReadComplete
+                              ? 'Đã đủ điều kiện hoàn thành bài đọc!'
+                              : `Cần đọc bài viết trong: ${documentReadTime}/${requiredTime} giây`}
+                          </span>
                         </div>
-                        <span className="text-xs font-semibold tabular-nums">
-                          {documentReadTime}/{requiredTime} giây
-                        </span>
+                        {!documentReadComplete && (
+                          <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 transition-all duration-1000"
+                              style={{ width: `${(documentReadTime / requiredTime) * 100}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
-                      {documentReadComplete && (
-                        <span className="mt-4 text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full animate-pulse">
-                          Bạn đã đạt yêu cầu thời gian đọc! Có thể nhấn "Mark Complete & Next".
-                        </span>
-                      )}
+
+                      {/* Content rendering */}
+                      <div className="flex-1 overflow-y-auto pr-1">
+                        <h3 className="text-sm font-bold mb-3">{currentLessonDetail.title}</h3>
+                        {currentLessonDetail.contentType === "document" && currentLessonDetail.contentUrl ? (
+                          <div className="border border-[#252840] rounded-xl p-4 bg-[#0d0f1a] flex flex-col items-center justify-center text-center space-y-3">
+                            <FileText className="w-10 h-10 text-indigo-400" />
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-300">Tài liệu đính kèm bài học</p>
+                              <p className="text-[10px] text-slate-500 mt-1 max-w-sm truncate">{currentLessonDetail.contentUrl}</p>
+                            </div>
+                            <a
+                              href={currentLessonDetail.contentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Mở tài liệu / Tải xuống
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="prose prose-invert max-w-none text-[11px] leading-relaxed text-slate-300 whitespace-pre-line bg-[#0d0f1a] p-4 rounded-xl border border-[#252840]">
+                            {currentLessonDetail.contentUrl || 'Nội dung bài viết đang được cập nhật...'}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()
@@ -625,7 +661,7 @@ export default function LearnPage() {
                           <div key={q.id} className="space-y-2.5">
                             <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
                             <div className="grid grid-cols-1 gap-2 pl-2">
-                              {q.questionOptions?.map((opt: QuizOption) => (
+                              {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
                                 <label
                                   key={opt.id}
                                   className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
