@@ -281,19 +281,23 @@ export default function LearnPage() {
       const requiredTime = currentLessonDetail?.durationSeconds || 30; // fallback to 30 seconds
       timer = setInterval(() => {
         setDocumentReadTime((prev) => {
-          if (prev >= requiredTime - 1) {
+          const nextTime = prev + 1;
+          if (nextTime % 5 === 0 && currentLessonId) {
+            api.post(`/api/learning/lessons/${currentLessonId}/progress`, { currentTime: nextTime }).catch(e => console.error(e));
+          }
+          if (nextTime >= requiredTime) {
             clearInterval(timer);
             setDocumentReadComplete(true);
             return requiredTime;
           }
-          return prev + 1;
+          return nextTime;
         });
       }, 1000);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [currentLessonDetail]);
+  }, [currentLessonDetail, currentLessonId]);
 
   const getYoutubeId = (url: string) => {
     if (!url) return null;
@@ -742,6 +746,34 @@ export default function LearnPage() {
 
           {/* Below Video */}
           <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+            {currentLessonDetail?.contentType === "video" && !currentLesson?.completed && (
+              <div className={`p-3 rounded-xl flex items-center justify-between gap-4 border shrink-0 ${
+                documentReadComplete
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {documentReadComplete ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : (
+                    <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
+                  )}
+                  <span className="text-sm font-bold">
+                    {documentReadComplete
+                      ? 'Đã đủ điều kiện hoàn thành bài học!'
+                      : `Cần xem video: ${documentReadTime}/${currentLessonDetail?.durationSeconds || 30} giây`}
+                  </span>
+                </div>
+                {!documentReadComplete && (
+                  <div className="w-32 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 transition-all duration-1000"
+                      style={{ width: `${(documentReadTime / (currentLessonDetail?.durationSeconds || 30)) * 100}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Lesson Nav */}
             <div className="flex items-center justify-between gap-3">
@@ -771,7 +803,6 @@ export default function LearnPage() {
                   id="complete-next-btn"
                   onClick={goNextAndComplete}
                   disabled={
-                    (currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document") &&
                     !currentLesson?.completed &&
                     !documentReadComplete
                   }
