@@ -106,9 +106,10 @@ function PaymentResultContent() {
       setCourseId(cId);
 
       // Gọi API xác thực thanh toán để force update Enrollment sang active
-      if (isSuccess && txnId) {
+      const verifyId = txnId || (payosOrderCode ? Math.floor(parseInt(payosOrderCode, 10) / 1000).toString() : "");
+      if (isSuccess && verifyId) {
         try {
-          await api.get(`/api/enrollments/verify-payment/${txnId}`);
+          await api.get(`/api/enrollments/verify-payment/${verifyId}`);
         } catch (err) {
           console.error("Verification failed", err);
         }
