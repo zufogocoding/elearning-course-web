@@ -27,6 +27,9 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for express-rate-limit to work correctly on Render
+app.set('trust proxy', 1);
+
 // Security: Helmet (sets various HTTP security headers)
 app.use(helmet());
 
