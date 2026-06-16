@@ -14,12 +14,15 @@ const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 /** SHA-256 hash of a string */
 const hashOtp = (otp) => crypto.createHash('sha256').update(otp).digest('hex');
 
+const useSecureCookies = process.env.NODE_ENV === 'production' || 
+                         (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost'));
+
 /** Set refresh token cookie */
 const setRefreshCookie = (res, refreshToken) => {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: useSecureCookies,
+    sameSite: useSecureCookies ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/',
   });
@@ -282,8 +285,8 @@ const refresh = async (req, res) => {
 const logout = async (req, res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: useSecureCookies,
+    sameSite: useSecureCookies ? 'none' : 'lax',
     path: '/',
   });
   res.status(200).json({ message: 'Đăng xuất thành công' });
