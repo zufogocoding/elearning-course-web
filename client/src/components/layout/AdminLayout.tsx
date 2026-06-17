@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   BookOpen,
@@ -32,37 +32,28 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isDark, toggle } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
   const { user, login, isLoading } = useAuth();
 
   const handleAdminAutoLogin = async () => {
-    // Chỉ chạy trong môi trường dev — credentials không bao giờ ship lên production
+    // Chỉ chạy trong môi trường dev
     if (process.env.NODE_ENV === 'production') return;
     
-    const devEmail = process.env.NEXT_PUBLIC_DEV_ADMIN_EMAIL;
-    const devPassword = process.env.NEXT_PUBLIC_DEV_ADMIN_PASSWORD;
-    
-    if (!devEmail || !devPassword) {
-      alert("Chưa cấu hình tài khoản dev (NEXT_PUBLIC_DEV_ADMIN_EMAIL / PASSWORD)");
-      return;
-    }
-    
     try {
-      const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/login`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: devEmail, password: devPassword }),
-          }
-      );
+      const res = await fetch('/api/auth/dev-auto-login', {
+        method: 'POST',
+        credentials: 'include',
+      });
 
-      if (res.ok) {
-        const data = await res.json();
-        login(data.accessToken, data.user);
-        window.location.reload();
-      } else {
-        alert("Đăng nhập tự động thất bại.");
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Đăng nhập tự động thất bại.");
+        return;
       }
+
+      const data = await res.json();
+      login(data.accessToken, data.user);
+      router.refresh();
     } catch {
       alert("Lỗi kết nối server.");
     }

@@ -525,6 +525,43 @@ const updateProgress = async (req, res) => {
 };
 
 // =====================================================
+// Helper: Check if all preceding lessons in the course are completed
+// =====================================================
+const checkPrecedingLessonsCompleted = async (userId, courseId, lessonId) => {
+  const allCourseLessons = await prisma.lesson.findMany({
+    where: {
+      deletedAt: null,
+      isPreview: false,
+      section: {
+        deletedAt: null,
+        courseId,
+      },
+    },
+    orderBy: [
+      { section: { orderIndex: 'asc' } },
+      { section: { id: 'asc' } },
+      { orderIndex: 'asc' },
+      { id: 'asc' },
+    ],
+    select: { id: true },
+  });
+
+  const currentLessonIdx = allCourseLessons.findIndex((l) => l.id === Number(lessonId));
+  if (currentLessonIdx > 0) {
+    const precedingLessonIds = allCourseLessons.slice(0, currentLessonIdx).map((l) => l.id);
+    const completedPreceding = await prisma.lessonCompletion.count({
+      where: {
+        userId,
+        lessonId: { in: precedingLessonIds },
+        completedAt: { not: null },
+      },
+    });
+    return completedPreceding === precedingLessonIds.length;
+  }
+  return true;
+};
+
+// =====================================================
 // 6. POST /api/learning/lessons/:lessonId/complete
 // Đánh dấu hoàn thành bài học
 // =====================================================
@@ -544,6 +581,12 @@ const completeLesson = async (req, res) => {
 
     if (lesson.contentType === 'quiz') {
       return error(res, 400, 'Bài quiz phải hoàn thành bằng cách nộp bài quiz, không thể hoàn thành thủ công.');
+    }
+
+    // Enforce sequential lesson ordering: all preceding lessons must be completed first
+    const precedingCompleted = await checkPrecedingLessonsCompleted(userId, access.courseId, lessonId);
+    if (!precedingCompleted) {
+      return error(res, 400, 'Bạn cần hoàn thành các bài học trước đó trước khi hoàn thành bài học này.');
     }
 
     const progress = await prisma.lessonCompletion.findUnique({
@@ -626,6 +669,7 @@ const getNextLesson = async (req, res) => {
       },
       orderBy: [
         { section: { orderIndex: 'asc' } },
+        { section: { id: 'asc' } },
         { orderIndex: 'asc' },
         { id: 'asc' },
       ],
@@ -775,6 +819,11 @@ const startQuiz = async (req, res) => {
     const access = await checkLessonAccess(userId, quiz.lesson);
     if (!access.allowed) {
       return error(res, access.status, access.message);
+    }
+
+    const precedingCompleted = await checkPrecedingLessonsCompleted(userId, access.courseId, quiz.lesson.id);
+    if (!precedingCompleted) {
+      return error(res, 400, 'Bạn cần hoàn thành các bài học trước đó trước khi làm quiz này.');
     }
 
     const totalQuestions = await prisma.question.count({
@@ -953,6 +1002,11 @@ const submitQuizAttempt = async (req, res) => {
 
     const checked = await checkAttemptOwnerAndTime(userId, attemptId);
     if (!checked.ok) return error(res, checked.status, checked.message);
+
+    const precedingCompleted = await checkPrecedingLessonsCompleted(userId, checked.courseId, checked.attempt.quiz.lessonId);
+    if (!precedingCompleted) {
+      return error(res, 400, 'Bạn cần hoàn thành các bài học trước đó trước khi làm quiz này.');
+    }
 
     const questions = await prisma.question.findMany({
       where: { quizId: checked.attempt.quizId, deletedAt: null },
