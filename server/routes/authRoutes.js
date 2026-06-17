@@ -8,6 +8,9 @@ router.post('/register', validateRegister, authController.register);
 router.post('/verify-email', authController.verifyEmailOtp);
 router.post('/resend-otp', authController.resendEmailOtp);
 
+// Dev auto-login (server-side, reads credentials from env, not exposed to client)
+router.post('/dev-auto-login', authController.devAutoLogin);
+
 // Login / Session
 router.post('/login', validateLogin, authController.login);
 router.post('/refresh', authController.refresh);

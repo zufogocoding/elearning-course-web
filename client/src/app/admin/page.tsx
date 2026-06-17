@@ -31,21 +31,28 @@ export default function AdminDashboardPage() {
   const { isDark } = useTheme();
   const [statsData, setStatsData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  const loadStats = async () => {
+    setLoading(true);
+    setHasError(false);
+    try {
+      const res = await api.get('/api/admin/dashboard');
+      if (res.ok) {
+        const data = await res.json();
+        setStatsData(data.stats);
+      } else {
+        setHasError(true);
+      }
+    } catch (err) {
+      console.error(err);
+      setHasError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const res = await api.get('/api/admin/dashboard');
-        if (res.ok) {
-          const data = await res.json();
-          setStatsData(data.stats);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadStats();
   }, []);
 
@@ -112,6 +119,28 @@ export default function AdminDashboardPage() {
       <AdminLayout>
         <div className="p-6 py-8 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <AdminLayout>
+        <div className="p-6 py-8 space-y-7">
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <AlertCircle className="w-12 h-12 text-rose-500 mb-4" />
+            <h2 className={`text-lg font-bold mb-2 ${text}`}>Không thể tải dữ liệu</h2>
+            <p className={`text-sm mb-6 ${muted}`}>
+              Đã xảy ra lỗi khi kết nối đến máy chủ. Vui lòng thử lại.
+            </p>
+            <button
+              onClick={loadStats}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20"
+            >
+              <Download className="w-4 h-4" /> Thử lại
+            </button>
+          </div>
         </div>
       </AdminLayout>
     );

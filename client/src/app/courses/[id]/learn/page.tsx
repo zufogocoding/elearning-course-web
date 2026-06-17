@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   PlayCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight,
   Download, HelpCircle, Sun, Moon, X, FileText, BookOpen,
-  Clock, Lock, Circle, SkipForward, SkipBack, Volume2,
-  Maximize, Settings, MessageSquare, PanelRightClose, PanelRightOpen, Star,
+  Clock, Lock, Circle, PanelRightClose, PanelRightOpen, Star,
   AlertCircle, Trophy, ArrowRight, Award
 } from "lucide-react";
 import { useTheme } from "@/components/ui/ThemeProvider";
@@ -22,7 +21,7 @@ const formatTime = (seconds: number) => {
 
 const isValidUrl = (url: string) => {
   if (!url) return false;
-  return url.startsWith("http://") || url.startsWith("https://");
+  return url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/");
 };
 
 /* ── Types ── */
@@ -40,43 +39,6 @@ interface ApiSection { id: number; title: string; lessons: ApiLesson[]; }
 interface QuizOption { id: number; optionText: string; isCorrect?: boolean; }
 interface QuizQuestion { id: number; questionText: string; explanation?: string | null; questionOptions?: QuizOption[]; options?: QuizOption[]; }
 
-
-/* ── Mock Data ── */
-const INITIAL_SECTIONS: Section[] = [
-  {
-    id: 1, title: "Module 1: Introduction to UI/UX", expanded: true,
-    lessons: [
-      { id: 1, title: "What is UI/UX Design?", duration: "10:25", completed: true, locked: false, type: "video" },
-      { id: 2, title: "The Design Thinking Process", duration: "15:40", completed: true, locked: false, type: "video" },
-      { id: 3, title: "Module 1 Quiz", duration: "5:00", completed: true, locked: false, type: "quiz" },
-    ],
-  },
-  {
-    id: 2, title: "Module 2: Figma Basics", expanded: true,
-    lessons: [
-      { id: 4, title: "Setting up your workspace", duration: "08:15", completed: true, locked: false, type: "video" },
-      { id: 5, title: "Typography in Design", duration: "18:30", completed: false, locked: false, type: "video" },
-      { id: 6, title: "Frames, Shapes, and Colors", duration: "20:00", completed: false, locked: false, type: "video" },
-      { id: 7, title: "Module 2 Quiz", duration: "5:00", completed: false, locked: false, type: "quiz" },
-    ],
-  },
-  {
-    id: 3, title: "Module 3: Advanced Design Systems", expanded: false,
-    lessons: [
-      { id: 8, title: "Design Tokens & Variables", duration: "22:10", completed: false, locked: true, type: "video" },
-      { id: 9, title: "Component Architecture", duration: "19:45", completed: false, locked: true, type: "video" },
-      { id: 10, title: "Auto-Layout Mastery", duration: "25:00", completed: false, locked: true, type: "video" },
-    ],
-  },
-  {
-    id: 4, title: "Module 4: Prototyping & Testing", expanded: false,
-    lessons: [
-      { id: 11, title: "Interactive Prototypes", duration: "16:20", completed: false, locked: true, type: "video" },
-      { id: 12, title: "Usability Testing Methods", duration: "14:50", completed: false, locked: true, type: "video" },
-      { id: 13, title: "Final Capstone Project", duration: "60:00", completed: false, locked: true, type: "document" },
-    ],
-  },
-];
 
 // ATTACHMENTS removed in favor of dynamic lesson attachments
 
@@ -152,14 +114,16 @@ export default function LearnPage() {
 
   const t = buildTheme(isDark);
 
-  // Sắp xếp bài học và tính toán khóa theo trình tự
+  // Compute lesson locking globally across the entire course.
+  // A lesson is locked if any preceding non-preview lesson is incomplete.
+  // Preview lessons are always unlocked and do not block sequencing.
   const sectionsWithLocks = useMemo(() => {
     let previousCompleted = true;
     return sections.map((sec) => ({
       ...sec,
       lessons: sec.lessons.map((les) => {
         const locked = les.isPreview ? false : !previousCompleted;
-        previousCompleted = les.completed;
+        previousCompleted = les.isPreview ? previousCompleted : les.completed;
         return {
           ...les,
           locked
@@ -240,6 +204,7 @@ export default function LearnPage() {
     if (!currentLessonId) return;
     const loadLessonDetail = async () => {
       setLoadingLesson(true);
+      setCurrentLessonDetail(null); // Clear old details immediately to prevent timer using stale details
       setQuizAttempt(null);
       setQuizQuestions([]);
       setSelectedAnswers({});
@@ -254,6 +219,10 @@ export default function LearnPage() {
           const result = await res.json();
           const detail = { ...result.data.lesson, attachments: result.data.attachments };
           setCurrentLessonDetail(detail);
+
+          const savedProgress = result.data.progress;
+          setDocumentReadTime(savedProgress?.lastCheckpointTime || 0);
+          setDocumentReadComplete(savedProgress?.isCompleted || false);
 
           if (detail.contentType === "quiz") {
             setActiveTab("quiz");
@@ -271,29 +240,37 @@ export default function LearnPage() {
   }, [currentLessonId]);
 
   // Lesson time counter (for text, document, and video)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
-    let timer: any = null;
-    if (currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" || currentLessonDetail?.contentType === "video") {
-      const requiredTime = currentLessonDetail?.durationSeconds || 30; // fallback to 30 seconds
-      timer = setInterval(() => {
-        setDocumentReadTime((prev) => {
-          const nextTime = prev + 1;
-          if (nextTime % 5 === 0 && currentLessonId) {
-            api.post(`/api/learning/lessons/${currentLessonId}/progress`, { currentTime: nextTime }).catch(e => console.error(e));
-          }
-          if (nextTime >= requiredTime) {
-            clearInterval(timer);
-            setDocumentReadComplete(true);
-            return requiredTime;
-          }
-          return nextTime;
-        });
-      }, 1000);
-    }
+    if (!currentLessonDetail || !currentLessonId) return;
+    if (currentLessonDetail.contentType !== "text" && currentLessonDetail.contentType !== "document" && currentLessonDetail.contentType !== "video") return;
+
+    const requiredTime = currentLessonDetail.durationSeconds || 30;
+    timerRef.current = setInterval(() => {
+      setDocumentReadTime((prev) => Math.min(prev + 1, requiredTime));
+    }, 1000);
+
     return () => {
-      if (timer) clearInterval(timer);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [currentLessonDetail, currentLessonId]);
+
+  useEffect(() => {
+    if (!currentLessonId || documentReadTime <= 0) return;
+    const requiredTime = currentLessonDetail?.durationSeconds || 30;
+
+    if (documentReadTime >= requiredTime) {
+      setDocumentReadComplete(true);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    if (documentReadTime % 5 === 0) {
+      api.post(`/api/learning/lessons/${currentLessonId}/progress`, { currentTime: documentReadTime })
+        .catch(e => console.error(e));
+    }
+  }, [documentReadTime, currentLessonId, currentLessonDetail]);
 
   const getYoutubeId = (url: string) => {
     if (!url) return null;
@@ -348,7 +325,7 @@ export default function LearnPage() {
   };
 
   const handleSubmitQuiz = async () => {
-    if (!quizAttempt) return;
+    if (!quizAttempt || quizSubmitting) return;
     setQuizSubmitting(true);
     try {
       const answersArray = Object.entries(selectedAnswers).map(([qId, oId]) => ({
@@ -373,10 +350,17 @@ export default function LearnPage() {
               ),
             }))
           );
-          const total = sections.flatMap((s) => s.lessons).length;
-          const completed = sections.flatMap((s) => s.lessons).filter((l) => l.completed || l.id === currentLessonId).length;
-          setProgressPercent(Math.round((completed / total) * 100));
-          setCompletedN(completed);
+          // Re-read progress from server to avoid stale state
+          if (courseDetail) {
+            try {
+              const progressRes = await api.get(`/api/learning/courses/${courseDetail.id}/progress`);
+              if (progressRes.ok) {
+                const progressResult = await progressRes.json();
+                setProgressPercent(progressResult.data.progressPercent);
+                setCompletedN(progressResult.data.completedLessons);
+              }
+            } catch {}
+          }
         }
       } else {
         const errData = await res.json();
@@ -390,20 +374,24 @@ export default function LearnPage() {
     }
   };
 
+  // Use refs so the quiz timer always has access to the latest handleSubmitQuiz
+  const handleSubmitQuizRef = useRef(handleSubmitQuiz);
+  handleSubmitQuizRef.current = handleSubmitQuiz;
+
   useEffect(() => {
-    if (!quizAttempt || quizTimeLeft <= 0 || quizResult) return;
+    if (!quizAttempt || quizResult || quizTimeLeft <= 0) return;
     const timer = setInterval(() => {
       setQuizTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleSubmitQuiz();
+          handleSubmitQuizRef.current();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [quizAttempt, quizTimeLeft, quizResult]);
+  }, [quizAttempt, quizResult]); // Removed quizTimeLeft to avoid timer drift
 
   /* helpers */
   const allLessons    = sectionsWithLocks.flatMap((s) => s.lessons);
@@ -430,27 +418,31 @@ export default function LearnPage() {
         );
 
         if (courseDetail) {
-          const progressRes = await api.get(`/api/learning/courses/${courseDetail.id}/progress`);
+          // Parallelize independent API calls
+          const [progressRes, nextRes] = await Promise.all([
+            api.get(`/api/learning/courses/${courseDetail.id}/progress`),
+            api.get(`/api/learning/lessons/${currentLessonId}/next`),
+          ]);
+
           if (progressRes.ok) {
             const result = await progressRes.json();
             setProgressPercent(result.data.progressPercent);
             setCompletedN(result.data.completedLessons);
           }
-        }
 
-        const nextRes = await api.get(`/api/learning/lessons/${currentLessonId}/next`);
-        if (nextRes.ok) {
-          const nextData = await nextRes.json();
-          if (nextData.data.nextLesson) {
-            setCurrentLessonId(nextData.data.nextLesson.id);
-          } else {
-            setShowCompletionModal(true);
-            confetti({
-              particleCount: 150,
-              spread: 100,
-              origin: { y: 0.6 },
-              colors: ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981']
-            });
+          if (nextRes.ok) {
+            const nextData = await nextRes.json();
+            if (nextData.data.nextLesson) {
+              setCurrentLessonId(nextData.data.nextLesson.id);
+            } else {
+              setShowCompletionModal(true);
+              confetti({
+                particleCount: 150,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981']
+              });
+            }
           }
         }
       } else {
@@ -948,15 +940,22 @@ export default function LearnPage() {
                             </p>
                           </div>
                         </div>
-                        <a
-                          href={file.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${t.pill} hover:opacity-80`}
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          Download
-                        </a>
+                        {isValidUrl(file.fileUrl) ? (
+                          <a
+                            href={file.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${t.pill} hover:opacity-80`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download
+                          </a>
+                        ) : (
+                          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 text-slate-400 cursor-not-allowed">
+                            <Download className="w-3.5 h-3.5" />
+                            Unavailable
+                          </span>
+                        )}
                       </div>
                     ))
                   ) : (

@@ -433,10 +433,60 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// ============================================
+// POST /auth/dev-auto-login
+// Server-side admin auto-login for dev environments only.
+// Credentials are read from server-side env vars, NOT exposed in client bundle.
+// ============================================
+const devAutoLogin = async (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(403).json({ error: 'Chỉ khả dụng trong môi trường development.' });
+  }
+
+  const devEmail = process.env.DEV_ADMIN_EMAIL;
+  const devPassword = process.env.DEV_ADMIN_PASSWORD;
+
+  if (!devEmail || !devPassword) {
+    return res.status(400).json({ error: 'Chưa cấu hình tài khoản dev (DEV_ADMIN_EMAIL / DEV_ADMIN_PASSWORD)' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: devEmail },
+      select: {
+        id: true, email: true, username: true, role: true,
+        passwordHash: true, isActive: true, deletedAt: true,
+        avatarUrl: true,
+      },
+    });
+
+    if (!user || user.deletedAt || !user.isActive || user.role !== 'admin') {
+      return res.status(401).json({ error: 'Tài khoản admin dev không tồn tại hoặc không hợp lệ.' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(devPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Mật khẩu admin dev không đúng với database.' });
+    }
+
+    const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
+    setRefreshCookie(res, tokens.refreshToken);
+
+    return res.status(200).json({
+      message: 'Dev auto-login thành công',
+      user: { id: user.id, email: user.email, username: user.username, role: user.role, avatarUrl: user.avatarUrl },
+      accessToken: tokens.accessToken,
+    });
+  } catch (error) {
+    console.error('Lỗi dev auto-login:', error);
+    return res.status(500).json({ error: 'Lỗi server khi dev auto-login' });
+  }
+};
 module.exports = {
   register,
   verifyEmailOtp,
   resendEmailOtp,
+  devAutoLogin,
   login,
   refresh,
   logout,
