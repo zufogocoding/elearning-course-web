@@ -446,7 +446,12 @@ export default function LearnPage() {
                 colors: ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981']
               });
             }
+          } else {
+            const errData = await nextRes.json().catch(() => ({}));
+            console.error("getNextLesson failed:", errData);
           }
+        } else {
+          console.error("goNextAndComplete: courseDetail is null");
         }
       } else {
         const errData = await res.json();

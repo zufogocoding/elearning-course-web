@@ -668,6 +668,7 @@ const getNextLesson = async (req, res) => {
     const lessons = await prisma.lesson.findMany({
       where: {
         deletedAt: null,
+        isPreview: false,
         section: {
           deletedAt: null,
           courseId: access.courseId,
@@ -694,11 +695,17 @@ const getNextLesson = async (req, res) => {
             orderIndex: true,
           },
         },
+        quiz: { select: { id: true } },
       },
     });
 
-    const currentIndex = lessons.findIndex((lesson) => lesson.id === lessonId);
-    const nextLesson = currentIndex >= 0 ? lessons[currentIndex + 1] || null : null;
+    // Filter out zombie lessons (quiz type without Quiz record)
+    const completableLessons = lessons.filter(
+      (l) => l.contentType !== 'quiz' || l.quiz !== null
+    );
+
+    const currentIndex = completableLessons.findIndex((lesson) => lesson.id === lessonId);
+    const nextLesson = currentIndex >= 0 ? completableLessons[currentIndex + 1] || null : null;
 
     return success(res, {
       currentLessonId: lessonId,
