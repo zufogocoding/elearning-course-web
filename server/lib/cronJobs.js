@@ -96,12 +96,47 @@ const initCleanupQuizAttemptsJob = () => {
   });
 };
 
+// 3. Cron Job dọn dẹp các OTP và Reset Token hết hạn
+// Chạy mỗi 1 giờ
+const initCleanupExpiredOtpsJob = () => {
+  cron.schedule('0 * * * *', async () => {
+    console.log('[CRON] Đang quét dọn dẹp các mã OTP và Password Reset Token đã hết hạn...');
+    const now = new Date();
+
+    try {
+      const emailOtpResult = await prisma.emailVerificationOtp.deleteMany({
+        where: {
+          expiresAt: {
+            lt: now
+          }
+        }
+      });
+
+      const passwordTokenResult = await prisma.passwordResetToken.deleteMany({
+        where: {
+          expiresAt: {
+            lt: now
+          }
+        }
+      });
+
+      if (emailOtpResult.count > 0 || passwordTokenResult.count > 0) {
+        console.log(`[CRON] Đã dọn dẹp: ${emailOtpResult.count} OTP xác thực email và ${passwordTokenResult.count} token reset mật khẩu đã hết hạn.`);
+      }
+    } catch (error) {
+      console.error('[CRON] Lỗi khi dọn dẹp OTP/tokens hết hạn:', error);
+    }
+  });
+};
+
 const startCronJobs = () => {
   initCleanupEnrollmentsJob();
   initCleanupQuizAttemptsJob();
+  initCleanupExpiredOtpsJob();
   console.log('[CRON] Các tác vụ nền dọn dẹp đã được khởi tạo.');
 };
 
 module.exports = {
   startCronJobs
 };
+
