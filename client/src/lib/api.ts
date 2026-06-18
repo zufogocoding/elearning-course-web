@@ -65,7 +65,9 @@ export async function apiFetch(
   });
 
   // Auto-refresh on 401
-  if (res.status === 401) {
+  // [BUG-18 FIX] Thêm guard chống infinite loop khi refresh cũng trả 401
+  const isRetry = (options.headers as Record<string, string>)?.['X-Retry'] === '1';
+  if (res.status === 401 && !isRetry) {
     if (!isRefreshing) {
       isRefreshing = true;
       const newToken = await doRefresh();
@@ -74,17 +76,22 @@ export async function apiFetch(
       if (newToken) {
         accessToken = newToken;
         onTokenRefreshed(newToken);
-        // Retry original request with new token
-        return apiFetch(path, options);
+        // Retry original request with new token + retry flag
+        const retryHeaders = { ...(options.headers as Record<string, string>), 'X-Retry': '1' };
+        return apiFetch(path, { ...options, headers: retryHeaders });
       } else {
         accessToken = null;
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('refreshToken');
+        }
         return res;
       }
     } else {
       // Queue this request until refresh is done
       return new Promise((resolve) => {
         subscribeToRefresh(() => {
-          resolve(apiFetch(path, options));
+          const retryHeaders = { ...(options.headers as Record<string, string>), 'X-Retry': '1' };
+          resolve(apiFetch(path, { ...options, headers: retryHeaders }));
         });
       });
     }

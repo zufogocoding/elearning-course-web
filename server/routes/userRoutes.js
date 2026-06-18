@@ -3,7 +3,6 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticate } = require('../middleware/auth');
 const { validateUpdateMe } = require('../middleware/validators');
-const { verifyToken } = require('../middleware/authMiddleware');
 const { uploadImage } = require('../middleware/uploadMiddleware');
 
 // All routes require authentication
@@ -13,14 +12,8 @@ router.use(authenticate);
 router.get('/me', userController.getMe);
 router.get('/me/transactions', userController.getMyTransactions);
 router.put('/me', validateUpdateMe, userController.updateMe);
-router.put('/avatar', verifyToken, uploadImage, userController.updateAvatar);
 
 // API cập nhật Avatar: Đi qua Token -> Đi qua bộ lọc File -> Vào Controller
-router.put(
-  '/avatar', 
-  verifyToken, 
-  uploadImage, // Chuỗi bảo vệ file
-  userController.updateAvatar 
-);
+router.put('/avatar', uploadImage, userController.updateAvatar);
 
 module.exports = router;

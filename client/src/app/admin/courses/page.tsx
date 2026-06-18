@@ -218,7 +218,7 @@ export default function AdminCoursesPage() {
       const data = await res.json();
 
       setCourses(data.data || []);
-      setPagination(data.pagination || { page: 1, total: 0, totalPages: 0 });
+      setPagination(data.meta || { page: 1, total: 0, totalPages: 0 });
       setError("");
     } catch {
       setError("Lỗi mạng. Không thể tải khóa học.");
