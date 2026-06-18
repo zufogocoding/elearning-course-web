@@ -40,4 +40,56 @@ const verifyCertificate = async (req, res) => {
   }
 };
 
-module.exports = { getUserCertificates, verifyCertificate };
+const { v4: uuidv4 } = require('uuid');
+
+const checkAndIssueCertificate = async (userId, courseId) => {
+  try {
+    // Check if certificate already exists
+    const existing = await prisma.certificate.findFirst({
+      where: { userId, courseId, isRevoked: false }
+    });
+    if (existing) return existing;
+
+    // Get enrollment
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId } }
+    });
+    if (!enrollment || enrollment.status !== 'active') return null;
+
+    // Count total lessons
+    const totalLessons = await prisma.lesson.count({
+      where: { section: { courseId } }
+    });
+    if (totalLessons === 0) return null;
+
+    // Count completed lessons
+    const completedLessons = await prisma.lessonCompletion.count({
+      where: {
+        userId,
+        lesson: { section: { courseId } },
+        completedAt: { not: null }
+      }
+    });
+
+    if (completedLessons >= totalLessons) {
+      // Issue certificate
+      const course = await prisma.course.findUnique({ where: { id: courseId }, select: { version: true } });
+      const cert = await prisma.certificate.create({
+        data: {
+          enrollmentId: enrollment.id,
+          userId,
+          courseId,
+          certificateCode: uuidv4(),
+          courseVersion: course.version || 1
+        }
+      });
+      return cert;
+    }
+    return null;
+  } catch (error) {
+    console.error('Lỗi checkAndIssueCertificate:', error);
+    return null;
+  }
+};
+
+module.exports = { getUserCertificates, verifyCertificate, checkAndIssueCertificate };
