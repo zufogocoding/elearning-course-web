@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const courseContentController = require('../controllers/courseContentController');
 const quizController = require('../controllers/quizController');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 
 // Áp dụng middleware Admin cho TOÀN BỘ file này
-router.use(authenticate, requireAdmin);
+router.use(verifyToken, verifyAdmin);
 
 // Routes cho Section (Chương)
 router.post('/sections', courseContentController.createSection);

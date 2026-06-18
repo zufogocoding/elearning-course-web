@@ -194,7 +194,6 @@ model Enrollment {
   id         Int       @id @default(autoincrement())
   userId     Int       @map("user_id")
   courseId   Int       @map("course_id")
-  // [BUG-10 FIX] Valid values: 'pending', 'active', 'expired', 'revoked'
   status     String    @default("active")
   couponId   Int?      @map("coupon_id")
   enrolledAt DateTime  @default(now()) @map("enrolled_at")

@@ -90,15 +90,6 @@ app.use('/api/learning', learningRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/courses/:courseId/reviews', reviewRoutes);
 
-// [BUG-14 FIX] Mount /api/files TRƯỚC error handler để lỗi được catch đúng
-app.use('/api/files', express.static(path.join(__dirname, '../storage/uploads'), {
-  fallthrough: false,
-  setHeaders: (res, filePath) => {
-    // Ép trình duyệt không được chạy file nội dung lạ (Bảo mật thêm 1 lớp XSS)
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-  }
-}));
-
 // Global Error Handler (MUST BE THE LAST MIDDLEWARE)
 app.use(errorHandler);
 
@@ -112,4 +103,12 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.error('Lỗi khi khởi tạo email service:', error);
   }
 });
-
+
+// Mở endpoint phục vụ file (Chỉ trả về file tĩnh, không thực thi)
+app.use('/api/files', express.static(path.join(__dirname, '../storage/uploads'), {
+  fallthrough: false,
+  setHeaders: (res, filePath) => {
+    // Ép trình duyệt không được chạy file nội dung lạ (Bảo mật thêm 1 lớp XSS)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}));

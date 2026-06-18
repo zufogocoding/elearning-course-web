@@ -52,28 +52,15 @@ const findActiveEnrollment = async (userId, courseId) => {
 const issueCertificateIfDone = async (userId, courseId, enrollmentId, progressPercent) => {
   if (progressPercent >= 100 && enrollmentId) {
     const existingCert = await prisma.certificate.findUnique({ where: { enrollmentId } });
-    const course = await prisma.course.findUnique({ where: { id: courseId } });
-    const currentVersion = course?.version || 1;
-
     if (!existingCert) {
-      // [BUG-08 FIX] Tạo certificate mới
+      const course = await prisma.course.findUnique({ where: { id: courseId } });
       await prisma.certificate.create({
         data: {
           enrollmentId,
           userId,
           courseId,
           certificateCode: crypto.randomUUID(),
-          courseVersion: currentVersion
-        }
-      });
-    } else if (!existingCert.isRevoked && existingCert.courseVersion !== currentVersion) {
-      // [BUG-08 FIX] Cập nhật certificate khi course version thay đổi
-      await prisma.certificate.update({
-        where: { enrollmentId },
-        data: {
-          certificateCode: crypto.randomUUID(),
-          courseVersion: currentVersion,
-          issuedAt: new Date()
+          courseVersion: course?.version || 1
         }
       });
     }
@@ -575,44 +562,6 @@ const checkPrecedingLessonsCompleted = async (userId, courseId, lessonId) => {
 };
 
 // =====================================================
-// Helper: Check if current lesson's material (video/document/text) is completed
-// =====================================================
-const checkLessonMaterialCompleted = async (userId, lesson) => {
-  if (lesson.contentType === 'video' || lesson.contentType === 'text' || lesson.contentType === 'document' || lesson.contentType === 'quiz') {
-    const progress = await prisma.lessonCompletion.findUnique({
-      where: { userId_lessonId: { userId, lessonId: lesson.id } },
-    });
-
-    const duration = lesson.durationSeconds || 0;
-    const lastCheckpoint = progress?.lastCheckpointTime || 0;
-
-    // We only enforce completion if the lesson has content (contentUrl is not null/empty)
-    if (lesson.contentUrl && lesson.contentUrl.trim() !== '') {
-      if (duration > 0) {
-        const requiredSeconds = Math.floor(duration * 0.9);
-        if (lastCheckpoint < requiredSeconds) {
-          return {
-            completed: false,
-            message: lesson.contentType === 'video'
-              ? `Bạn cần xem ít nhất 90% video trước khi làm bài trắc nghiệm. Hiện tại mới xem ${lastCheckpoint}/${duration} giây.`
-              : `Bạn cần đọc tài liệu ít nhất 90% thời gian yêu cầu trước khi làm bài trắc nghiệm. Hiện tại mới đọc ${lastCheckpoint}/${duration} giây.`
-          };
-        }
-      } else {
-        // If duration is 0, they must have at least opened/saved some progress on the lesson
-        if (!progress) {
-          return {
-            completed: false,
-            message: 'Bạn cần mở tài liệu và xem nội dung bài học trước khi làm bài trắc nghiệm.'
-          };
-        }
-      }
-    }
-  }
-  return { completed: true };
-};
-
-// =====================================================
 // 6. POST /api/learning/lessons/:lessonId/complete
 // Đánh dấu hoàn thành bài học
 // =====================================================
@@ -634,10 +583,6 @@ const completeLesson = async (req, res) => {
       return error(res, 400, 'Bài quiz phải hoàn thành bằng cách nộp bài quiz, không thể hoàn thành thủ công.');
     }
 
-    if (lesson.quiz) {
-      return error(res, 400, 'Bài học này có bài kiểm tra (quiz) đi kèm. Bạn phải hoàn thành và vượt qua bài quiz để hoàn thành bài học này.');
-    }
-
     // Enforce sequential lesson ordering: all preceding lessons must be completed first
     const precedingCompleted = await checkPrecedingLessonsCompleted(userId, access.courseId, lessonId);
     if (!precedingCompleted) {
@@ -657,21 +602,6 @@ const completeLesson = async (req, res) => {
           res,
           400,
           `Bạn cần xem ít nhất 90% video. Hiện tại mới xem ${lastCheckpoint}/${lesson.durationSeconds} giây.`
-        );
-      }
-    }
-
-    // [BUG-09 FIX] Kiểm tra thời gian đọc tối thiểu cho text lessons
-    if (lesson.contentType === 'text') {
-      const contentLength = (lesson.contentUrl || '').length;
-      const minReadTime = Math.max(Math.floor(contentLength / 500), 30);
-      const timeSpent = progress?.timeSpentSeconds || 0;
-
-      if (timeSpent < minReadTime) {
-        return error(
-          res,
-          400,
-          `Bạn cần đọc bài viết ít nhất ${minReadTime} giây. Hiện tại mới đọc ${timeSpent} giây.`
         );
       }
     }
@@ -896,11 +826,6 @@ const startQuiz = async (req, res) => {
       return error(res, 400, 'Bạn cần hoàn thành các bài học trước đó trước khi làm quiz này.');
     }
 
-    const materialCompleted = await checkLessonMaterialCompleted(userId, quiz.lesson);
-    if (!materialCompleted.completed) {
-      return error(res, 400, materialCompleted.message);
-    }
-
     const totalQuestions = await prisma.question.count({
       where: {
         quizId,
@@ -991,10 +916,9 @@ const checkAttemptOwnerAndTime = async (userId, attemptId) => {
   if (attempt.quiz.timeLimitMinutes) {
     const expiredAt = new Date(attempt.startedAt.getTime() + attempt.quiz.timeLimitMinutes * 60 * 1000);
     if (new Date() > expiredAt) {
-      // [BUG-11 FIX] Dùng 'abandoned' thay vì 'expired' vì schema chỉ cho phép in_progress/submitted/abandoned
       await prisma.userQuizAttempt.update({
         where: { id: attemptId },
-        data: { status: 'abandoned', finishedAt: new Date(), score: 0, passed: false },
+        data: { status: 'expired', finishedAt: new Date(), score: 0, passed: false },
       });
       return { ok: false, status: 400, message: 'Đã hết thời gian làm quiz.' };
     }
@@ -1082,11 +1006,6 @@ const submitQuizAttempt = async (req, res) => {
     const precedingCompleted = await checkPrecedingLessonsCompleted(userId, checked.courseId, checked.attempt.quiz.lessonId);
     if (!precedingCompleted) {
       return error(res, 400, 'Bạn cần hoàn thành các bài học trước đó trước khi làm quiz này.');
-    }
-
-    const materialCompleted = await checkLessonMaterialCompleted(userId, checked.attempt.quiz.lesson);
-    if (!materialCompleted.completed) {
-      return error(res, 400, materialCompleted.message);
     }
 
     const questions = await prisma.question.findMany({

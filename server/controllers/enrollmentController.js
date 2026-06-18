@@ -112,29 +112,16 @@ const createPayment = async (req, res) => {
       finalAmount = Math.max(0, finalAmount);
     }
 
-    // 4. Lưu Database Transaction (Atomic: giữ chỗ coupon + tạo enrollment)
+    // 4. Lưu Database Transaction
     const result = await prisma.$transaction(async (tx) => {
       const isFree = finalAmount === 0;
-
-      // [BUG-04 FIX] Giữ chỗ coupon bằng cách tăng usedCount ngay trong transaction
-      if (appliedCoupon && !isFree) {
-        const coupon = await tx.coupon.findUnique({ where: { id: appliedCoupon.id } });
-        if (coupon && coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
-          throw new Error('Mã giảm giá đã hết lượt sử dụng');
-        }
-        await tx.coupon.update({
-          where: { id: appliedCoupon.id },
-          data: { usedCount: { increment: 1 } }
-        });
-      }
       
       // Tạo hoặc cập nhật Enrollment
       const enrollment = await tx.enrollment.upsert({
         where: { userId_courseId: { userId, courseId: parsedCourseId } },
         update: { 
           status: isFree ? 'active' : 'pending', 
-          couponId: appliedCoupon?.id,
-          enrolledAt: new Date()
+          couponId: appliedCoupon?.id 
         },
         create: {
           userId,
@@ -837,12 +824,7 @@ const verifyPayment = async (req, res) => {
       }
     }
 
-    // [BUG-01 FIX] Fallback MOCK MODE chỉ cho phép trong development
-    if (process.env.NODE_ENV !== 'development') {
-      return res.status(400).json({ error: 'Không thể xác thực giao dịch. Vui lòng chờ IPN từ cổng thanh toán.' });
-    }
-
-    // Fallback: MOCK MODE (development only)
+    // Fallback: MOCK MODE or VNPAY mock
     await prisma.$transaction([
       prisma.paymentTransaction.update({
         where: { id: payment.id },
@@ -853,7 +835,7 @@ const verifyPayment = async (req, res) => {
         data: { status: 'active' }
       })
     ]);
-    return res.status(200).json({ status: 'PAID', message: 'Mock mode success (dev only)' });
+    return res.status(200).json({ status: 'PAID', message: 'Mock mode success' });
 
   } catch (err) {
     console.error('Lỗi khi verify thanh toán:', err.response?.data || err.message);
