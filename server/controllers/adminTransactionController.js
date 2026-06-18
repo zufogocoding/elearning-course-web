@@ -85,6 +85,12 @@ const refundTransaction = async (req, res) => {
     }
 
     // Thực hiện hoàn tiền trong Prisma Transaction
+    // [BUG-16 FIX] TODO: Gọi API hoàn tiền thực tế tới cổng thanh toán trước khi cập nhật DB
+    // VNPay: https://sandbox.vnpayment.vn/apis/docs/thanh-toan-pay/pay.html#refund
+    // PayOS: Gọi API cancel transaction
+    // MoMo: Gọi API refund
+    // Hiện tại chỉ cập nhật trạng thái trong DB, tiền CHƯA được hoàn thực tế
+    console.warn(`[REFUND WARNING] Transaction ID ${txId}: Chỉ cập nhật DB. Cần tích hợp API refund cổng thanh toán (${transaction.paymentMethod}).`);
     await prisma.$transaction(async (tx) => {
       // 1. Cập nhật trạng thái giao dịch thành refunded
       await tx.paymentTransaction.update({

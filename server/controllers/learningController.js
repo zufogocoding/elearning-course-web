@@ -52,15 +52,28 @@ const findActiveEnrollment = async (userId, courseId) => {
 const issueCertificateIfDone = async (userId, courseId, enrollmentId, progressPercent) => {
   if (progressPercent >= 100 && enrollmentId) {
     const existingCert = await prisma.certificate.findUnique({ where: { enrollmentId } });
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    const currentVersion = course?.version || 1;
+
     if (!existingCert) {
-      const course = await prisma.course.findUnique({ where: { id: courseId } });
+      // [BUG-08 FIX] Tạo certificate mới
       await prisma.certificate.create({
         data: {
           enrollmentId,
           userId,
           courseId,
           certificateCode: crypto.randomUUID(),
-          courseVersion: course?.version || 1
+          courseVersion: currentVersion
+        }
+      });
+    } else if (!existingCert.isRevoked && existingCert.courseVersion !== currentVersion) {
+      // [BUG-08 FIX] Cập nhật certificate khi course version thay đổi
+      await prisma.certificate.update({
+        where: { enrollmentId },
+        data: {
+          certificateCode: crypto.randomUUID(),
+          courseVersion: currentVersion,
+          issuedAt: new Date()
         }
       });
     }
@@ -606,6 +619,21 @@ const completeLesson = async (req, res) => {
       }
     }
 
+    // [BUG-09 FIX] Kiểm tra thời gian đọc tối thiểu cho text lessons
+    if (lesson.contentType === 'text') {
+      const contentLength = (lesson.contentUrl || '').length;
+      const minReadTime = Math.max(Math.floor(contentLength / 500), 30);
+      const timeSpent = progress?.timeSpentSeconds || 0;
+
+      if (timeSpent < minReadTime) {
+        return error(
+          res,
+          400,
+          `Bạn cần đọc bài viết ít nhất ${minReadTime} giây. Hiện tại mới đọc ${timeSpent} giây.`
+        );
+      }
+    }
+
     const now = new Date();
     const completion = await prisma.lessonCompletion.upsert({
       where: { userId_lessonId: { userId, lessonId } },
@@ -916,9 +944,10 @@ const checkAttemptOwnerAndTime = async (userId, attemptId) => {
   if (attempt.quiz.timeLimitMinutes) {
     const expiredAt = new Date(attempt.startedAt.getTime() + attempt.quiz.timeLimitMinutes * 60 * 1000);
     if (new Date() > expiredAt) {
+      // [BUG-11 FIX] Dùng 'abandoned' thay vì 'expired' vì schema chỉ cho phép in_progress/submitted/abandoned
       await prisma.userQuizAttempt.update({
         where: { id: attemptId },
-        data: { status: 'expired', finishedAt: new Date(), score: 0, passed: false },
+        data: { status: 'abandoned', finishedAt: new Date(), score: 0, passed: false },
       });
       return { ok: false, status: 400, message: 'Đã hết thời gian làm quiz.' };
     }
