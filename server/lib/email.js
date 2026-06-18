@@ -1,4 +1,12 @@
+const dns = require('dns');
+
+// Force IPv4 resolution first to bypass IPv6 routing issues on host environments (e.g. Render)
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const nodemailer = require('nodemailer');
+
 
 /**
  * Email Service
