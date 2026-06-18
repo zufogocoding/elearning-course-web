@@ -107,36 +107,45 @@ function PaymentResultContent() {
 
       // Gọi API xác thực thanh toán để force update Enrollment sang active
       const verifyId = txnId || (payosOrderCode ? Math.floor(parseInt(payosOrderCode, 10) / 1000).toString() : "");
+      let actualSuccess: boolean = isSuccess;
       if (isSuccess && verifyId) {
         try {
-          await api.get(`/api/enrollments/verify-payment/${verifyId}`);
+          const verifyRes = await api.get(`/api/enrollments/verify-payment/${verifyId}`);
+          if (!verifyRes.ok) {
+            console.error("Verification failed with status:", verifyRes.status);
+            actualSuccess = false;
+            setSuccessState(false);
+          }
         } catch (err) {
           console.error("Verification failed", err);
+          actualSuccess = false;
+          setSuccessState(false);
         }
       } else {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
-      try {
-        const res = await api.get("/api/learning/my-courses");
-        if (res.ok) {
-          const result = await res.json();
-          const coursesList = result.data || [];
+      if (actualSuccess) {
+        try {
+          const res = await api.get("/api/learning/my-courses");
+          if (res.ok) {
+            const result = await res.json();
+            const coursesList = result.data || [];
 
-          let matched = null;
-          if (cId) matched = coursesList.find((c: any) => c.courseId === cId);
-          if (!matched && coursesList.length > 0) matched = coursesList[coursesList.length - 1];
+            let matched = null;
+            if (cId) matched = coursesList.find((c: any) => c.courseId === cId);
+            if (!matched && coursesList.length > 0) matched = coursesList[coursesList.length - 1];
 
-          if (matched) {
-            setCourseTitle(matched.title);
-            setCourseSlug(matched.slug || null);
+            if (matched) {
+              setCourseTitle(matched.title);
+              setCourseSlug(matched.slug || null);
+            }
           }
+        } catch (err) {
+          console.error("Error verifying payment:", err);
         }
-      } catch (err) {
-        console.error("Error verifying payment:", err);
-      } finally {
-        setChecking(false);
       }
+      setChecking(false);
     };
 
     verifyTransaction();

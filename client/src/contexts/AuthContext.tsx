@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   accessToken: string | null;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -28,16 +28,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const login = useCallback((token: string, userData: User) => {
+  const login = useCallback((token: string, userData: User, refreshToken?: string) => {
     setToken(token);
     setAccessToken(token);
     setUser(userData);
+    if (refreshToken && typeof window !== 'undefined') {
+      localStorage.setItem('refreshToken', refreshToken);
+    }
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/api/auth/logout');
+      const localRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+      await api.post('/api/auth/logout', { refreshToken: localRefreshToken });
     } catch {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('refreshToken');
+    }
     setToken(null);
     setAccessToken(null);
     setUser(null);
@@ -54,13 +61,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [accessToken]);
 
-  // On mount: try to restore session from refresh token cookie
+  // On mount: try to restore session from refresh token cookie or localStorage
   useEffect(() => {
     const restoreSession = async () => {
       try {
+        const localRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+
         const refreshRes = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/refresh`,
-          { method: 'POST', credentials: 'include' }
+          { 
+            method: 'POST', 
+            headers: localRefreshToken ? { 'Content-Type': 'application/json' } : undefined,
+            body: localRefreshToken ? JSON.stringify({ refreshToken: localRefreshToken }) : undefined,
+            credentials: 'include' 
+          }
         );
 
         if (!refreshRes.ok) {
@@ -68,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const { accessToken: token } = await refreshRes.json();
+        const { accessToken: token, refreshToken: newRefreshToken } = await refreshRes.json();
         if (!token) {
           setIsLoading(false);
           return;
@@ -76,6 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setToken(token);
         setAccessToken(token);
+        if (newRefreshToken && typeof window !== 'undefined') {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
 
         // Fetch user profile
         const userRes = await fetch(

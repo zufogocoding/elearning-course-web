@@ -129,6 +129,7 @@ const verifyEmailOtp = async (req, res) => {
       message: 'Xác thực email thành công!',
       user,
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     });
   } catch (error) {
     console.error('Lỗi verify email OTP:', error);
@@ -238,6 +239,7 @@ const login = async (req, res) => {
       message: 'Đăng nhập thành công',
       user: { id: user.id, email: user.email, username: user.username, role: user.role, avatarUrl: user.avatarUrl },
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     });
   } catch (error) {
     console.error('Lỗi đăng nhập:', error);
@@ -249,7 +251,7 @@ const login = async (req, res) => {
 // POST /auth/refresh
 // ============================================
 const refresh = async (req, res) => {
-  const refreshToken = req.cookies?.refreshToken;
+  const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!refreshToken) {
     return res.status(401).json({ error: 'Không tìm thấy refresh token' });
@@ -271,7 +273,10 @@ const refresh = async (req, res) => {
     const tokens = generateTokens({ id: user.id, email: user.email, role: user.role });
     setRefreshCookie(res, tokens.refreshToken);
 
-    res.status(200).json({ accessToken: tokens.accessToken });
+    res.status(200).json({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
   } catch (error) {
     console.error('Lỗi refresh token:', error);
     res.clearCookie('refreshToken', { path: '/' });
@@ -476,6 +481,7 @@ const devAutoLogin = async (req, res) => {
       message: 'Dev auto-login thành công',
       user: { id: user.id, email: user.email, username: user.username, role: user.role, avatarUrl: user.avatarUrl },
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     });
   } catch (error) {
     console.error('Lỗi dev auto-login:', error);

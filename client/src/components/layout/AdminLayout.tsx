@@ -33,7 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { isDark, toggle } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
-  const { user, login, isLoading } = useAuth();
+  const { user, login, logout, isLoading } = useAuth();
 
   const handleAdminAutoLogin = async () => {
     // Chỉ chạy trong môi trường dev
@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
 
       const data = await res.json();
-      login(data.accessToken, data.user);
+      login(data.accessToken, data.user, data.refreshToken);
       router.refresh();
     } catch {
       alert("Lỗi kết nối server.");
@@ -217,15 +217,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               Cài đặt
             </Link>
 
-            <Link
-                href="/"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-rose-500 ${
+            <button
+                onClick={async () => {
+                  await logout();
+                  router.push("/");
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-rose-500 ${
                     isDark ? "hover:bg-rose-500/10" : "hover:bg-rose-50"
                 }`}
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-4 h-4 shrink-0" />
               Đăng xuất
-            </Link>
+            </button>
           </div>
         </aside>
 

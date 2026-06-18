@@ -71,7 +71,7 @@ function LoginForm() {
         return;
       }
 
-      login(data.accessToken, data.user);
+      login(data.accessToken, data.user, data.refreshToken);
       showToast('success', `Chào mừng trở lại, ${data.user.username}! 👋`);
 
       // Redirect

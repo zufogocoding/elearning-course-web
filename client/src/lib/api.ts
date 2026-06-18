@@ -27,12 +27,18 @@ function subscribeToRefresh(cb: (token: string) => void) {
 
 async function doRefresh(): Promise<string | null> {
   try {
+    const localRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
     const res = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: 'POST',
+      headers: localRefreshToken ? { 'Content-Type': 'application/json' } : undefined,
+      body: localRefreshToken ? JSON.stringify({ refreshToken: localRefreshToken }) : undefined,
       credentials: 'include',
     });
     if (!res.ok) return null;
     const data = await res.json();
+    if (data.refreshToken && typeof window !== 'undefined') {
+      localStorage.setItem('refreshToken', data.refreshToken);
+    }
     return data.accessToken || null;
   } catch {
     return null;

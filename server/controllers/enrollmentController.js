@@ -780,6 +780,11 @@ const verifyPayment = async (req, res) => {
       return res.status(404).json({ error: 'Giao dịch không tồn tại' });
     }
 
+    // Kiểm tra quyền sở hữu giao dịch
+    if (payment.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Bạn không có quyền xác thực giao dịch này' });
+    }
+
     if (payment.status === 'completed') {
       return res.status(200).json({ status: 'PAID', message: 'Giao dịch đã hoàn tất trước đó' });
     }

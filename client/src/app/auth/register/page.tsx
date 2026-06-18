@@ -175,7 +175,7 @@ export default function RegisterPage() {
         return;
       }
 
-      login(data.accessToken, data.user);
+      login(data.accessToken, data.user, data.refreshToken);
       showToast('success', 'Đăng ký thành công! Chào mừng bạn đến với Elevate 🎉');
       router.push('/profile');
     } catch {
