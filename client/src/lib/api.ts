@@ -50,9 +50,12 @@ export async function apiFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
@@ -102,14 +105,14 @@ export const api = {
     apiFetch(path, {
       ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
     }),
 
   put: (path: string, body?: unknown, options?: RequestInit) =>
     apiFetch(path, {
       ...options,
       method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
     }),
 
   delete: (path: string, options?: RequestInit) =>
