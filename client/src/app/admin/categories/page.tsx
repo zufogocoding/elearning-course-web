@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import axios from 'axios';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { useTheme } from '@/components/ui/ThemeProvider';
 import {
     AlertCircle,
     ChevronRight,
@@ -112,20 +114,32 @@ function CategoryFormModal({
                                onSubmit,
                                onChange,
                            }: CategoryFormModalProps) {
+    const { isDark } = useTheme();
+    const bgWhite = isDark ? "bg-[#1a1d2e]" : "bg-white";
+    const bgSlate50 = isDark ? "bg-[#13151f]" : "bg-slate-50";
+    const bgSlate100 = isDark ? "bg-[#252840]" : "bg-slate-100";
+    const borderSlate200 = isDark ? "border-[#252840]" : "border-slate-200";
+    const borderSlate300 = isDark ? "border-[#2d314d]" : "border-slate-300";
+    const textSlate900 = isDark ? "text-white" : "text-slate-900";
+    const textSlate700 = isDark ? "text-[#e2e8f0]" : "text-slate-700";
+    const textSlate600 = isDark ? "text-[#cbd5e1]" : "text-slate-600";
+    const textSlate500 = isDark ? "text-[#a0aec0]" : "text-slate-500";
+    const inputBg = isDark ? "bg-[#13151f] text-white placeholder-slate-500" : "bg-white text-slate-900";
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-            <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
-                <div className="flex items-center justify-between border-b border-slate-200 p-5">
+            <div className={`w-full max-w-xl rounded-2xl ${bgWhite} shadow-xl`}>
+                <div className={`flex items-center justify-between border-b ${borderSlate200} p-5`}>
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-                        <p className="mt-1 text-sm text-slate-500">{description}</p>
+                        <h2 className={`text-lg font-semibold ${textSlate900}`}>{title}</h2>
+                        <p className={`mt-1 text-sm ${textSlate500}`}>{description}</p>
                     </div>
 
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={submitting}
-                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className={`rounded-lg p-2 ${textSlate500} transition hover:${bgSlate100} disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -133,7 +147,7 @@ function CategoryFormModal({
 
                 <form onSubmit={onSubmit} className="space-y-4 p-5">
                     <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                        <label className={`mb-2 block text-sm font-medium ${textSlate700}`}>
                             Tên danh mục
                         </label>
                         <input
@@ -142,12 +156,12 @@ function CategoryFormModal({
                             value={formData.name}
                             onChange={onChange}
                             placeholder="Ví dụ: Lập trình Web"
-                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                            className={`w-full rounded-xl border ${borderSlate300} px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 ${inputBg}`}
                         />
                     </div>
 
                     <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                        <label className={`mb-2 block text-sm font-medium ${textSlate700}`}>
                             Slug
                         </label>
                         <input
@@ -156,15 +170,15 @@ function CategoryFormModal({
                             value={formData.slug}
                             onChange={onChange}
                             placeholder="lap-trinh-web"
-                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                            className={`w-full rounded-xl border ${borderSlate300} px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 ${inputBg}`}
                         />
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className={`mt-1 text-xs ${textSlate500}`}>
                             Slug sẽ tự tạo theo tên danh mục và có thể chỉnh sửa.
                         </p>
                     </div>
 
                     <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                        <label className={`mb-2 block text-sm font-medium ${textSlate700}`}>
                             Mô tả
                         </label>
                         <textarea
@@ -173,19 +187,19 @@ function CategoryFormModal({
                             onChange={onChange}
                             rows={3}
                             placeholder="Nhập mô tả ngắn cho danh mục"
-                            className="w-full resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                            className={`w-full resize-none rounded-xl border ${borderSlate300} px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 ${inputBg}`}
                         />
                     </div>
 
                     <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                        <label className={`mb-2 block text-sm font-medium ${textSlate700}`}>
                             Danh mục cha
                         </label>
                         <select
                             name="parentId"
                             value={formData.parentId}
                             onChange={onChange}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                            className={`w-full rounded-xl border ${borderSlate300} px-4 py-2.5 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100 ${inputBg}`}
                         >
                             <option value="">Không có danh mục cha</option>
                             {categoryOptions.map((category) => (
@@ -196,12 +210,12 @@ function CategoryFormModal({
                         </select>
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+                    <div className={`flex items-center justify-end gap-3 border-t ${borderSlate200} pt-4`}>
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={submitting}
-                            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className={`rounded-xl border ${borderSlate300} px-4 py-2.5 text-sm font-medium ${textSlate700} transition hover:${bgSlate50} disabled:cursor-not-allowed disabled:opacity-60 ${inputBg}`}
                         >
                             Hủy
                         </button>
@@ -231,22 +245,34 @@ function DeleteConfirmModal({
                                 onClose,
                                 onConfirm,
                             }: DeleteConfirmModalProps) {
+    const { isDark } = useTheme();
+    const bgWhite = isDark ? "bg-[#1a1d2e]" : "bg-white";
+    const bgSlate50 = isDark ? "bg-[#13151f]" : "bg-slate-50";
+    const bgSlate100 = isDark ? "bg-[#252840]" : "bg-slate-100";
+    const borderSlate200 = isDark ? "border-[#252840]" : "border-slate-200";
+    const borderSlate300 = isDark ? "border-[#2d314d]" : "border-slate-300";
+    const textSlate900 = isDark ? "text-white" : "text-slate-900";
+    const textSlate700 = isDark ? "text-[#e2e8f0]" : "text-slate-700";
+    const textSlate600 = isDark ? "text-[#cbd5e1]" : "text-slate-600";
+    const textSlate500 = isDark ? "text-[#a0aec0]" : "text-slate-500";
+    const inputBg = isDark ? "bg-[#13151f] text-white placeholder-slate-500" : "bg-white text-slate-900";
+
     const childCount = category.children?.length || 0;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-                <div className="border-b border-slate-200 p-5">
+            <div className={`w-full max-w-md rounded-2xl ${bgWhite} shadow-xl`}>
+                <div className={`border-b ${borderSlate200} p-5`}>
                     <div className="flex items-start gap-3">
                         <div className="rounded-xl bg-red-50 p-3">
                             <Trash2 className="h-5 w-5 text-red-600" />
                         </div>
 
                         <div>
-                            <h2 className="text-lg font-semibold text-slate-900">
+                            <h2 className={`text-lg font-semibold ${textSlate900}`}>
                                 Xác nhận xóa danh mục
                             </h2>
-                            <p className="mt-1 text-sm text-slate-500">
+                            <p className={`mt-1 text-sm ${textSlate500}`}>
                                 Hành động này sẽ xóa mềm danh mục khỏi hệ thống.
                             </p>
                         </div>
@@ -254,12 +280,12 @@ function DeleteConfirmModal({
                 </div>
 
                 <div className="space-y-4 p-5">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-sm text-slate-500">Danh mục cần xóa</p>
-                        <h3 className="mt-1 font-semibold text-slate-900">
+                    <div className={`rounded-xl border ${borderSlate200} ${bgSlate50} p-4`}>
+                        <p className={`text-sm ${textSlate500}`}>Danh mục cần xóa</p>
+                        <h3 className={`mt-1 font-semibold ${textSlate900}`}>
                             {category.name}
                         </h3>
-                        <p className="mt-1 text-sm text-slate-500">/{category.slug}</p>
+                        <p className={`mt-1 text-sm ${textSlate500}`}>/{category.slug}</p>
 
                         {childCount > 0 && (
                             <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -274,7 +300,7 @@ function DeleteConfirmModal({
                             type="button"
                             onClick={onClose}
                             disabled={submitting}
-                            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className={`rounded-xl border ${borderSlate300} px-4 py-2.5 text-sm font-medium ${textSlate700} transition hover:${bgSlate50} disabled:cursor-not-allowed disabled:opacity-60 ${inputBg}`}
                         >
                             Hủy
                         </button>
@@ -305,20 +331,32 @@ function CategoryTreeItem({
                               onEdit,
                               onDelete,
                           }: CategoryTreeItemProps) {
+    const { isDark } = useTheme();
+    const bgWhite = isDark ? "bg-[#1a1d2e]" : "bg-white";
+    const bgSlate50 = isDark ? "bg-[#13151f]" : "bg-slate-50";
+    const bgSlate100 = isDark ? "bg-[#252840]" : "bg-slate-100";
+    const borderSlate200 = isDark ? "border-[#252840]" : "border-slate-200";
+    const borderSlate300 = isDark ? "border-[#2d314d]" : "border-slate-300";
+    const textSlate900 = isDark ? "text-white" : "text-slate-900";
+    const textSlate700 = isDark ? "text-[#e2e8f0]" : "text-slate-700";
+    const textSlate600 = isDark ? "text-[#cbd5e1]" : "text-slate-600";
+    const textSlate500 = isDark ? "text-[#a0aec0]" : "text-slate-500";
+    const inputBg = isDark ? "bg-[#13151f] text-white placeholder-slate-500" : "bg-white text-slate-900";
+
     const children = category.children || [];
     const hasChildren = children.length > 0;
 
     return (
         <div className="space-y-3">
             <div
-                className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50"
+                className={`rounded-xl border ${borderSlate200} ${bgWhite} p-4 transition hover:${borderSlate300} hover:${bgSlate50}`}
                 style={{ marginLeft: `${level * 24}px` }}
             >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-3">
-                        <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                        <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${bgSlate100}`}>
                             {hasChildren ? (
-                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                                <ChevronRight className={`h-4 w-4 ${textSlate500}`} />
                             ) : (
                                 <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                             )}
@@ -326,9 +364,9 @@ function CategoryTreeItem({
 
                         <div>
                             <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="font-medium text-slate-900">{category.name}</h3>
+                                <h3 className={`font-medium ${textSlate900}`}>{category.name}</h3>
 
-                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                                <span className={`rounded-full ${bgSlate100} px-2.5 py-1 text-xs font-medium ${textSlate600}`}>
                   Mã: {category.id}
                 </span>
 
@@ -339,16 +377,16 @@ function CategoryTreeItem({
                                 )}
                             </div>
 
-                            <p className="mt-1 text-sm text-slate-500">/{category.slug}</p>
+                            <p className={`mt-1 text-sm ${textSlate500}`}>/{category.slug}</p>
 
                             {category.description && (
-                                <p className="mt-2 text-sm text-slate-600">
+                                <p className={`mt-2 text-sm ${textSlate600}`}>
                                     {category.description}
                                 </p>
                             )}
 
                             {hasChildren && (
-                                <p className="mt-2 text-xs text-slate-500">
+                                <p className={`mt-2 text-xs ${textSlate500}`}>
                                     Có {children.length} danh mục con
                                 </p>
                             )}
@@ -359,7 +397,7 @@ function CategoryTreeItem({
                         <button
                             type="button"
                             onClick={() => onEdit(category)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-white"
+                            className={`inline-flex items-center gap-1 rounded-lg border ${borderSlate300} px-3 py-1.5 text-xs font-medium ${textSlate700} transition hover:${bgWhite}`}
                         >
                             <Edit3 className="h-3.5 w-3.5" />
                             Sửa
@@ -395,6 +433,18 @@ function CategoryTreeItem({
 }
 
 export default function AdminCategoriesPage() {
+    const { isDark } = useTheme();
+    const bgWhite = isDark ? "bg-[#1a1d2e]" : "bg-white";
+    const bgSlate50 = isDark ? "bg-[#13151f]" : "bg-slate-50";
+    const bgSlate100 = isDark ? "bg-[#252840]" : "bg-slate-100";
+    const borderSlate200 = isDark ? "border-[#252840]" : "border-slate-200";
+    const borderSlate300 = isDark ? "border-[#2d314d]" : "border-slate-300";
+    const textSlate900 = isDark ? "text-white" : "text-slate-900";
+    const textSlate700 = isDark ? "text-[#e2e8f0]" : "text-slate-700";
+    const textSlate600 = isDark ? "text-[#cbd5e1]" : "text-slate-600";
+    const textSlate500 = isDark ? "text-[#a0aec0]" : "text-slate-500";
+    const inputBg = isDark ? "bg-[#13151f] text-white placeholder-slate-500" : "bg-white text-slate-900";
+
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [keyword, setKeyword] = useState<string>('');
@@ -706,20 +756,20 @@ export default function AdminCategoriesPage() {
     };
 
     return (
-        <main className="min-h-screen bg-slate-50 p-6">
+        <AdminLayout><div className="space-y-6 max-w-6xl mx-auto p-4 md:p-6">
             <div className="mx-auto max-w-6xl space-y-6">
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className={`rounded-2xl border ${borderSlate200} ${bgWhite} p-6 shadow-sm`}>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-start gap-3">
-                            <div className="rounded-xl bg-slate-100 p-3">
-                                <FolderTree className="h-6 w-6 text-slate-700" />
+                            <div className={`rounded-xl ${bgSlate100} p-3`}>
+                                <FolderTree className={`h-6 w-6 ${textSlate700}`} />
                             </div>
 
                             <div>
-                                <h1 className="text-2xl font-semibold text-slate-900">
+                                <h1 className={`text-2xl font-semibold ${textSlate900}`}>
                                     Quản lý danh mục
                                 </h1>
-                                <p className="mt-1 text-sm text-slate-500">
+                                <p className={`mt-1 text-sm ${textSlate500}`}>
                                     Quản lý cây danh mục khóa học, danh mục cha và danh mục con.
                                 </p>
                             </div>
@@ -736,13 +786,13 @@ export default function AdminCategoriesPage() {
                     </div>
                 </section>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className={`rounded-2xl border ${borderSlate200} ${bgWhite} p-6 shadow-sm`}>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="text-base font-semibold text-slate-900">
+                            <h2 className={`text-base font-semibold ${textSlate900}`}>
                                 Danh sách danh mục
                             </h2>
-                            <p className="mt-1 text-sm text-slate-500">
+                            <p className={`mt-1 text-sm ${textSlate500}`}>
                                 Hiển thị danh mục theo dạng cây phân cấp cha → con.
                             </p>
                         </div>
@@ -751,7 +801,7 @@ export default function AdminCategoriesPage() {
                             type="button"
                             onClick={() => void loadCategories()}
                             disabled={loading}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className={`inline-flex items-center justify-center gap-2 rounded-xl border ${borderSlate300} px-4 py-2.5 text-sm font-medium ${textSlate700} transition hover:${bgSlate50} disabled:cursor-not-allowed disabled:opacity-60 ${inputBg}`}
                         >
                             {loading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -763,7 +813,7 @@ export default function AdminCategoriesPage() {
                     </div>
 
                     <div className="mt-5">
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                        <label className={`mb-2 block text-sm font-medium ${textSlate700}`}>
                             Tìm kiếm danh mục
                         </label>
 
@@ -774,7 +824,7 @@ export default function AdminCategoriesPage() {
                                 value={keyword}
                                 onChange={(event) => setKeyword(event.target.value)}
                                 placeholder="Nhập tên hoặc slug danh mục cần tìm"
-                                className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100"
+                                className={`w-full rounded-xl border ${borderSlate300} py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100`}
                             />
                         </div>
                     </div>
@@ -788,21 +838,21 @@ export default function AdminCategoriesPage() {
                 </section>
 
                 {loading && (
-                    <section className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-                        <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-500" />
-                        <p className="mt-3 text-sm text-slate-500">
+                    <section className={`rounded-2xl border ${borderSlate200} ${bgWhite} p-10 text-center shadow-sm`}>
+                        <Loader2 className={`mx-auto h-6 w-6 animate-spin ${textSlate500}`} />
+                        <p className={`mt-3 text-sm ${textSlate500}`}>
                             Đang tải dữ liệu...
                         </p>
                     </section>
                 )}
 
                 {!loading && filteredCategories.length === 0 && (
-                    <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                    <section className={`rounded-2xl border border-dashed ${borderSlate300} ${bgWhite} p-10 text-center shadow-sm`}>
                         <Tags className="mx-auto h-10 w-10 text-slate-400" />
-                        <h3 className="mt-4 text-base font-semibold text-slate-900">
+                        <h3 className={`mt-4 text-base font-semibold ${textSlate900}`}>
                             Không có dữ liệu
                         </h3>
-                        <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+                        <p className={`mx-auto mt-2 max-w-md text-sm ${textSlate500}`}>
                             Hiện chưa có danh mục nào phù hợp. Bấm Thêm danh mục để tạo danh
                             mục mới cho hệ thống khóa học.
                         </p>
@@ -810,7 +860,7 @@ export default function AdminCategoriesPage() {
                 )}
 
                 {!loading && filteredCategories.length > 0 && (
-                    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <section className={`rounded-2xl border ${borderSlate200} ${bgWhite} p-6 shadow-sm`}>
                         <div className="space-y-3">
                             {filteredCategories.map((category) => (
                                 <CategoryTreeItem
@@ -862,6 +912,6 @@ export default function AdminCategoriesPage() {
                     onConfirm={() => void handleDeleteCategory()}
                 />
             )}
-        </main>
+        </div></AdminLayout>
     );
 }
