@@ -47,15 +47,12 @@ const initCleanupEnrollmentsJob = () => {
               });
             }
 
-            // Hoàn lại lượt dùng của coupon (nếu có và usedCount > 0)
+            // Hoàn lại lượt dùng của coupon (nếu có)
             if (enrollment.couponId) {
-              const coupon = await tx.coupon.findUnique({ where: { id: enrollment.couponId } });
-              if (coupon && coupon.usedCount > 0) {
-                await tx.coupon.update({
-                  where: { id: enrollment.couponId },
-                  data: { usedCount: { decrement: 1 } }
-                });
-              }
+              await tx.coupon.update({
+                where: { id: enrollment.couponId },
+                data: { usedCount: { decrement: 1 } }
+              });
             }
           });
           console.log(`[CRON] Đã dọn dẹp enrollment ID ${enrollment.id} thành công.`);

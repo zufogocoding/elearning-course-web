@@ -31,11 +31,6 @@ export default function CourseBuilderPage({ params }: { params: Promise<{ id: st
   const [error, setError] = useState("");
   const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("");
-  const [editorTab, setEditorTab] = useState<"content" | "quiz">("content");
-
-  useEffect(() => {
-    setEditorTab("content");
-  }, [selectedLessonId]);
 
   // --- Data Loading ---
   const fetchCurriculum = useCallback(async () => {
@@ -432,52 +427,26 @@ export default function CourseBuilderPage({ params }: { params: Promise<{ id: st
                   Chọn bài học từ cây mục lục bên trái để bắt đầu chỉnh sửa nội dung hoặc câu hỏi kiểm tra.
                 </p>
               </div>
+            ) : currentLesson.contentType === "quiz" ? (
+              <div className="max-w-3xl mx-auto">
+                <QuizEditor
+                  key={currentLesson.id}
+                  lessonId={currentLesson.id}
+                  initialQuiz={currentLesson.quiz}
+                  isDark={isDark}
+                  onSaveSuccess={fetchCurriculum}
+                  setSaveState={setSaveState}
+                />
+              </div>
             ) : (
-              <div className="max-w-3xl mx-auto space-y-6">
-                {/* Custom Tabs */}
-                <div className="flex border-b border-slate-200 dark:border-[#252840] gap-4 mb-4">
-                  <button
-                    onClick={() => setEditorTab("content")}
-                    className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all -mb-px ${
-                      editorTab === "content"
-                        ? "border-indigo-500 text-indigo-500 dark:text-indigo-400"
-                        : "border-transparent text-slate-500 hover:text-slate-700 dark:text-[#7a87a1] dark:hover:text-[#e2e8f0]"
-                    }`}
-                  >
-                    Nội dung bài học
-                  </button>
-                  <button
-                    onClick={() => setEditorTab("quiz")}
-                    className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all -mb-px ${
-                      editorTab === "quiz"
-                        ? "border-indigo-500 text-indigo-500 dark:text-indigo-400"
-                        : "border-transparent text-slate-500 hover:text-slate-700 dark:text-[#7a87a1] dark:hover:text-[#e2e8f0]"
-                    }`}
-                  >
-                    Bài trắc nghiệm (Quiz) {currentLesson.quiz ? "(Đang bật)" : ""}
-                  </button>
-                </div>
-
-                {editorTab === "content" ? (
-                  <div className="max-w-2xl">
-                    <LessonEditor
-                      key={currentLesson.id}
-                      lesson={currentLesson}
-                      isDark={isDark}
-                      onSaveSuccess={fetchCurriculum}
-                      setSaveState={setSaveState}
-                    />
-                  </div>
-                ) : (
-                  <QuizEditor
-                    key={currentLesson.id}
-                    lessonId={currentLesson.id}
-                    initialQuiz={currentLesson.quiz}
-                    isDark={isDark}
-                    onSaveSuccess={fetchCurriculum}
-                    setSaveState={setSaveState}
-                  />
-                )}
+              <div className="max-w-2xl mx-auto">
+                <LessonEditor
+                  key={currentLesson.id}
+                  lesson={currentLesson}
+                  isDark={isDark}
+                  onSaveSuccess={fetchCurriculum}
+                  setSaveState={setSaveState}
+                />
               </div>
             )}
           </main>

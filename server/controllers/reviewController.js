@@ -46,7 +46,7 @@ const getCourseReviews = async (req, res) => {
   try {
     const { courseId } = req.params;
     const reviews = await prisma.courseReview.findMany({
-      where: { courseId: Number(courseId) },
+      where: { courseId: Number(courseId), deletedAt: null },
       include: {
         user: { select: { username: true, avatarUrl: true } }
       },

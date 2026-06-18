@@ -1,0 +1,808 @@
+diff --git a/server/controllers/adminDashboardController.js b/server/controllers/adminDashboardController.js
+index 904cb3f..9fe5458 100644
+--- a/server/controllers/adminDashboardController.js
++++ b/server/controllers/adminDashboardController.js
+@@ -17,7 +17,7 @@ const getDashboardStats = async (req, res) => {
+     });
+ 
+     const totalUsers = await prisma.user.count({
+-      where: { deletedAt: null, role: 'user' }
++      where: { deletedAt: null, role: 'USER' }
+     });
+ 
+     return res.status(200).json({
+diff --git a/server/controllers/adminTransactionController.js b/server/controllers/adminTransactionController.js
+index bc54ce9..b9224d8 100644
+--- a/server/controllers/adminTransactionController.js
++++ b/server/controllers/adminTransactionController.js
+@@ -85,12 +85,6 @@ const refundTransaction = async (req, res) => {
+     }
+ 
+     // Thực hiện hoàn tiền trong Prisma Transaction
+-    // [BUG-16 FIX] TODO: Gọi API hoàn tiền thực tế tới cổng thanh toán trước khi cập nhật DB
+-    // VNPay: https://sandbox.vnpayment.vn/apis/docs/thanh-toan-pay/pay.html#refund
+-    // PayOS: Gọi API cancel transaction
+-    // MoMo: Gọi API refund
+-    // Hiện tại chỉ cập nhật trạng thái trong DB, tiền CHƯA được hoàn thực tế
+-    console.warn(`[REFUND WARNING] Transaction ID ${txId}: Chỉ cập nhật DB. Cần tích hợp API refund cổng thanh toán (${transaction.paymentMethod}).`);
+     await prisma.$transaction(async (tx) => {
+       // 1. Cập nhật trạng thái giao dịch thành refunded
+       await tx.paymentTransaction.update({
+diff --git a/server/controllers/courseController.js b/server/controllers/courseController.js
+index 3c9391a..5395613 100644
+--- a/server/controllers/courseController.js
++++ b/server/controllers/courseController.js
+@@ -194,20 +194,8 @@ const updateCourse = async (req, res) => {
+     let newVersion = existingCourse.version;
+     if (existingCourse.status === 'published') newVersion += 1;
+ 
+-    // [BUG-12 FIX] Whitelist các trường được phép cập nhật, chống mass assignment
+-    const allowedFields = [
+-      'title', 'slug', 'shortDescription', 'fullDescription', 'level',
+-      'thumbnailUrl', 'previewVideoUrl', 'status', 'publishedAt'
+-    ];
+-    const safeData = {};
+-    for (const field of allowedFields) {
+-      if (updateData[field] !== undefined) {
+-        safeData[field] = updateData[field];
+-      }
+-    }
+-
+     const dataToUpdate = {
+-      ...safeData,
++      ...updateData,
+       version: newVersion,
+       price: newPrice,
+       discountPrice: newDiscount,
+@@ -268,16 +256,14 @@ const uploadImage = asyncHandler(async (req, res) => {
+   const extension = type.split('/')[1] || 'png';
+   const buffer = Buffer.from(matches[2], 'base64');
+ 
+-  // [BUG-13 FIX] Thống nhất lưu vào storage/uploads/ giống uploadMiddleware
+-  const uploadsDir = path.join(__dirname, '../../storage/uploads');
++  const uploadsDir = path.join(__dirname, '../uploads');
+   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+ 
+   const filename = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
+   const filePath = path.join(uploadsDir, filename);
+   fs.writeFileSync(filePath, buffer);
+ 
+-  // [BUG-13 FIX] Trả URL qua /api/files/ thay vì /uploads/
+-  const fileUrl = `/api/files/${filename}`;
++  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+   return sendSuccess(res, { url: fileUrl }, 'Upload thành công');
+ });
+ 
+@@ -289,23 +275,11 @@ const getPublicStats = asyncHandler(async (req, res) => {
+     prisma.enrollment.count()
+   ]);
+ 
+-  // [BUG-07 FIX] Hiển thị dữ liệu thật thay vì cộng thêm số giả
+-  const avgRatingResult = await prisma.courseReview.aggregate({
+-    _avg: { rating: true },
+-    _count: true
+-  });
+-  const avgRating = avgRatingResult._avg.rating 
+-    ? Math.round(avgRatingResult._avg.rating * 10) / 10 
+-    : 0;
+-  const positivePercent = avgRatingResult._count > 0
+-    ? Math.round((await prisma.courseReview.count({ where: { rating: { gte: 4 } } })) / avgRatingResult._count * 100)
+-    : 0;
+-
+   const stats = [
+-    { label: 'Học viên tin tưởng', value: `${usersCount.toLocaleString()}+` },
+-    { label: 'Khóa học chất lượng', value: `${coursesCount}+` },
+-    { label: 'Lượt ghi danh', value: `${enrollmentsCount.toLocaleString()}+` },
+-    { label: 'Đánh giá tích cực', value: positivePercent > 0 ? `${positivePercent}%` : 'N/A' }
++    { label: 'Học viên tin tưởng', value: `${(usersCount + 5000).toLocaleString()}+` },
++    { label: 'Khóa học chất lượng', value: `${coursesCount > 0 ? coursesCount : '150'}+` },
++    { label: 'Lượt ghi danh', value: `${(enrollmentsCount + 10000).toLocaleString()}+` },
++    { label: 'Đánh giá tích cực', value: '98%' }
+   ];
+ 
+   return sendSuccess(res, stats);
+diff --git a/server/controllers/enrollmentController.js b/server/controllers/enrollmentController.js
+index 951a91d..8cde001 100644
+--- a/server/controllers/enrollmentController.js
++++ b/server/controllers/enrollmentController.js
+@@ -112,29 +112,16 @@ const createPayment = async (req, res) => {
+       finalAmount = Math.max(0, finalAmount);
+     }
+ 
+-    // 4. Lưu Database Transaction (Atomic: giữ chỗ coupon + tạo enrollment)
++    // 4. Lưu Database Transaction
+     const result = await prisma.$transaction(async (tx) => {
+       const isFree = finalAmount === 0;
+-
+-      // [BUG-04 FIX] Giữ chỗ coupon bằng cách tăng usedCount ngay trong transaction
+-      if (appliedCoupon && !isFree) {
+-        const coupon = await tx.coupon.findUnique({ where: { id: appliedCoupon.id } });
+-        if (coupon && coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+-          throw new Error('Mã giảm giá đã hết lượt sử dụng');
+-        }
+-        await tx.coupon.update({
+-          where: { id: appliedCoupon.id },
+-          data: { usedCount: { increment: 1 } }
+-        });
+-      }
+       
+       // Tạo hoặc cập nhật Enrollment
+       const enrollment = await tx.enrollment.upsert({
+         where: { userId_courseId: { userId, courseId: parsedCourseId } },
+         update: { 
+           status: isFree ? 'active' : 'pending', 
+-          couponId: appliedCoupon?.id,
+-          enrolledAt: new Date()
++          couponId: appliedCoupon?.id 
+         },
+         create: {
+           userId,
+@@ -837,12 +824,7 @@ const verifyPayment = async (req, res) => {
+       }
+     }
+ 
+-    // [BUG-01 FIX] Fallback MOCK MODE chỉ cho phép trong development
+-    if (process.env.NODE_ENV !== 'development') {
+-      return res.status(400).json({ error: 'Không thể xác thực giao dịch. Vui lòng chờ IPN từ cổng thanh toán.' });
+-    }
+-
+-    // Fallback: MOCK MODE (development only)
++    // Fallback: MOCK MODE or VNPAY mock
+     await prisma.$transaction([
+       prisma.paymentTransaction.update({
+         where: { id: payment.id },
+@@ -853,7 +835,7 @@ const verifyPayment = async (req, res) => {
+         data: { status: 'active' }
+       })
+     ]);
+-    return res.status(200).json({ status: 'PAID', message: 'Mock mode success (dev only)' });
++    return res.status(200).json({ status: 'PAID', message: 'Mock mode success' });
+ 
+   } catch (err) {
+     console.error('Lỗi khi verify thanh toán:', err.response?.data || err.message);
+diff --git a/server/controllers/learningController.js b/server/controllers/learningController.js
+index 8f33d47..14c331b 100644
+--- a/server/controllers/learningController.js
++++ b/server/controllers/learningController.js
+@@ -52,28 +52,15 @@ const findActiveEnrollment = async (userId, courseId) => {
+ const issueCertificateIfDone = async (userId, courseId, enrollmentId, progressPercent) => {
+   if (progressPercent >= 100 && enrollmentId) {
+     const existingCert = await prisma.certificate.findUnique({ where: { enrollmentId } });
+-    const course = await prisma.course.findUnique({ where: { id: courseId } });
+-    const currentVersion = course?.version || 1;
+-
+     if (!existingCert) {
+-      // [BUG-08 FIX] Tạo certificate mới
++      const course = await prisma.course.findUnique({ where: { id: courseId } });
+       await prisma.certificate.create({
+         data: {
+           enrollmentId,
+           userId,
+           courseId,
+           certificateCode: crypto.randomUUID(),
+-          courseVersion: currentVersion
+-        }
+-      });
+-    } else if (!existingCert.isRevoked && existingCert.courseVersion !== currentVersion) {
+-      // [BUG-08 FIX] Cập nhật certificate khi course version thay đổi
+-      await prisma.certificate.update({
+-        where: { enrollmentId },
+-        data: {
+-          certificateCode: crypto.randomUUID(),
+-          courseVersion: currentVersion,
+-          issuedAt: new Date()
++          courseVersion: course?.version || 1
+         }
+       });
+     }
+@@ -574,44 +561,6 @@ const checkPrecedingLessonsCompleted = async (userId, courseId, lessonId) => {
+   return true;
+ };
+ 
+-// =====================================================
+-// Helper: Check if current lesson's material (video/document/text) is completed
+-// =====================================================
+-const checkLessonMaterialCompleted = async (userId, lesson) => {
+-  if (lesson.contentType === 'video' || lesson.contentType === 'text' || lesson.contentType === 'document' || lesson.contentType === 'quiz') {
+-    const progress = await prisma.lessonCompletion.findUnique({
+-      where: { userId_lessonId: { userId, lessonId: lesson.id } },
+-    });
+-
+-    const duration = lesson.durationSeconds || 0;
+-    const lastCheckpoint = progress?.lastCheckpointTime || 0;
+-
+-    // We only enforce completion if the lesson has content (contentUrl is not null/empty)
+-    if (lesson.contentUrl && lesson.contentUrl.trim() !== '') {
+-      if (duration > 0) {
+-        const requiredSeconds = Math.floor(duration * 0.9);
+-        if (lastCheckpoint < requiredSeconds) {
+-          return {
+-            completed: false,
+-            message: lesson.contentType === 'video'
+-              ? `Bạn cần xem ít nhất 90% video trước khi làm bài trắc nghiệm. Hiện tại mới xem ${lastCheckpoint}/${duration} giây.`
+-              : `Bạn cần đọc tài liệu ít nhất 90% thời gian yêu cầu trước khi làm bài trắc nghiệm. Hiện tại mới đọc ${lastCheckpoint}/${duration} giây.`
+-          };
+-        }
+-      } else {
+-        // If duration is 0, they must have at least opened/saved some progress on the lesson
+-        if (!progress) {
+-          return {
+-            completed: false,
+-            message: 'Bạn cần mở tài liệu và xem nội dung bài học trước khi làm bài trắc nghiệm.'
+-          };
+-        }
+-      }
+-    }
+-  }
+-  return { completed: true };
+-};
+-
+ // =====================================================
+ // 6. POST /api/learning/lessons/:lessonId/complete
+ // Đánh dấu hoàn thành bài học
+@@ -634,10 +583,6 @@ const completeLesson = async (req, res) => {
+       return error(res, 400, 'Bài quiz phải hoàn thành bằng cách nộp bài quiz, không thể hoàn thành thủ công.');
+     }
+ 
+-    if (lesson.quiz) {
+-      return error(res, 400, 'Bài học này có bài kiểm tra (quiz) đi kèm. Bạn phải hoàn thành và vượt qua bài quiz để hoàn thành bài học này.');
+-    }
+-
+     // Enforce sequential lesson ordering: all preceding lessons must be completed first
+     const precedingCompleted = await checkPrecedingLessonsCompleted(userId, access.courseId, lessonId);
+     if (!precedingCompleted) {
+@@ -661,21 +606,6 @@ const completeLesson = async (req, res) => {
+       }
+     }
+ 
+-    // [BUG-09 FIX] Kiểm tra thời gian đọc tối thiểu cho text lessons
+-    if (lesson.contentType === 'text') {
+-      const contentLength = (lesson.contentUrl || '').length;
+-      const minReadTime = Math.max(Math.floor(contentLength / 500), 30);
+-      const timeSpent = progress?.timeSpentSeconds || 0;
+-
+-      if (timeSpent < minReadTime) {
+-        return error(
+-          res,
+-          400,
+-          `Bạn cần đọc bài viết ít nhất ${minReadTime} giây. Hiện tại mới đọc ${timeSpent} giây.`
+-        );
+-      }
+-    }
+-
+     const now = new Date();
+     const completion = await prisma.lessonCompletion.upsert({
+       where: { userId_lessonId: { userId, lessonId } },
+@@ -896,11 +826,6 @@ const startQuiz = async (req, res) => {
+       return error(res, 400, 'Bạn cần hoàn thành các bài học trước đó trước khi làm quiz này.');
+     }
+ 
+-    const materialCompleted = await checkLessonMaterialCompleted(userId, quiz.lesson);
+-    if (!materialCompleted.completed) {
+-      return error(res, 400, materialCompleted.message);
+-    }
+-
+     const totalQuestions = await prisma.question.count({
+       where: {
+         quizId,
+@@ -991,10 +916,9 @@ const checkAttemptOwnerAndTime = async (userId, attemptId) => {
+   if (attempt.quiz.timeLimitMinutes) {
+     const expiredAt = new Date(attempt.startedAt.getTime() + attempt.quiz.timeLimitMinutes * 60 * 1000);
+     if (new Date() > expiredAt) {
+-      // [BUG-11 FIX] Dùng 'abandoned' thay vì 'expired' vì schema chỉ cho phép in_progress/submitted/abandoned
+       await prisma.userQuizAttempt.update({
+         where: { id: attemptId },
+-        data: { status: 'abandoned', finishedAt: new Date(), score: 0, passed: false },
++        data: { status: 'expired', finishedAt: new Date(), score: 0, passed: false },
+       });
+       return { ok: false, status: 400, message: 'Đã hết thời gian làm quiz.' };
+     }
+@@ -1084,11 +1008,6 @@ const submitQuizAttempt = async (req, res) => {
+       return error(res, 400, 'Bạn cần hoàn thành các bài học trước đó trước khi làm quiz này.');
+     }
+ 
+-    const materialCompleted = await checkLessonMaterialCompleted(userId, checked.attempt.quiz.lesson);
+-    if (!materialCompleted.completed) {
+-      return error(res, 400, materialCompleted.message);
+-    }
+-
+     const questions = await prisma.question.findMany({
+       where: { quizId: checked.attempt.quizId, deletedAt: null },
+       include: {
+diff --git a/server/controllers/reviewController.js b/server/controllers/reviewController.js
+index 82f0fa0..7c4f7cd 100644
+--- a/server/controllers/reviewController.js
++++ b/server/controllers/reviewController.js
+@@ -46,7 +46,7 @@ const getCourseReviews = async (req, res) => {
+   try {
+     const { courseId } = req.params;
+     const reviews = await prisma.courseReview.findMany({
+-      where: { courseId: Number(courseId) },
++      where: { courseId: Number(courseId), deletedAt: null },
+       include: {
+         user: { select: { username: true, avatarUrl: true } }
+       },
+diff --git a/server/controllers/videoController.js b/server/controllers/videoController.js
+index 301a9d8..c903744 100644
+--- a/server/controllers/videoController.js
++++ b/server/controllers/videoController.js
+@@ -48,9 +48,9 @@ const getVideoPlayback = async (req, res) => {
+       { expiresIn: '4h' } // Sau 4 tiếng link sẽ tự chết
+     );
+ 
+-    // [BUG-15 FIX] Sử dụng VIDEO_STREAM_BASE_URL từ env thay vì hardcode domain giả
+-    const streamBaseUrl = process.env.VIDEO_STREAM_BASE_URL || `${process.env.API_URL || 'http://localhost:5000'}/api/stream`;
+-    const streamUrl = `${streamBaseUrl}/${videoId}.m3u8?token=${videoToken}`;
++    // 4. Trả về đường link HLS (chuẩn stream video) kèm theo Token
++    // Frontend sẽ dùng link này bỏ vào Video Player
++    const streamUrl = `https://stream.your-domain.com/${videoId}.m3u8?token=${videoToken}`;
+ 
+     res.status(200).json({ 
+       playbackUrl: streamUrl,
+diff --git a/server/lib/cronJobs.js b/server/lib/cronJobs.js
+index 2c52b04..5c9f968 100644
+--- a/server/lib/cronJobs.js
++++ b/server/lib/cronJobs.js
+@@ -47,15 +47,12 @@ const initCleanupEnrollmentsJob = () => {
+               });
+             }
+ 
+-            // Hoàn lại lượt dùng của coupon (nếu có và usedCount > 0)
++            // Hoàn lại lượt dùng của coupon (nếu có)
+             if (enrollment.couponId) {
+-              const coupon = await tx.coupon.findUnique({ where: { id: enrollment.couponId } });
+-              if (coupon && coupon.usedCount > 0) {
+-                await tx.coupon.update({
+-                  where: { id: enrollment.couponId },
+-                  data: { usedCount: { decrement: 1 } }
+-                });
+-              }
++              await tx.coupon.update({
++                where: { id: enrollment.couponId },
++                data: { usedCount: { decrement: 1 } }
++              });
+             }
+           });
+           console.log(`[CRON] Đã dọn dẹp enrollment ID ${enrollment.id} thành công.`);
+diff --git a/server/prisma/schema.prisma b/server/prisma/schema.prisma
+index 48ea190..f628e5d 100644
+--- a/server/prisma/schema.prisma
++++ b/server/prisma/schema.prisma
+@@ -194,7 +194,6 @@ model Enrollment {
+   id         Int       @id @default(autoincrement())
+   userId     Int       @map("user_id")
+   courseId   Int       @map("course_id")
+-  // [BUG-10 FIX] Valid values: 'pending', 'active', 'expired', 'revoked'
+   status     String    @default("active")
+   couponId   Int?      @map("coupon_id")
+   enrolledAt DateTime  @default(now()) @map("enrolled_at")
+diff --git a/server/routes/categoryRoutes.js b/server/routes/categoryRoutes.js
+index 9d0c81a..6a5f012 100644
+--- a/server/routes/categoryRoutes.js
++++ b/server/routes/categoryRoutes.js
+@@ -1,14 +1,14 @@
+ const express = require('express');
+ const router = express.Router();
+ const categoryController = require('../controllers/categoryController');
+-const { authenticate, requireAdmin } = require('../middleware/auth');
++const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
+ 
+ // [Public] Lấy danh sách danh mục
+ router.get('/', categoryController.getAllCategories);
+ 
+ // [Admin] Thêm, sửa, xóa danh mục
+-router.post('/', authenticate, requireAdmin, categoryController.createCategory);
+-router.put('/:id', authenticate, requireAdmin, categoryController.updateCategory);
+-router.delete('/:id', authenticate, requireAdmin, categoryController.deleteCategory);
++router.post('/', verifyToken, verifyAdmin, categoryController.createCategory);
++router.put('/:id', verifyToken, verifyAdmin, categoryController.updateCategory);
++router.delete('/:id', verifyToken, verifyAdmin, categoryController.deleteCategory);
+ 
+ module.exports = router;
+\ No newline at end of file
+diff --git a/server/routes/courseContentRoutes.js b/server/routes/courseContentRoutes.js
+index afaba33..1ce7f46 100644
+--- a/server/routes/courseContentRoutes.js
++++ b/server/routes/courseContentRoutes.js
+@@ -2,10 +2,10 @@ const express = require('express');
+ const router = express.Router();
+ const courseContentController = require('../controllers/courseContentController');
+ const quizController = require('../controllers/quizController');
+-const { authenticate, requireAdmin } = require('../middleware/auth');
++const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
+ 
+ // Áp dụng middleware Admin cho TOÀN BỘ file này
+-router.use(authenticate, requireAdmin);
++router.use(verifyToken, verifyAdmin);
+ 
+ // Routes cho Section (Chương)
+ router.post('/sections', courseContentController.createSection);
+diff --git a/server/routes/courseRoutes.js b/server/routes/courseRoutes.js
+index d71f4ae..a5f3365 100644
+--- a/server/routes/courseRoutes.js
++++ b/server/routes/courseRoutes.js
+@@ -3,22 +3,22 @@ const router = express.Router();
+ const courseController = require('../controllers/courseController');
+ 
+ // Import các middleware bảo vệ
+-const { authenticate, requireAdmin } = require('../middleware/auth');
++const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
+ 
+ // Public
+ router.get('/', courseController.getAllCourses);
+ router.get('/stats', courseController.getPublicStats);
+ 
+ // [Protected - Admin Only] Đặt TRƯỚC route /:slug để tránh xung đột
+-router.get('/admin/all', authenticate, requireAdmin, courseController.getAdminCourses);
+-router.post('/', authenticate, requireAdmin, courseController.createCourse);
+-router.post('/upload', authenticate, requireAdmin, courseController.uploadImage);
++router.get('/admin/all', verifyToken, verifyAdmin, courseController.getAdminCourses);
++router.post('/', verifyToken, verifyAdmin, courseController.createCourse);
++router.post('/upload', verifyToken, verifyAdmin, courseController.uploadImage);
+ 
+ // Public - Chi tiết khóa học theo slug
+ router.get('/:slug', courseController.getCourseBySlug);
+ 
+ // Admin CRUD
+-router.put('/:id', authenticate, requireAdmin, courseController.updateCourse);
+-router.delete('/:id', authenticate, requireAdmin, courseController.deleteCourse);
++router.put('/:id', verifyToken, verifyAdmin, courseController.updateCourse);
++router.delete('/:id', verifyToken, verifyAdmin, courseController.deleteCourse);
+ 
+ module.exports = router;
+\ No newline at end of file
+diff --git a/server/routes/learningRoutes.js b/server/routes/learningRoutes.js
+index 386fbe1..3b31610 100644
+--- a/server/routes/learningRoutes.js
++++ b/server/routes/learningRoutes.js
+@@ -1,8 +1,7 @@
+ const express = require('express');
+ const router = express.Router();
+ const learningController = require('../controllers/learningController');
+-// [BUG-06 FIX] Thống nhất dùng auth.js thay vì authMiddleware.js để tránh mismatch secret
+-const { authenticate } = require('../middleware/auth');
++const { verifyToken } = require('../middleware/authMiddleware');
+ 
+ // =====================================================
+ // LEARNING API - API học tập của user
+@@ -10,45 +9,45 @@ const { authenticate } = require('../middleware/auth');
+ // =====================================================
+ 
+ // 1. Trang My Learning: các khóa học user đã đăng ký
+-router.get('/my-courses', authenticate, learningController.getMyLearningCourses);
++router.get('/my-courses', verifyToken, learningController.getMyLearningCourses);
+ 
+ // 2. Vào học một khóa học: lấy course + section + lesson + progress
+-router.get('/courses/:courseId', authenticate, learningController.getLearningCourse);
++router.get('/courses/:courseId', verifyToken, learningController.getLearningCourse);
+ 
+ // 3. Xem tiến độ toàn khóa
+-router.get('/courses/:courseId/progress', authenticate, learningController.getCourseProgress);
++router.get('/courses/:courseId/progress', verifyToken, learningController.getCourseProgress);
+ 
+ // 4. Mở chi tiết bài học
+-router.get('/lessons/:lessonId', authenticate, learningController.getLessonDetail);
++router.get('/lessons/:lessonId', verifyToken, learningController.getLessonDetail);
+ 
+ // 5. Lưu checkpoint/progress khi xem video
+-router.post('/lessons/:lessonId/progress', authenticate, learningController.updateProgress);
++router.post('/lessons/:lessonId/progress', verifyToken, learningController.updateProgress);
+ 
+ // 6. Đánh dấu hoàn thành bài học
+-router.post('/lessons/:lessonId/complete', authenticate, learningController.completeLesson);
++router.post('/lessons/:lessonId/complete', verifyToken, learningController.completeLesson);
+ 
+ // 7. Lấy bài học tiếp theo
+-router.get('/lessons/:lessonId/next', authenticate, learningController.getNextLesson);
++router.get('/lessons/:lessonId/next', verifyToken, learningController.getNextLesson);
+ 
+ // 8. Lấy tài liệu đính kèm của bài học
+-router.get('/lessons/:lessonId/attachments', authenticate, learningController.getLessonAttachments);
++router.get('/lessons/:lessonId/attachments', verifyToken, learningController.getLessonAttachments);
+ 
+ // 9. Lấy quiz gắn với bài học
+-router.get('/lessons/:lessonId/quiz', authenticate, learningController.getLessonQuiz);
++router.get('/lessons/:lessonId/quiz', verifyToken, learningController.getLessonQuiz);
+ 
+ // 10. Bắt đầu làm quiz
+-router.post('/quizzes/:quizId/start', authenticate, learningController.startQuiz);
++router.post('/quizzes/:quizId/start', verifyToken, learningController.startQuiz);
+ 
+ // 11. Lấy câu hỏi của lượt làm quiz, không trả đáp án đúng
+-router.get('/quiz-attempts/:attemptId/questions', authenticate, learningController.getQuizAttemptQuestions);
++router.get('/quiz-attempts/:attemptId/questions', verifyToken, learningController.getQuizAttemptQuestions);
+ 
+ // 12. Nộp quiz để backend tự chấm điểm
+-router.post('/quiz-attempts/:attemptId/submit', authenticate, learningController.submitQuizAttempt);
++router.post('/quiz-attempts/:attemptId/submit', verifyToken, learningController.submitQuizAttempt);
+ 
+ // 13. Xem kết quả quiz sau khi đã nộp
+-router.get('/quiz-attempts/:attemptId/result', authenticate, learningController.getQuizAttemptResult);
++router.get('/quiz-attempts/:attemptId/result', verifyToken, learningController.getQuizAttemptResult);
+ 
+ // 14. Xem lịch sử làm quiz của user
+-router.get('/quizzes/:quizId/attempts', authenticate, learningController.getQuizAttempts);
++router.get('/quizzes/:quizId/attempts', verifyToken, learningController.getQuizAttempts);
+ 
+ module.exports = router;
+diff --git a/server/routes/userRoutes.js b/server/routes/userRoutes.js
+index 16366ae..1f028c7 100644
+--- a/server/routes/userRoutes.js
++++ b/server/routes/userRoutes.js
+@@ -3,6 +3,7 @@ const router = express.Router();
+ const userController = require('../controllers/userController');
+ const { authenticate } = require('../middleware/auth');
+ const { validateUpdateMe } = require('../middleware/validators');
++const { verifyToken } = require('../middleware/authMiddleware');
+ const { uploadImage } = require('../middleware/uploadMiddleware');
+ 
+ // All routes require authentication
+@@ -12,8 +13,14 @@ router.use(authenticate);
+ router.get('/me', userController.getMe);
+ router.get('/me/transactions', userController.getMyTransactions);
+ router.put('/me', validateUpdateMe, userController.updateMe);
++router.put('/avatar', verifyToken, uploadImage, userController.updateAvatar);
+ 
+ // API cập nhật Avatar: Đi qua Token -> Đi qua bộ lọc File -> Vào Controller
+-router.put('/avatar', uploadImage, userController.updateAvatar);
++router.put(
++  '/avatar', 
++  verifyToken, 
++  uploadImage, // Chuỗi bảo vệ file
++  userController.updateAvatar 
++);
+ 
+ module.exports = router;
+diff --git a/server/routes/videoRoutes.js b/server/routes/videoRoutes.js
+index 12e608a..340e175 100644
+--- a/server/routes/videoRoutes.js
++++ b/server/routes/videoRoutes.js
+@@ -1,9 +1,9 @@
+ const express = require('express');
+ const router = express.Router();
+ const videoController = require('../controllers/videoController');
+-const { authenticate } = require('../middleware/auth');
++const { verifyToken } = require('../middleware/authMiddleware');
+ 
+ // Frontend gọi API này để lấy link stream video (Bắt buộc phải đăng nhập)
+-router.get('/:lessonId/playback', authenticate, videoController.getVideoPlayback);
++router.get('/:lessonId/playback', verifyToken, videoController.getVideoPlayback);
+ 
+ module.exports = router;
+\ No newline at end of file
+diff --git a/server/server.js b/server/server.js
+index 2b74af6..2938b82 100644
+--- a/server/server.js
++++ b/server/server.js
+@@ -1,115 +1,114 @@
+-require('dotenv').config();
+-
+-const express = require('express');
+-const cors = require('cors');
+-const helmet = require('helmet');
+-const cookieParser = require('cookie-parser');
+-const rateLimit = require('express-rate-limit');
+-const { initEmailTransporter } = require('./lib/email');
+-const errorHandler = require('./middleware/errorMiddleware');
+-const { startCronJobs } = require('./lib/cronJobs');
+-
+-
+-
+-// Import routes
+-const authRoutes = require('./routes/authRoutes');
+-const userRoutes = require('./routes/userRoutes');
+-const courseRoutes = require('./routes/courseRoutes'); 
+-const adminRoutes = require('./routes/adminRoutes');
+-const enrollmentRoutes = require('./routes/enrollmentRoutes');
+-const categoryRoutes = require('./routes/categoryRoutes');
+-const courseContentRoutes = require('./routes/courseContentRoutes');
+-const videoRoutes = require('./routes/videoRoutes');
+-const learningRoutes = require('./routes/learningRoutes');
+-const certificateRoutes = require('./routes/certificateRoutes');
+-const reviewRoutes = require('./routes/reviewRoutes');
+-
+-const app = express();
+-const PORT = process.env.PORT || 5000;
+-
+-// Trust proxy for express-rate-limit to work correctly on Render
+-app.set('trust proxy', 1);
+-
+-// Security: Helmet (sets various HTTP security headers)
+-app.use(helmet());
+-
+-// Security: Rate Limiting
+-const limiter = rateLimit({
+-  windowMs: 15 * 60 * 1000, // 15 minutes
+-  max: process.env.NODE_ENV === 'production' ? 200 : 10000, // limit each IP to 200 requests in prod, 10000 in dev
+-  message: { success: false, error: 'Quá nhiều request từ IP này, vui lòng thử lại sau.' }
+-});
+-
+-// Middleware
+-const allowedOrigins = [
+-  process.env.CLIENT_URL,
+-  'http://localhost:3000',
+-].filter(Boolean);
+-
+-app.use(cors({ 
+-  origin: (origin, callback) => {
+-    // Allow requests with no origin (like mobile apps, curl, or postman)
+-    if (!origin) return callback(null, true);
+-    
+-    const isAllowed = allowedOrigins.includes(origin) || 
+-                      origin.endsWith('.vercel.app') || 
+-                      /^http:\/\/localhost:\d+$/.test(origin);
+-                      
+-    if (isAllowed) {
+-      callback(null, true);
+-    } else {
+-      callback(new Error('Not allowed by CORS'));
+-    }
+-  },
+-  credentials: true 
+-}));
+-app.use(limiter);
+-app.use(express.json({ limit: '10mb' }));
+-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+-app.use(cookieParser());
+-
+-// Serve static uploads
+-const path = require('path');
+-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+-
+-// Health check endpoint
+-app.get('/api/health', (req, res) => {
+-  res.status(200).json({ status: 'OK', message: 'Server đang chạy' });
+-});
+-
+-// Mount routes
+-app.use('/api/auth', authRoutes);
+-app.use('/api/users', userRoutes);
+-app.use('/api/courses', courseRoutes);
+-app.use('/api/admin', adminRoutes);
+-app.use('/api/enrollments', enrollmentRoutes);
+-app.use('/api/categories', categoryRoutes);
+-app.use('/api/content', courseContentRoutes);
+-app.use('/api/videos', videoRoutes);
+-app.use('/api/learning', learningRoutes);
+-app.use('/api/certificates', certificateRoutes);
+-app.use('/api/courses/:courseId/reviews', reviewRoutes);
+-
+-// [BUG-14 FIX] Mount /api/files TRƯỚC error handler để lỗi được catch đúng
+-app.use('/api/files', express.static(path.join(__dirname, '../storage/uploads'), {
+-  fallthrough: false,
+-  setHeaders: (res, filePath) => {
+-    // Ép trình duyệt không được chạy file nội dung lạ (Bảo mật thêm 1 lớp XSS)
+-    res.setHeader('X-Content-Type-Options', 'nosniff');
+-  }
+-}));
+-
+-// Global Error Handler (MUST BE THE LAST MIDDLEWARE)
+-app.use(errorHandler);
+-
+-// Khởi động server
+-app.listen(PORT, '0.0.0.0', async () => {
+-  console.log(`Backend REST API đang chạy tại http://0.0.0.0:${PORT}`);
+-  try {
+-    await initEmailTransporter();
+-    startCronJobs();
+-  } catch (error) {
+-    console.error('Lỗi khi khởi tạo email service:', error);
+-  }
+-});
+-
+\ No newline at end of file
++require('dotenv').config();
++
++const express = require('express');
++const cors = require('cors');
++const helmet = require('helmet');
++const cookieParser = require('cookie-parser');
++const rateLimit = require('express-rate-limit');
++const { initEmailTransporter } = require('./lib/email');
++const errorHandler = require('./middleware/errorMiddleware');
++const { startCronJobs } = require('./lib/cronJobs');
++
++
++
++// Import routes
++const authRoutes = require('./routes/authRoutes');
++const userRoutes = require('./routes/userRoutes');
++const courseRoutes = require('./routes/courseRoutes'); 
++const adminRoutes = require('./routes/adminRoutes');
++const enrollmentRoutes = require('./routes/enrollmentRoutes');
++const categoryRoutes = require('./routes/categoryRoutes');
++const courseContentRoutes = require('./routes/courseContentRoutes');
++const videoRoutes = require('./routes/videoRoutes');
++const learningRoutes = require('./routes/learningRoutes');
++const certificateRoutes = require('./routes/certificateRoutes');
++const reviewRoutes = require('./routes/reviewRoutes');
++
++const app = express();
++const PORT = process.env.PORT || 5000;
++
++// Trust proxy for express-rate-limit to work correctly on Render
++app.set('trust proxy', 1);
++
++// Security: Helmet (sets various HTTP security headers)
++app.use(helmet());
++
++// Security: Rate Limiting
++const limiter = rateLimit({
++  windowMs: 15 * 60 * 1000, // 15 minutes
++  max: process.env.NODE_ENV === 'production' ? 200 : 10000, // limit each IP to 200 requests in prod, 10000 in dev
++  message: { success: false, error: 'Quá nhiều request từ IP này, vui lòng thử lại sau.' }
++});
++
++// Middleware
++const allowedOrigins = [
++  process.env.CLIENT_URL,
++  'http://localhost:3000',
++].filter(Boolean);
++
++app.use(cors({ 
++  origin: (origin, callback) => {
++    // Allow requests with no origin (like mobile apps, curl, or postman)
++    if (!origin) return callback(null, true);
++    
++    const isAllowed = allowedOrigins.includes(origin) || 
++                      origin.endsWith('.vercel.app') || 
++                      /^http:\/\/localhost:\d+$/.test(origin);
++                      
++    if (isAllowed) {
++      callback(null, true);
++    } else {
++      callback(new Error('Not allowed by CORS'));
++    }
++  },
++  credentials: true 
++}));
++app.use(limiter);
++app.use(express.json({ limit: '10mb' }));
++app.use(express.urlencoded({ limit: '10mb', extended: true }));
++app.use(cookieParser());
++
++// Serve static uploads
++const path = require('path');
++app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
++
++// Health check endpoint
++app.get('/api/health', (req, res) => {
++  res.status(200).json({ status: 'OK', message: 'Server đang chạy' });
++});
++
++// Mount routes
++app.use('/api/auth', authRoutes);
++app.use('/api/users', userRoutes);
++app.use('/api/courses', courseRoutes);
++app.use('/api/admin', adminRoutes);
++app.use('/api/enrollments', enrollmentRoutes);
++app.use('/api/categories', categoryRoutes);
++app.use('/api/content', courseContentRoutes);
++app.use('/api/videos', videoRoutes);
++app.use('/api/learning', learningRoutes);
++app.use('/api/certificates', certificateRoutes);
++app.use('/api/courses/:courseId/reviews', reviewRoutes);
++
++// Global Error Handler (MUST BE THE LAST MIDDLEWARE)
++app.use(errorHandler);
++
++// Khởi động server
++app.listen(PORT, '0.0.0.0', async () => {
++  console.log(`Backend REST API đang chạy tại http://0.0.0.0:${PORT}`);
++  try {
++    await initEmailTransporter();
++    startCronJobs();
++  } catch (error) {
++    console.error('Lỗi khi khởi tạo email service:', error);
++  }
++});
++
++// Mở endpoint phục vụ file (Chỉ trả về file tĩnh, không thực thi)
++app.use('/api/files', express.static(path.join(__dirname, '../storage/uploads'), {
++  fallthrough: false,
++  setHeaders: (res, filePath) => {
++    // Ép trình duyệt không được chạy file nội dung lạ (Bảo mật thêm 1 lớp XSS)
++    res.setHeader('X-Content-Type-Options', 'nosniff');
++  }
++}));
+\ No newline at end of file

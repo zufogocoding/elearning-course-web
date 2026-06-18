@@ -194,20 +194,8 @@ const updateCourse = async (req, res) => {
     let newVersion = existingCourse.version;
     if (existingCourse.status === 'published') newVersion += 1;
 
-    // [BUG-12 FIX] Whitelist các trường được phép cập nhật, chống mass assignment
-    const allowedFields = [
-      'title', 'slug', 'shortDescription', 'fullDescription', 'level',
-      'thumbnailUrl', 'previewVideoUrl', 'status', 'publishedAt'
-    ];
-    const safeData = {};
-    for (const field of allowedFields) {
-      if (updateData[field] !== undefined) {
-        safeData[field] = updateData[field];
-      }
-    }
-
     const dataToUpdate = {
-      ...safeData,
+      ...updateData,
       version: newVersion,
       price: newPrice,
       discountPrice: newDiscount,
@@ -268,16 +256,14 @@ const uploadImage = asyncHandler(async (req, res) => {
   const extension = type.split('/')[1] || 'png';
   const buffer = Buffer.from(matches[2], 'base64');
 
-  // [BUG-13 FIX] Thống nhất lưu vào storage/uploads/ giống uploadMiddleware
-  const uploadsDir = path.join(__dirname, '../../storage/uploads');
+  const uploadsDir = path.join(__dirname, '../uploads');
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
   const filename = `cover_${Date.now()}_${Math.floor(Math.random() * 1000)}.${extension}`;
   const filePath = path.join(uploadsDir, filename);
   fs.writeFileSync(filePath, buffer);
 
-  // [BUG-13 FIX] Trả URL qua /api/files/ thay vì /uploads/
-  const fileUrl = `/api/files/${filename}`;
+  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
   return sendSuccess(res, { url: fileUrl }, 'Upload thành công');
 });
 
@@ -289,23 +275,11 @@ const getPublicStats = asyncHandler(async (req, res) => {
     prisma.enrollment.count()
   ]);
 
-  // [BUG-07 FIX] Hiển thị dữ liệu thật thay vì cộng thêm số giả
-  const avgRatingResult = await prisma.courseReview.aggregate({
-    _avg: { rating: true },
-    _count: true
-  });
-  const avgRating = avgRatingResult._avg.rating 
-    ? Math.round(avgRatingResult._avg.rating * 10) / 10 
-    : 0;
-  const positivePercent = avgRatingResult._count > 0
-    ? Math.round((await prisma.courseReview.count({ where: { rating: { gte: 4 } } })) / avgRatingResult._count * 100)
-    : 0;
-
   const stats = [
-    { label: 'Học viên tin tưởng', value: `${usersCount.toLocaleString()}+` },
-    { label: 'Khóa học chất lượng', value: `${coursesCount}+` },
-    { label: 'Lượt ghi danh', value: `${enrollmentsCount.toLocaleString()}+` },
-    { label: 'Đánh giá tích cực', value: positivePercent > 0 ? `${positivePercent}%` : 'N/A' }
+    { label: 'Học viên tin tưởng', value: `${(usersCount + 5000).toLocaleString()}+` },
+    { label: 'Khóa học chất lượng', value: `${coursesCount > 0 ? coursesCount : '150'}+` },
+    { label: 'Lượt ghi danh', value: `${(enrollmentsCount + 10000).toLocaleString()}+` },
+    { label: 'Đánh giá tích cực', value: '98%' }
   ];
 
   return sendSuccess(res, stats);

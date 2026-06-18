@@ -48,9 +48,9 @@ const getVideoPlayback = async (req, res) => {
       { expiresIn: '4h' } // Sau 4 tiếng link sẽ tự chết
     );
 
-    // [BUG-15 FIX] Sử dụng VIDEO_STREAM_BASE_URL từ env thay vì hardcode domain giả
-    const streamBaseUrl = process.env.VIDEO_STREAM_BASE_URL || `${process.env.API_URL || 'http://localhost:5000'}/api/stream`;
-    const streamUrl = `${streamBaseUrl}/${videoId}.m3u8?token=${videoToken}`;
+    // 4. Trả về đường link HLS (chuẩn stream video) kèm theo Token
+    // Frontend sẽ dùng link này bỏ vào Video Player
+    const streamUrl = `https://stream.your-domain.com/${videoId}.m3u8?token=${videoToken}`;
 
     res.status(200).json({ 
       playbackUrl: streamUrl,

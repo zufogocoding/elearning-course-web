@@ -461,113 +461,6 @@ export default function LearnPage() {
     );
   }
 
-  const renderQuizContent = () => {
-    if (!currentLessonDetail?.quiz) return null;
-    return (
-      <div className="w-full text-[#e2e8f0] select-text">
-        {!quizAttempt ? (
-          <div className="flex flex-col items-center justify-center p-6 text-center">
-            <Trophy className="w-14 h-14 text-amber-400 mb-4 animate-bounce" />
-            <h3 className="text-base font-bold mb-2">{currentLessonDetail.quiz?.title || "Bài Quiz Kiểm Tra"}</h3>
-            <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
-              {currentLessonDetail.quiz?.description || "Kiểm tra lại kiến thức đã học trong chương này. Điểm đạt yêu cầu: " + (currentLessonDetail.quiz?.passingScore || 80) + "%"}
-            </p>
-            {quizError && <p className="text-xs text-rose-500 mb-4">{quizError}</p>}
-            
-            {/* Conditional Start Quiz Button based on reading completeness */}
-            {currentLessonDetail.contentType !== "quiz" && !documentReadComplete ? (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl max-w-sm mb-4 mx-auto">
-                <p className="text-xs font-semibold">
-                  Bạn cần hoàn thành nội dung bài học (xem video / đọc tài liệu) trước khi bắt đầu làm bài Quiz này!
-                </p>
-              </div>
-            ) : null}
-
-            <button
-              onClick={handleStartQuiz}
-              disabled={quizLoading || (currentLessonDetail.contentType !== "quiz" && !documentReadComplete)}
-              className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 text-sm cursor-pointer mx-auto"
-            >
-              {quizLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-slate-950" /> : <PlayCircle className="w-4 h-4" />}
-              Bắt đầu làm bài Quiz
-            </button>
-          </div>
-        ) : quizAttempt && quizQuestions.length > 0 && !quizResult ? (
-          <div className="p-5 flex flex-col select-text text-left">
-            <div className="flex justify-between items-center border-b border-[#252840] pb-3 mb-3 shrink-0">
-              <h3 className="font-bold text-xs text-amber-400 uppercase tracking-wider">ĐANG LÀM BÀI QUIZ: {currentLessonDetail.quiz?.title}</h3>
-              {quizTimeLeft > 0 && (
-                <span className="text-[11px] font-bold text-rose-400 bg-rose-400/15 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
-                  Còn lại: {formatTime(quizTimeLeft)}
-                </span>
-              )}
-            </div>
-            <div className="space-y-5 overflow-y-auto max-h-[500px] pr-1">
-              {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
-                <div key={q.id} className="space-y-2.5">
-                  <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
-                  <div className="grid grid-cols-1 gap-2 pl-2">
-                    {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
-                      <label
-                        key={opt.id}
-                        className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
-                          selectedAnswers[q.id] === opt.id
-                            ? "border-amber-500 bg-amber-500/10 text-amber-300 font-bold"
-                            : "border-[#252840] hover:bg-[#1a1d2e] text-[#a0aec0]"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`question-${q.id}`}
-                          checked={selectedAnswers[q.id] === opt.id}
-                          onChange={() => handleSelectAnswer(q.id, opt.id)}
-                          className="accent-amber-500 cursor-pointer"
-                        />
-                        <span>{opt.optionText}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-[#252840] pt-3 mt-3 shrink-0 flex justify-end">
-              <button
-                onClick={handleSubmitQuiz}
-                disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-xs"
-              >
-                {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
-              </button>
-            </div>
-          </div>
-        ) : quizResult ? (
-          <div className="flex flex-col items-center justify-center p-6 text-center">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
-              quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-400" : "bg-rose-500/20 ring-rose-500/10 text-rose-400"
-            }`}>
-              {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
-            </div>
-            <h3 className="text-base font-bold mb-1">
-              {quizResult.passed ? "Chúc mừng bạn đã vượt qua!" : "Rất tiếc, bạn chưa đạt điểm yêu cầu"}
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Điểm số: <span className="font-bold text-white">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
-            </p>
-            {!quizResult.passed && (
-              <button
-                onClick={handleStartQuiz}
-                disabled={quizLoading}
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer mx-auto"
-              >
-                <PlayCircle className="w-4 h-4" /> Thử lại bài Quiz
-              </button>
-            )}
-          </div>
-        ) : null}
-      </div>
-    );
-  };
-
   if (authLoading || loadingCourse) {
     return (
       <div className={`h-screen flex flex-col overflow-hidden font-sans transition-colors duration-300 ${t.root}`}>
@@ -603,7 +496,7 @@ export default function LearnPage() {
         <div className={`w-px h-5 shrink-0 ${isDark ? "bg-[#252840]" : "bg-slate-200"}`} />
 
         <div className="flex-1 min-w-0">
-          <p className={`text-[11px] leading-none mb-0.5 truncate ${t.muted}`}>{courseDetail?.title || "Elevate Course"}</p>
+          <p className={`text-xs leading-none mb-0.5 truncate ${t.muted}`}>{courseDetail?.title || "Elevate Course"}</p>
           <p className="text-sm font-semibold leading-tight truncate">{currentLesson?.title ?? "—"}</p>
         </div>
 
@@ -645,16 +538,11 @@ export default function LearnPage() {
         {/* ── Main scroll area ── */}
         <div className="flex-1 flex flex-col overflow-y-auto min-w-0">
 
-          {/* Video / Document / Quiz Player */}
-          <div className="w-full bg-black shrink-0 relative">
-            <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-              {loadingLesson ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
-                  <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500 mb-2" />
-                  <p className="text-slate-400 text-xs">Đang tải nội dung bài học...</p>
-                </div>
-              ) : currentLessonDetail?.contentType === "video" ? (
-                videoId ? (
+          {/* ── Video Player (only for video type, uses 16:9) ── */}
+          {!loadingLesson && currentLessonDetail?.contentType === "video" && (
+            <div className="w-full bg-black shrink-0">
+              <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                {videoId ? (
                   <div className="absolute inset-0 bg-black">
                     <iframe
                       id="yt-player"
@@ -666,482 +554,431 @@ export default function LearnPage() {
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
-                    <AlertCircle className="w-12 h-12 text-slate-500 mb-2" />
-                    <p className="text-slate-400 text-xs">Không thể load video. URL không hợp lệ.</p>
-                  </div>
-                )
-              ) : currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" || currentLessonDetail?.contentType === "quiz" ? (
-                (() => {
-                  const requiredTime = currentLessonDetail?.durationSeconds ?? 5;
-                  return (
-                    <div className="absolute inset-0 flex flex-col bg-[#13151f] text-white p-5 overflow-hidden text-left">
-                      {/* Top countdown progress banner */}
-                      <div className={`p-3 rounded-xl flex items-center justify-between gap-4 border mb-4 shrink-0 ${
-                        documentReadComplete
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                          : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
-                      }`}>
-                        <div className="flex items-center gap-2">
-                          {documentReadComplete ? (
-                            <CheckCircle className="w-4 h-4 text-emerald-400" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-indigo-400 animate-spin" style={{ animationDuration: '3s' }} />
-                          )}
-                          <span className="text-[11px] font-bold">
-                            {documentReadComplete
-                              ? 'Đã đủ điều kiện hoàn thành bài đọc!'
-                              : `Cần đọc bài viết trong: ${documentReadTime}/${requiredTime} giây`}
-                          </span>
-                        </div>
-                        {!documentReadComplete && (
-                          <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-indigo-500 transition-all duration-1000"
-                              style={{ width: `${(documentReadTime / requiredTime) * 100}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Content rendering */}
-                      <div className="flex-1 overflow-y-auto pr-1">
-                        <h3 className="text-sm font-bold mb-3">{currentLessonDetail.title}</h3>
-                        {currentLessonDetail.contentType === "document" && currentLessonDetail.contentUrl ? (
-                          <div className="border border-[#252840] rounded-xl p-4 bg-[#0d0f1a] flex flex-col items-center justify-center text-center space-y-3">
-                            <FileText className="w-10 h-10 text-indigo-400" />
-                            <div>
-                              <p className="text-[11px] font-bold text-slate-300">Tài liệu đính kèm bài học</p>
-                              <p className="text-[10px] text-slate-500 mt-1 max-w-sm truncate">{currentLessonDetail.contentUrl}</p>
-                            </div>
-                            <a
-                              href={isValidUrl(currentLessonDetail.contentUrl) ? currentLessonDetail.contentUrl : "#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all flex items-center gap-1.5"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              Mở tài liệu / Tải xuống
-                            </a>
-                          </div>
-                        ) : (
-                          <div className="prose prose-invert max-w-none text-[11px] leading-relaxed text-slate-300 whitespace-pre-line bg-[#0d0f1a] p-4 rounded-xl border border-[#252840]">
-                            {currentLessonDetail.contentUrl || (currentLessonDetail.contentType === "quiz" ? 'Bài học này không có tài liệu/nội dung lý thuyết. Nhấp vào tab Quiz ở bên dưới để tiến hành làm bài kiểm tra trắc nghiệm!' : 'Nội dung bài viết đang được cập nhật...')}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
-                  <BookOpen className="w-12 h-12 text-slate-600 mb-2" />
-                  <p className="text-slate-500 text-xs">Vui lòng chọn bài học bên tay phải.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Below Video */}
-          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
-            {currentLessonDetail?.contentType === "video" && !currentLesson?.completed && (
-              <div className={`p-3 rounded-xl flex items-center justify-between gap-4 border shrink-0 ${
-                documentReadComplete
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
-              }`}>
-                <div className="flex items-center gap-2">
-                  {documentReadComplete ? (
-                    <CheckCircle className="w-4 h-4" />
-                  ) : (
-                    <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
-                  )}
-                  <span className="text-sm font-bold">
-                    {documentReadComplete
-                      ? 'Đã đủ điều kiện hoàn thành bài học!'
-                      : `Cần xem video: ${documentReadTime}/${currentLessonDetail?.durationSeconds || 30} giây`}
-                  </span>
-                </div>
-                {!documentReadComplete && (
-                  <div className="w-32 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-500 transition-all duration-1000"
-                      style={{ width: `${(documentReadTime / (currentLessonDetail?.durationSeconds || 30)) * 100}%` }}
-                    />
+                    <AlertCircle className="w-10 h-10 text-slate-500 mb-2" />
+                    <p className="text-slate-400 text-sm">Không thể load video. URL không hợp lệ.</p>
                   </div>
                 )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Lesson Nav */}
-            <div className="flex items-center justify-between gap-3">
-              <button
-                id="prev-lesson-btn"
-                onClick={goPrev}
-                disabled={curIdx <= 0}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${t.surface} ${t.hover}`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Previous</span>
-              </button>
-
-              {/* Mobile progress */}
-              <div className="flex md:hidden items-center gap-2">
-                <div className={`w-20 h-1.5 rounded-full overflow-hidden ${t.trackBg}`}>
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <span className={`text-xs font-semibold ${t.muted}`}>{progress}%</span>
+          {/* ── Main content below player ── */}
+          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+            {loadingLesson ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500 mb-3" />
+                <p className={`text-sm ${t.muted}`}>Đang tải nội dung bài học...</p>
               </div>
-
-              {currentLessonDetail?.quiz ? (
-                currentLesson?.completed ? (
-                  <button
-                    id="next-lesson-btn-quiz"
-                    onClick={goNextAndComplete}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all active:scale-[0.97]"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                    <span>{curIdx === flatUnlocked.length - 1 ? "Finish Course" : "Next Lesson"}</span>
-                  </button>
-                ) : (
-                  <div className="text-xs text-amber-500 bg-amber-500/10 px-3.5 py-2 rounded-xl border border-amber-500/20 font-bold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-400" />
-                    Hoàn thành Quiz để mở khóa bài tiếp theo
-                  </div>
-                )
-              ) : (
-                <button
-                  id="complete-next-btn"
-                  onClick={goNextAndComplete}
-                  disabled={
-                    !currentLesson?.completed &&
-                    !documentReadComplete
-                  }
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${
-                    currentLesson?.completed 
-                      ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/25 hover:shadow-emerald-500/40" 
-                      : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/25 hover:shadow-indigo-500/40"
-                  }`}
-                >
-                  {currentLesson?.completed ? <ChevronRight className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                  <span className="hidden sm:inline">
-                    {currentLesson?.completed 
-                      ? (curIdx === flatUnlocked.length - 1 ? "Finish Course" : "Next Lesson")
-                      : "Mark Complete & Next"}
-                  </span>
-                  <span className="sm:hidden">
-                    {currentLesson?.completed ? "Next" : "Complete"}
-                  </span>
-                </button>
-              )}
-            </div>
-
-            {/* Tabs */}
-            <div className={`border-b ${t.border}`}>
-              <nav className="flex gap-1 -mb-px">
-                {(
-                  (() => {
-                    const tabs = [
-                      { key: "overview", label: "Overview", Icon: BookOpen },
-                      { key: "attachments", label: "Attachments", Icon: Download },
-                    ] as { key: "overview" | "attachments" | "quiz"; label: string; Icon: any }[];
-                    if (currentLessonDetail?.quiz) {
-                      tabs.push({ key: "quiz", label: "Quiz", Icon: Trophy });
-                    }
-                    return tabs;
-                  })()
-                ).map(({ key, label, Icon }) => (
-                  <button
-                    key={key}
-                    id={`tab-${key}`}
-                    onClick={() => setActiveTab(key)}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all duration-200 ${
-                      activeTab === key ? t.tabActive : t.tabInactive
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {label}
-                  </button>
-                ))}
-              </nav>
-            </div>
-
-            {/* Tab Content */}
-            <div className="min-h-[340px] pb-10">
-
-              {/* Overview */}
-              {activeTab === "overview" && (
-                <div className="space-y-5 animate-in fade-in duration-300 slide-in-from-bottom-2">
-                  <div>
-                    <h1 className="text-xl font-bold mb-2">{currentLesson?.title}</h1>
-                    <p className={`text-sm leading-relaxed ${t.muted}`}>
-                      In this lesson you&apos;ll discover the fundamental principles of typography
-                      and how they shape the feel of a user interface. We explore font pairing
-                      strategies, type scales, line-height ratios, and when to choose serif vs.
-                      sans-serif faces for digital product design.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: "Duration", value: currentLesson?.duration ?? "—", Icon: Clock },
-                      { label: "Resources", value: "4 PDFs", Icon: FileText },
-                      { label: "Module", value: "2 of 4", Icon: BookOpen },
-                    ].map(({ label, value, Icon }) => (
-                      <div key={label} className={`border rounded-xl p-4 flex items-center gap-3 ${t.surface}`}>
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${t.iconBox}`}>
-                          <Icon className="w-4 h-4 text-indigo-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className={`text-[11px] ${t.muted} leading-none mb-0.5`}>{label}</p>
-                          <p className="text-sm font-bold truncate">{value}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className={`border rounded-xl p-5 ${t.surface}`}>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-4">
-                      What you&apos;ll learn
-                    </h3>
-                    <ul className="space-y-3">
-                      {[
-                        "Type scale & visual hierarchy in UI design",
-                        "Font pairing principles and Google Fonts best practices",
-                        "Line-height, letter-spacing, and readability rules",
-                        "Using variable fonts in modern interfaces",
-                      ].map((item, i) => (
-                        <li key={i} className="flex items-start gap-3 text-sm">
-                          <CheckCircle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                          <span className={t.muted}>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className={`border rounded-xl p-5 flex items-center gap-4 ${t.surface}`}>
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-700 flex items-center justify-center text-white font-extrabold shrink-0 shadow-lg shadow-indigo-500/30">
-                      JD
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm">Jane Doe</p>
-                      <p className={`text-xs ${t.muted} mt-0.5`}>
-                        Senior Product Designer • 12 years experience
-                      </p>
-                      <div className="flex items-center gap-1 mt-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        ))}
-                        <span className={`text-xs ${t.muted} ml-1`}>4.8 · 1,254 reviews</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Attachments */}
-              {activeTab === "attachments" && (
-                <div className="space-y-3 animate-in fade-in duration-300 slide-in-from-bottom-2">
-                  <p className={`text-sm ${t.muted} mb-4`}>
-                    Tài liệu tham khảo và đính kèm cho bài học này.
-                  </p>
-                  {currentLessonDetail?.attachments && currentLessonDetail.attachments.length > 0 ? (
-                    currentLessonDetail.attachments.map((file: Attachment, i: number) => (
-                      <div
-                        key={i}
-                        className={`border rounded-xl p-4 flex items-center justify-between gap-4 group transition-all ${t.surface} hover:border-indigo-500/40`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
-                            <FileText className="w-5 h-5 text-rose-400" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold truncate">{file.fileName}</p>
-                            <p className={`text-xs ${t.muted} mt-0.5`}>
-                              {file.fileType || 'Tài liệu'} &bull; {((file.fileSize || 0) / 1024 / 1024).toFixed(2)} MB
-                            </p>
-                          </div>
-                        </div>
-                        {isValidUrl(file.fileUrl) ? (
-                          <a
-                            href={file.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${t.pill} hover:opacity-80`}
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            Download
-                          </a>
-                        ) : (
-                          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 text-slate-400 cursor-not-allowed">
-                            <Download className="w-3.5 h-3.5" />
-                            Unavailable
-                          </span>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className={`text-sm ${t.muted}`}>Không có tài liệu đính kèm nào cho bài học này.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Quiz */}
-              {activeTab === "quiz" && (
-                <div className="space-y-3 animate-in fade-in duration-300 slide-in-from-bottom-2 bg-slate-900/40 dark:bg-[#13151f]/40 border border-slate-200 dark:border-[#252840] rounded-2xl p-4">
-                  {renderQuizContent()}
-                </div>
-              )}
-
-            </div>
-          </div>
-        </div>
-
-        {/* ── Curriculum Sidebar ── */}
-        <aside
-          className={`shrink-0 border-l flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${t.sidebar} ${t.border}`}
-          style={{ width: sidebarOpen ? "320px" : "0px" }}
-        >
-          <div className="w-[320px] flex flex-col h-full overflow-hidden">
-            {/* Sidebar Header */}
-            <div className={`border-b px-4 py-3.5 shrink-0 ${t.border}`}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-bold text-sm uppercase tracking-widest">Course Content</h2>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${t.iconBtn}`}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className={`w-full h-1.5 rounded-full overflow-hidden ${t.trackBg}`}>
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 transition-all duration-700"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className={`text-xs mt-1.5 ${t.muted}`}>
-                {completedN} of {totalN} lessons completed
-              </p>
-            </div>
-
-            {/* Lessons List */}
-            <div className="flex-1 overflow-y-auto">
-              {sectionsWithLocks.map((section) => {
-                const secDone  = section.lessons.filter((l) => l.completed).length;
-                const secTotal = section.lessons.length;
-                return (
-                  <div key={section.id} className={`border-b ${t.border}`}>
-                    <button
-                      onClick={() => toggleSection(section.id)}
-                      className={`w-full text-left px-4 py-3.5 flex items-start gap-2 transition-colors ${t.sectionHover}`}
-                    >
-                      <ChevronDown
-                        className={`w-4 h-4 shrink-0 mt-0.5 transition-transform duration-200 ${t.muted} ${
-                          section.expanded ? "" : "-rotate-90"
-                        }`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold leading-snug">{section.title}</p>
-                        <p className={`text-[11px] mt-0.5 ${t.muted}`}>
-                          {secDone}/{secTotal} &bull;{" "}
-                          {Math.floor(
-                            section.lessons.reduce((a, l) => {
-                              const [m, s] = l.duration.split(":").map(Number);
-                              return a + m * 60 + s;
-                            }, 0) / 60
-                          )}m
-                        </p>
-                      </div>
-                      {secDone === secTotal && secTotal > 0 && (
-                        <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+            ) : currentLessonId ? (
+              <>
+                {/* ── Video progress banner ── */}
+                {currentLessonDetail?.contentType === "video" && !currentLesson?.completed && (
+                  <div className={`p-3 rounded-xl flex items-center justify-between gap-4 border ${
+                    documentReadComplete
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {documentReadComplete ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : (
+                        <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
                       )}
-                    </button>
-
-                    {section.expanded && (
-                      <div className={t.surfaceAlt}>
-                        {section.lessons.map((lesson) => {
-                          const isActive    = lesson.id === currentLessonId;
-                          const isClickable = !lesson.locked;
-                          return (
-                            <button
-                              key={lesson.id}
-                              id={`lesson-${lesson.id}`}
-                              onClick={() => isClickable && goToLesson(lesson.id)}
-                              disabled={lesson.locked}
-                              title={lesson.locked ? "Complete previous lessons to unlock" : lesson.title}
-                              className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-all duration-150 ${
-                                isActive
-                                  ? t.activeLesson
-                                  : lesson.locked
-                                  ? "opacity-45 cursor-not-allowed"
-                                  : `${t.hover} cursor-pointer`
-                              }`}
-                            >
-                              <div className="shrink-0">
-                                {lesson.locked ? (
-                                  <Lock className={`w-3.5 h-3.5 ${t.muted}`} />
-                                ) : lesson.completed ? (
-                                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                                ) : isActive ? (
-                                  <PlayCircle className="w-4 h-4 text-indigo-400" />
-                                ) : (
-                                  <Circle className={`w-3.5 h-3.5 ${t.muted}`} />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p
-                                  className={`text-xs font-semibold leading-snug truncate ${
-                                    isActive
-                                      ? "text-indigo-400"
-                                      : lesson.completed
-                                      ? "text-emerald-400"
-                                      : ""
-                                  }`}
-                                >
-                                  {lesson.title}
-                                </p>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className={`text-[11px] font-mono ${t.muted}`}>
-                                    {lesson.duration}
-                                  </span>
-                                  {lesson.type === "quiz" && (
-                                    <span className={`text-[10px] px-1.5 py-px rounded font-bold ${t.pillQuiz}`}>
-                                      Quiz
-                                    </span>
-                                  )}
-                                  {lesson.type === "document" && (
-                                    <span
-                                      className={`text-[10px] px-1.5 py-px rounded font-bold ${
-                                        isDark
-                                          ? "bg-sky-500/20 text-sky-300"
-                                          : "bg-sky-50 text-sky-600"
-                                      }`}
-                                    >
-                                      Doc
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {isActive && (
-                                <ChevronRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                              )}
-                            </button>
-                          );
-                        })}
+                      <span className="text-sm font-bold">
+                        {documentReadComplete
+                          ? 'Đã đủ điều kiện hoàn thành bài học!'
+                          : `Cần xem video: ${documentReadTime}/${currentLessonDetail?.durationSeconds || 30} giây`}
+                      </span>
+                    </div>
+                    {!documentReadComplete && (
+                      <div className="w-32 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-500 transition-all duration-1000"
+                          style={{ width: `${(documentReadTime / (currentLessonDetail?.durationSeconds || 30)) * 100}%` }}
+                        />
                       </div>
                     )}
                   </div>
-                );
-              })}
-              <div className="h-6" />
-            </div>
+                )}
+
+                {/* ── Document / Text Lesson Content (rendered inline, no 16:9) ── */}
+                {(currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document") && (
+                  <div className={`border rounded-xl overflow-hidden ${t.surface}`}>
+                    <div className={`p-3 flex items-center justify-between gap-4 border-b ${
+                      documentReadComplete
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                    } ${t.border}`}>
+                      <div className="flex items-center gap-2">
+                        {documentReadComplete ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : (
+                          <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '3s' }} />
+                        )}
+                        <span className="text-xs font-bold">
+                          {documentReadComplete
+                            ? 'Đã đủ điều kiện hoàn thành bài đọc!'
+                            : `Cần đọc bài viết trong: ${documentReadTime}/${currentLessonDetail?.durationSeconds ?? 5} giây`}
+                        </span>
+                      </div>
+                      {!documentReadComplete && (
+                        <div className="w-24 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-indigo-500 transition-all duration-1000"
+                            style={{ width: `${(documentReadTime / (currentLessonDetail?.durationSeconds ?? 5)) * 100}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 sm:p-5">
+                      <h3 className="text-base font-bold mb-3">{currentLessonDetail.title}</h3>
+                      {currentLessonDetail.contentType === "document" && currentLessonDetail.contentUrl ? (
+                        <div className="border border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 bg-[var(--bg-subtle)]">
+                          <FileText className="w-10 h-10 text-indigo-400" />
+                          <div>
+                            <p className="text-sm font-semibold">Tài liệu đính kèm bài học</p>
+                            <p className={`text-xs mt-1 max-w-sm truncate ${t.muted}`}>{currentLessonDetail.contentUrl}</p>
+                          </div>
+                          <a
+                            href={isValidUrl(currentLessonDetail.contentUrl) ? currentLessonDetail.contentUrl : "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Mở tài liệu / Tải xuống
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="prose prose-sm max-w-none leading-relaxed whitespace-pre-line">
+                          {currentLessonDetail.contentUrl || 'Nội dung bài viết đang được cập nhật...'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Quiz Content ── */}
+                {currentLessonDetail?.contentType === "quiz" && (
+                  <div className={`border rounded-xl overflow-hidden ${t.surface}`}>
+                    {!quizAttempt ? (
+                      <div className="flex flex-col items-center justify-center p-8 text-center">
+                        <Trophy className="w-14 h-14 text-amber-400 mb-4 animate-bounce" />
+                        <h3 className="text-base font-bold mb-2">{currentLessonDetail.quiz?.title || "Bài Quiz Kiểm Tra"}</h3>
+                        <p className={`text-xs max-w-md text-center mb-6 leading-relaxed ${t.muted}`}>
+                          {currentLessonDetail.quiz?.description || "Kiểm tra lại kiến thức đã học trong chương này. Điểm đạt yêu cầu: " + (currentLessonDetail.quiz?.passingScore || 80) + "%"}
+                        </p>
+                        {quizError && <p className="text-xs text-rose-500 mb-4">{quizError}</p>}
+                        <button
+                          onClick={handleStartQuiz}
+                          disabled={quizLoading}
+                          className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 text-sm cursor-pointer"
+                        >
+                          {quizLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-slate-950" /> : <PlayCircle className="w-4 h-4" />}
+                          Bắt đầu làm bài Quiz
+                        </button>
+                      </div>
+                    ) : quizAttempt && quizQuestions.length > 0 && !quizResult ? (
+                      <div className="p-5 flex flex-col space-y-4">
+                        <div className="flex justify-between items-center border-b pb-3">
+                          <h3 className="font-bold text-sm text-amber-500 uppercase tracking-wider">ĐANG LÀM BÀI QUIZ: {currentLessonDetail.quiz?.title}</h3>
+                          {quizTimeLeft > 0 && (
+                            <span className="text-xs font-bold text-rose-500 bg-rose-500/15 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
+                              Còn lại: {formatTime(quizTimeLeft)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-5">
+                          {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
+                            <div key={q.id} className="space-y-2.5">
+                              <p className="text-sm font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
+                              <div className="grid grid-cols-1 gap-2">
+                                {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
+                                  <label
+                                    key={opt.id}
+                                    className={`flex items-center gap-2.5 p-3 border rounded-xl cursor-pointer text-sm transition-all ${
+                                      selectedAnswers[q.id] === opt.id
+                                        ? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-300 font-bold"
+                                        : `${t.border} ${t.hover}`
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`question-${q.id}`}
+                                      checked={selectedAnswers[q.id] === opt.id}
+                                      onChange={() => handleSelectAnswer(q.id, opt.id)}
+                                      className="accent-amber-500 cursor-pointer"
+                                    />
+                                    <span>{opt.optionText}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="border-t pt-3 flex justify-end">
+                          <button
+                            onClick={handleSubmitQuiz}
+                            disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
+                            className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-sm"
+                          >
+                            {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : quizResult ? (
+                      <div className="flex flex-col items-center justify-center p-8 text-center">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
+                          quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-500" : "bg-rose-500/20 ring-rose-500/10 text-rose-500"
+                        }`}>
+                          {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+                        </div>
+                        <h3 className="text-xl font-extrabold mb-1">
+                          {quizResult.passed ? "Chúc mừng! Bạn đã Đạt" : "Rất tiếc! Bạn chưa đạt"}
+                        </h3>
+                        <p className={`text-sm mb-6 ${t.muted}`}>
+                          Điểm số: <span className="font-bold">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleStartQuiz}
+                            className={`px-4 py-2 border rounded-xl text-sm font-bold transition-all cursor-pointer ${t.border} ${t.hover}`}
+                          >
+                            Làm lại bài Quiz
+                          </button>
+                          {quizResult.passed && (
+                            <button
+                              onClick={goNextAndComplete}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                            >
+                              Bài tiếp theo
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-16">
+                        <p className={`text-sm ${t.muted}`}>Đang chuẩn bị câu hỏi...</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Lesson Navigation (not for quiz) ── */}
+                {currentLessonDetail?.contentType !== "quiz" && (
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      id="prev-lesson-btn"
+                      onClick={goPrev}
+                      disabled={curIdx <= 0}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${t.surface} ${t.hover}`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline">Bài trước</span>
+                    </button>
+
+                    <div className="flex md:hidden items-center gap-2">
+                      <div className={`w-20 h-1.5 rounded-full overflow-hidden ${t.trackBg}`}>
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-semibold ${t.muted}`}>{progress}%</span>
+                    </div>
+
+                    <button
+                      id="complete-next-btn"
+                      onClick={goNextAndComplete}
+                      disabled={!currentLesson?.completed && !documentReadComplete}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${
+                        currentLesson?.completed 
+                          ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/25 hover:shadow-emerald-500/40" 
+                          : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/25 hover:shadow-indigo-500/40"
+                      }`}
+                    >
+                      {currentLesson?.completed ? <ChevronRight className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                      <span className="hidden sm:inline">
+                        {currentLesson?.completed 
+                          ? (curIdx === flatUnlocked.length - 1 ? "Hoàn thành khóa học" : "Bài tiếp theo")
+                          : "Hoàn thành & Tiếp theo"}
+                      </span>
+                      <span className="sm:hidden">
+                        {currentLesson?.completed ? "Tiếp" : "Xong"}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Tabs (not for quiz) ── */}
+                {currentLessonDetail?.contentType !== "quiz" && (
+                  <>
+                    <div className={`border-b ${t.border}`}>
+                      <nav className="flex gap-1 -mb-px">
+                        {([
+                          { key: "overview", label: "Tổng quan", Icon: BookOpen },
+                          { key: "attachments", label: "Tài liệu", Icon: Download },
+                        ] as const).map(({ key, label, Icon }) => (
+                          <button
+                            key={key}
+                            id={`tab-${key}`}
+                            onClick={() => setActiveTab(key)}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all duration-200 ${
+                              activeTab === key ? t.tabActive : t.tabInactive
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            {label}
+                          </button>
+                        ))}
+                      </nav>
+                    </div>
+
+                    {/* ── Tab Content ── */}
+                    <div className="min-h-[200px] pb-10">
+                      {activeTab === "overview" && (
+                        <div className="space-y-5 animate-in fade-in duration-300 slide-in-from-bottom-2">
+                          <div>
+                            <h1 className="text-xl font-bold mb-2">{currentLesson?.title}</h1>
+                            <p className={`text-sm leading-relaxed ${t.muted}`}>
+                              {currentLessonDetail?.description || "Nội dung bài học đang được cập nhật."}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {[
+                              { label: "Thời lượng", value: currentLesson?.duration ?? "—", Icon: Clock },
+                              { label: "Loại bài học", value: currentLesson?.type === "video" ? "Video" : currentLesson?.type === "document" ? "Tài liệu" : "Bài viết", Icon: FileText },
+                              { label: "Trạng thái", value: currentLesson?.completed ? "Đã hoàn thành" : "Chưa hoàn thành", Icon: currentLesson?.completed ? CheckCircle : Circle },
+                            ].map(({ label, value, Icon }) => (
+                              <div key={label} className={`border rounded-xl p-4 flex items-center gap-3 ${t.surface}`}>
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${t.iconBox}`}>
+                                  <Icon className="w-4 h-4 text-indigo-400" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className={`text-xs ${t.muted} leading-none mb-0.5`}>{label}</p>
+                                  <p className="text-sm font-bold truncate">{value}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {courseDetail?.creator && (
+                            <div className={`border rounded-xl p-5 flex items-center gap-4 ${t.surface}`}>
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-700 flex items-center justify-center text-white font-extrabold shrink-0 shadow-lg shadow-indigo-500/30">
+                                {courseDetail.creator.username?.slice(0, 2).toUpperCase() || "GV"}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm">{courseDetail.creator.username || "Giảng viên"}</p>
+                                <p className={`text-xs ${t.muted} mt-0.5`}>Giảng viên khóa học</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {activeTab === "attachments" && (
+                        <div className="space-y-3 animate-in fade-in duration-300 slide-in-from-bottom-2">
+                          <p className={`text-sm ${t.muted} mb-4`}>
+                            Tài liệu tham khảo và đính kèm cho bài học này.
+                          </p>
+                          {currentLessonDetail?.attachments && currentLessonDetail.attachments.length > 0 ? (
+                            currentLessonDetail.attachments.map((file: Attachment, i: number) => (
+                              <div
+                                key={i}
+                                className={`border rounded-xl p-4 flex items-center justify-between gap-4 group transition-all ${t.surface} hover:border-indigo-500/40`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-10 h-10 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0">
+                                    <FileText className="w-5 h-5 text-rose-400" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold truncate">{file.fileName}</p>
+                                    <p className={`text-xs ${t.muted} mt-0.5`}>
+                                      {file.fileType || 'Tài liệu'} &bull; {((file.fileSize || 0) / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                                {isValidUrl(file.fileUrl) ? (
+                                  <a
+                                    href={file.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${t.pill} hover:opacity-80`}
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Tải xuống
+                                  </a>
+                                ) : (
+                                  <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 ${t.muted} cursor-not-allowed`}>
+                                    <Download className="w-3.5 h-3.5" />
+                                    Không có
+                                  </span>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className={`text-sm ${t.muted}`}>Không có tài liệu đính kèm nào cho bài học này.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16">
+                <BookOpen className="w-12 h-12 text-slate-400 mb-3" />
+                <p className={`text-sm ${t.muted}`}>Vui lòng chọn bài học từ danh sách bên cạnh.</p>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* ── Desktop Sidebar ── */}
+        <aside
+          className={`hidden md:flex shrink-0 border-l flex-col overflow-hidden transition-all duration-300 ease-in-out ${t.sidebar} ${t.border}`}
+          style={{ width: sidebarOpen ? "320px" : "0px" }}
+        >
+          <SidebarContent
+            t={t}
+            sectionsWithLocks={sectionsWithLocks}
+            currentLessonId={currentLessonId}
+            completedN={completedN}
+            totalN={totalN}
+            progress={progress}
+            goToLesson={goToLesson}
+            toggleSection={toggleSection}
+            onClose={() => setSidebarOpen(false)}
+            isDark={isDark}
+            tPillQuiz={t.pillQuiz}
+          />
         </aside>
+
+        {/* ── Mobile Sidebar Overlay ── */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+            <aside className={`absolute right-0 top-0 h-full w-80 max-w-[85vw] shadow-2xl flex flex-col animate-in slide-in-from-bottom-2 duration-300 ${t.sidebar} ${t.border} border-l`}>
+              <SidebarContent
+                t={t}
+                sectionsWithLocks={sectionsWithLocks}
+                currentLessonId={currentLessonId}
+                completedN={completedN}
+                totalN={totalN}
+                progress={progress}
+                goToLesson={goToLesson}
+                toggleSection={toggleSection}
+                onClose={() => setSidebarOpen(false)}
+                isDark={isDark}
+                tPillQuiz={t.pillQuiz}
+              />
+            </aside>
+          </div>
+        )}
       </div>
 
       {/* Course Completion Modal */}
@@ -1151,19 +988,19 @@ export default function LearnPage() {
           style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
         >
           <div
-            className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-all text-center p-8 ${
-              isDark ? "bg-[#0d0f1a] border border-[#252840]" : "bg-white border border-slate-200"
+            className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-all text-center p-6 sm:p-8 ${
+              isDark ? "bg-[var(--bg-card)] border border-[var(--border)]" : "bg-white border border-slate-200"
             }`}
           >
-            <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30">
-              <Trophy className="w-10 h-10 text-white" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30">
+              <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
             
-            <h2 className={`text-2xl font-extrabold mb-2 ${isDark ? "text-white" : "text-slate-900"}`}>
-              Course Completed!
+            <h2 className={`text-xl sm:text-2xl font-extrabold mb-2 ${t.text}`}>
+              Hoàn thành khóa học!
             </h2>
-            <p className={`text-sm mb-8 ${isDark ? "text-[#a0aec0]" : "text-slate-500"}`}>
-              Congratulations! You have successfully completed all lessons in this course. Your certificate is now ready.
+            <p className={`text-sm mb-6 sm:mb-8 ${t.muted}`}>
+              Chúc mừng! Bạn đã hoàn thành tất cả bài học trong khóa học này. Chứng chỉ của bạn đã sẵn sàng.
             </p>
 
             <div className="flex flex-col gap-3">
@@ -1172,7 +1009,7 @@ export default function LearnPage() {
                 className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20"
               >
                 <Award className="w-4 h-4" />
-                View Certificate
+                Xem chứng chỉ
               </button>
               <button
                 onClick={() => {
@@ -1181,16 +1018,169 @@ export default function LearnPage() {
                 }}
                 className={`w-full flex items-center justify-center gap-2 px-5 py-3.5 border text-sm font-bold rounded-xl transition-all ${
                   isDark 
-                    ? "border-[#252840] text-[#e2e8f0] hover:bg-[#1a1d2e]" 
+                    ? "border-[var(--border-strong)] text-[var(--text)] hover:bg-[var(--bg-surface)]" 
                     : "border-slate-200 text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                Back to Course
+                Quay lại khóa học
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── SidebarContent Component (shared between desktop & mobile) ── */
+interface SidebarContentProps {
+  t: ReturnType<typeof buildTheme>;
+  sectionsWithLocks: Section[];
+  currentLessonId: number | null;
+  completedN: number;
+  totalN: number;
+  progress: number;
+  goToLesson: (id: number) => void;
+  toggleSection: (id: number) => void;
+  onClose: () => void;
+  isDark: boolean;
+  tPillQuiz: string;
+}
+
+function SidebarContent({ t, sectionsWithLocks, currentLessonId, completedN, totalN, progress, goToLesson, toggleSection, onClose, isDark, tPillQuiz }: SidebarContentProps) {
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className={`border-b px-4 py-3.5 shrink-0 ${t.border}`}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-sm uppercase tracking-widest">Nội dung khóa học</h2>
+          <button
+            onClick={onClose}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all md:hidden ${t.iconBtn}`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className={`w-full h-1.5 rounded-full overflow-hidden ${t.trackBg}`}>
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-700 transition-all duration-700"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className={`text-xs mt-1.5 ${t.muted}`}>
+          {completedN}/{totalN} bài học đã hoàn thành
+        </p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {sectionsWithLocks.map((section) => {
+          const secDone  = section.lessons.filter((l) => l.completed).length;
+          const secTotal = section.lessons.length;
+          return (
+            <div key={section.id} className={`border-b ${t.border}`}>
+              <button
+                onClick={() => toggleSection(section.id)}
+                className={`w-full text-left px-4 py-3.5 flex items-start gap-2 transition-colors ${t.sectionHover}`}
+              >
+                <ChevronDown
+                  className={`w-4 h-4 shrink-0 mt-0.5 transition-transform duration-200 ${t.muted} ${
+                    section.expanded ? "" : "-rotate-90"
+                  }`}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold leading-snug">{section.title}</p>
+                  <p className={`text-xs mt-0.5 ${t.muted}`}>
+                    {secDone}/{secTotal} &bull;{" "}
+                    {Math.floor(
+                      section.lessons.reduce((a, l) => {
+                        const [m, s] = l.duration.split(":").map(Number);
+                        return a + m * 60 + s;
+                      }, 0) / 60
+                    )} phút
+                  </p>
+                </div>
+                {secDone === secTotal && secTotal > 0 && (
+                  <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                )}
+              </button>
+
+              {section.expanded && (
+                <div className={t.surfaceAlt}>
+                  {section.lessons.map((lesson) => {
+                    const isActive    = lesson.id === currentLessonId;
+                    const isClickable = !lesson.locked;
+                    return (
+                      <button
+                        key={lesson.id}
+                        id={`lesson-${lesson.id}`}
+                        onClick={() => isClickable && goToLesson(lesson.id)}
+                        disabled={lesson.locked}
+                        title={lesson.locked ? "Hoàn thành bài học trước để mở khóa" : lesson.title}
+                        className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-all duration-150 ${
+                          isActive
+                            ? t.activeLesson
+                            : lesson.locked
+                            ? "opacity-45 cursor-not-allowed"
+                            : `${t.hover} cursor-pointer`
+                        }`}
+                      >
+                        <div className="shrink-0">
+                          {lesson.locked ? (
+                            <Lock className={`w-3.5 h-3.5 ${t.muted}`} />
+                          ) : lesson.completed ? (
+                            <CheckCircle className="w-4 h-4 text-emerald-500" />
+                          ) : isActive ? (
+                            <PlayCircle className="w-4 h-4 text-indigo-400" />
+                          ) : (
+                            <Circle className={`w-3.5 h-3.5 ${t.muted}`} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-xs font-semibold leading-snug truncate ${
+                              isActive
+                                ? "text-indigo-400"
+                                : lesson.completed
+                                ? "text-emerald-400"
+                                : ""
+                            }`}
+                          >
+                            {lesson.title}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`text-xs font-mono ${t.muted}`}>
+                              {lesson.duration}
+                            </span>
+                            {lesson.type === "quiz" && (
+                              <span className={`text-[10px] px-1.5 py-px rounded font-bold ${tPillQuiz}`}>
+                                Quiz
+                              </span>
+                            )}
+                            {lesson.type === "document" && (
+                              <span
+                                className={`text-[10px] px-1.5 py-px rounded font-bold ${
+                                  isDark
+                                    ? "bg-sky-500/20 text-sky-300"
+                                    : "bg-sky-50 text-sky-600"
+                                }`}
+                              >
+                                Doc
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {isActive && (
+                          <ChevronRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <div className="h-6" />
+      </div>
     </div>
   );
 }

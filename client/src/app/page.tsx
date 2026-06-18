@@ -36,7 +36,7 @@ interface Category {
   name: string;
   slug: string;
   coursesCount?: number;
-  // TODO: Map icon based on category in actual implementation
+  iconName?: string;
 }
 
 interface Course {
@@ -54,6 +54,25 @@ interface Course {
 interface Stat {
   label: string;
   value: string;
+}
+
+const CATEGORY_ICONS: Record<string, typeof BookOpen> = {
+  "công nghệ": Monitor,
+  "it": Monitor,
+  "lập trình": Monitor,
+  "kinh doanh": Briefcase,
+  "business": Briefcase,
+  "thiết kế": Palette,
+  "design": Palette,
+  "marketing": Megaphone,
+};
+
+function getCategoryIcon(name: string) {
+  const key = name.toLowerCase();
+  for (const [keyword, icon] of Object.entries(CATEGORY_ICONS)) {
+    if (key.includes(keyword)) return icon;
+  }
+  return BookOpen;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -317,7 +336,10 @@ export default function Home() {
                     className={`group relative flex flex-col p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl overflow-hidden ${catCard}`}
                   >
                     <div className={`relative z-10 w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                      <BookOpen className="w-7 h-7 text-white drop-shadow-md" />
+                      {(() => {
+                        const Icon = getCategoryIcon(cat.name);
+                        return <Icon className="w-7 h-7 text-white drop-shadow-md" />;
+                      })()}
                     </div>
                     <h3 className={`relative z-10 text-xl font-bold mb-2 group-hover:text-indigo-500 transition-colors ${text}`}>{cat.name}</h3>
                     {cat.coursesCount !== undefined && (

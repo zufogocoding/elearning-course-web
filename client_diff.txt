@@ -1,0 +1,612 @@
+diff --git a/client/src/app/admin/courses/[id]/builder/components/LessonEditor.tsx b/client/src/app/admin/courses/[id]/builder/components/LessonEditor.tsx
+index 8188509..2d1a989 100644
+--- a/client/src/app/admin/courses/[id]/builder/components/LessonEditor.tsx
++++ b/client/src/app/admin/courses/[id]/builder/components/LessonEditor.tsx
+@@ -21,7 +21,6 @@ export default function LessonEditor({
+   const [contentUrl, setContentUrl] = useState(lesson.contentUrl || "");
+   const [durationSeconds, setDurationSeconds] = useState(lesson.durationSeconds);
+   const [isPreview, setIsPreview] = useState(lesson.isPreview);
+-  const [contentType, setContentType] = useState(lesson.contentType);
+   const [attachments, setAttachments] = useState(lesson.attachments || []);
+   const [uploadingAtt, setUploadingAtt] = useState(false);
+ 
+@@ -34,17 +33,16 @@ export default function LessonEditor({
+     setDurationSeconds(lesson.durationSeconds);
+     setIsPreview(lesson.isPreview);
+     setAttachments(lesson.attachments || []);
+-    setContentType(lesson.contentType);
+     if (timerRef.current) {
+       clearTimeout(timerRef.current);
+     }
+   }, [lesson.id]);
+ 
+   // Maintain latest values in a ref for unmount/switch saving
+-  const latestValuesRef = useRef({ title, contentUrl, durationSeconds, isPreview, contentType, lessonId: lesson.id });
++  const latestValuesRef = useRef({ title, contentUrl, durationSeconds, isPreview, lessonId: lesson.id });
+   useEffect(() => {
+-    latestValuesRef.current = { title, contentUrl, durationSeconds, isPreview, contentType, lessonId: lesson.id };
+-  }, [title, contentUrl, durationSeconds, isPreview, contentType, lesson.id]);
++    latestValuesRef.current = { title, contentUrl, durationSeconds, isPreview, lessonId: lesson.id };
++  }, [title, contentUrl, durationSeconds, isPreview, lesson.id]);
+ 
+   // Flush unsaved edits immediately on unmount or lesson change
+   useEffect(() => {
+@@ -57,7 +55,6 @@ export default function LessonEditor({
+           contentUrl: last.contentUrl,
+           durationSeconds: parseInt(String(last.durationSeconds), 10) || 0,
+           isPreview: last.isPreview,
+-          contentType: last.contentType,
+         }).catch((err) => console.error("Lỗi lưu bài học khi chuyển bài:", err));
+       }
+     };
+@@ -69,7 +66,6 @@ export default function LessonEditor({
+     contentUrl: string;
+     durationSeconds: number;
+     isPreview: boolean;
+-    contentType: string;
+   }) => {
+     setSaveState("saving");
+ 
+@@ -84,7 +80,6 @@ export default function LessonEditor({
+           contentUrl: updatedFields.contentUrl,
+           durationSeconds: parseInt(String(updatedFields.durationSeconds), 10) || 0,
+           isPreview: updatedFields.isPreview,
+-          contentType: updatedFields.contentType,
+         });
+ 
+         if (res.ok) {
+@@ -105,7 +100,7 @@ export default function LessonEditor({
+   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const val = e.target.value;
+     setTitle(val);
+-    triggerAutoSave({ title: val, contentUrl, durationSeconds, isPreview, contentType });
++    triggerAutoSave({ title: val, contentUrl, durationSeconds, isPreview });
+   };
+ 
+   const handleContentUrlChange = (
+@@ -113,25 +108,19 @@ export default function LessonEditor({
+   ) => {
+     const val = e.target.value;
+     setContentUrl(val);
+-    triggerAutoSave({ title, contentUrl: val, durationSeconds, isPreview, contentType });
++    triggerAutoSave({ title, contentUrl: val, durationSeconds, isPreview });
+   };
+ 
+   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const val = parseInt(e.target.value, 10) || 0;
+     setDurationSeconds(val);
+-    triggerAutoSave({ title, contentUrl, durationSeconds: val, isPreview, contentType });
++    triggerAutoSave({ title, contentUrl, durationSeconds: val, isPreview });
+   };
+ 
+   const handlePreviewChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const val = e.target.checked;
+     setIsPreview(val);
+-    triggerAutoSave({ title, contentUrl, durationSeconds, isPreview: val, contentType });
+-  };
+-
+-  const handleContentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+-    const val = e.target.value as "video" | "document" | "quiz";
+-    setContentType(val);
+-    triggerAutoSave({ title, contentUrl, durationSeconds, isPreview, contentType: val });
++    triggerAutoSave({ title, contentUrl, durationSeconds, isPreview: val });
+   };
+ 
+   const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+@@ -197,46 +186,30 @@ export default function LessonEditor({
+   return (
+     <div className={`border rounded-2xl p-6 ${card} space-y-6 shadow-sm`}>
+       <div className="flex items-center gap-3 border-b pb-4 border-slate-200 dark:border-[#252840]">
+-        {contentType === "video" ? (
++        {lesson.contentType === "video" ? (
+           <Video className="w-5 h-5 text-indigo-500" />
+-        ) : contentType === "quiz" ? (
+-          <HelpCircle className="w-5 h-5 text-amber-500" />
+         ) : (
+           <FileText className="w-5 h-5 text-emerald-500" />
+         )}
+         <div>
+           <h2 className={`text-base font-bold ${text}`}>Chỉnh sửa thông tin bài học</h2>
+-          <p className={`text-xs ${muted}`}>Cấu hình loại nội dung bài học và tài liệu</p>
++          <p className={`text-xs ${muted}`}>Loại bài giảng: <span className="capitalize font-semibold">{lesson.contentType}</span></p>
+         </div>
+       </div>
+ 
+       <div className="space-y-5">
+-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+-          <div>
+-            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Tên bài học</label>
+-            <input
+-              type="text"
+-              value={title}
+-              onChange={handleTitleChange}
+-              className={`w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${inputStyle}`}
+-              placeholder="Ví dụ: Giới thiệu khóa học"
+-            />
+-          </div>
+-          <div>
+-            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Loại bài giảng</label>
+-            <select
+-              value={contentType}
+-              onChange={handleContentTypeChange}
+-              className={`w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${inputStyle}`}
+-            >
+-              <option value="video">Bài học Video</option>
+-              <option value="document">Bài đọc (Tài liệu)</option>
+-              <option value="quiz">Bài Quiz trắc nghiệm</option>
+-            </select>
+-          </div>
++        <div>
++          <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Tên bài học</label>
++          <input
++            type="text"
++            value={title}
++            onChange={handleTitleChange}
++            className={`w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${inputStyle}`}
++            placeholder="Ví dụ: Giới thiệu khóa học"
++          />
+         </div>
+ 
+-        {contentType === "video" && (
++        {lesson.contentType === "video" && (
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div>
+               <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Đường dẫn Video (YouTube ID hoặc link)</label>
+@@ -261,7 +234,7 @@ export default function LessonEditor({
+           </div>
+         )}
+ 
+-        {(contentType === "document" || contentType === "quiz") && (
++        {lesson.contentType === "document" && (
+           <div>
+             <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Nội dung bài viết (Markdown/Text)</label>
+             <textarea
+diff --git a/client/src/app/admin/courses/[id]/builder/page.tsx b/client/src/app/admin/courses/[id]/builder/page.tsx
+index 0af656a..4cd89ff 100644
+--- a/client/src/app/admin/courses/[id]/builder/page.tsx
++++ b/client/src/app/admin/courses/[id]/builder/page.tsx
+@@ -31,11 +31,6 @@ export default function CourseBuilderPage({ params }: { params: Promise<{ id: st
+   const [error, setError] = useState("");
+   const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
+   const [saveState, setSaveState] = useState<SaveState>("");
+-  const [editorTab, setEditorTab] = useState<"content" | "quiz">("content");
+-
+-  useEffect(() => {
+-    setEditorTab("content");
+-  }, [selectedLessonId]);
+ 
+   // --- Data Loading ---
+   const fetchCurriculum = useCallback(async () => {
+@@ -432,52 +427,26 @@ export default function CourseBuilderPage({ params }: { params: Promise<{ id: st
+                   Chọn bài học từ cây mục lục bên trái để bắt đầu chỉnh sửa nội dung hoặc câu hỏi kiểm tra.
+                 </p>
+               </div>
++            ) : currentLesson.contentType === "quiz" ? (
++              <div className="max-w-3xl mx-auto">
++                <QuizEditor
++                  key={currentLesson.id}
++                  lessonId={currentLesson.id}
++                  initialQuiz={currentLesson.quiz}
++                  isDark={isDark}
++                  onSaveSuccess={fetchCurriculum}
++                  setSaveState={setSaveState}
++                />
++              </div>
+             ) : (
+-              <div className="max-w-3xl mx-auto space-y-6">
+-                {/* Custom Tabs */}
+-                <div className="flex border-b border-slate-200 dark:border-[#252840] gap-4 mb-4">
+-                  <button
+-                    onClick={() => setEditorTab("content")}
+-                    className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all -mb-px ${
+-                      editorTab === "content"
+-                        ? "border-indigo-500 text-indigo-500 dark:text-indigo-400"
+-                        : "border-transparent text-slate-500 hover:text-slate-700 dark:text-[#7a87a1] dark:hover:text-[#e2e8f0]"
+-                    }`}
+-                  >
+-                    Nội dung bài học
+-                  </button>
+-                  <button
+-                    onClick={() => setEditorTab("quiz")}
+-                    className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all -mb-px ${
+-                      editorTab === "quiz"
+-                        ? "border-indigo-500 text-indigo-500 dark:text-indigo-400"
+-                        : "border-transparent text-slate-500 hover:text-slate-700 dark:text-[#7a87a1] dark:hover:text-[#e2e8f0]"
+-                    }`}
+-                  >
+-                    Bài trắc nghiệm (Quiz) {currentLesson.quiz ? "(Đang bật)" : ""}
+-                  </button>
+-                </div>
+-
+-                {editorTab === "content" ? (
+-                  <div className="max-w-2xl">
+-                    <LessonEditor
+-                      key={currentLesson.id}
+-                      lesson={currentLesson}
+-                      isDark={isDark}
+-                      onSaveSuccess={fetchCurriculum}
+-                      setSaveState={setSaveState}
+-                    />
+-                  </div>
+-                ) : (
+-                  <QuizEditor
+-                    key={currentLesson.id}
+-                    lessonId={currentLesson.id}
+-                    initialQuiz={currentLesson.quiz}
+-                    isDark={isDark}
+-                    onSaveSuccess={fetchCurriculum}
+-                    setSaveState={setSaveState}
+-                  />
+-                )}
++              <div className="max-w-2xl mx-auto">
++                <LessonEditor
++                  key={currentLesson.id}
++                  lesson={currentLesson}
++                  isDark={isDark}
++                  onSaveSuccess={fetchCurriculum}
++                  setSaveState={setSaveState}
++                />
+               </div>
+             )}
+           </main>
+diff --git a/client/src/app/admin/courses/page.tsx b/client/src/app/admin/courses/page.tsx
+index d253492..08a3e36 100644
+--- a/client/src/app/admin/courses/page.tsx
++++ b/client/src/app/admin/courses/page.tsx
+@@ -218,7 +218,7 @@ export default function AdminCoursesPage() {
+       const data = await res.json();
+ 
+       setCourses(data.data || []);
+-      setPagination(data.meta || { page: 1, total: 0, totalPages: 0 });
++      setPagination(data.pagination || { page: 1, total: 0, totalPages: 0 });
+       setError("");
+     } catch {
+       setError("Lỗi mạng. Không thể tải khóa học.");
+diff --git a/client/src/app/courses/[id]/learn/page.tsx b/client/src/app/courses/[id]/learn/page.tsx
+index df51243..64d21fc 100644
+--- a/client/src/app/courses/[id]/learn/page.tsx
++++ b/client/src/app/courses/[id]/learn/page.tsx
+@@ -461,113 +461,6 @@ export default function LearnPage() {
+     );
+   }
+ 
+-  const renderQuizContent = () => {
+-    if (!currentLessonDetail?.quiz) return null;
+-    return (
+-      <div className="w-full text-[#e2e8f0] select-text">
+-        {!quizAttempt ? (
+-          <div className="flex flex-col items-center justify-center p-6 text-center">
+-            <Trophy className="w-14 h-14 text-amber-400 mb-4 animate-bounce" />
+-            <h3 className="text-base font-bold mb-2">{currentLessonDetail.quiz?.title || "Bài Quiz Kiểm Tra"}</h3>
+-            <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
+-              {currentLessonDetail.quiz?.description || "Kiểm tra lại kiến thức đã học trong chương này. Điểm đạt yêu cầu: " + (currentLessonDetail.quiz?.passingScore || 80) + "%"}
+-            </p>
+-            {quizError && <p className="text-xs text-rose-500 mb-4">{quizError}</p>}
+-            
+-            {/* Conditional Start Quiz Button based on reading completeness */}
+-            {currentLessonDetail.contentType !== "quiz" && !documentReadComplete ? (
+-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl max-w-sm mb-4 mx-auto">
+-                <p className="text-xs font-semibold">
+-                  Bạn cần hoàn thành nội dung bài học (xem video / đọc tài liệu) trước khi bắt đầu làm bài Quiz này!
+-                </p>
+-              </div>
+-            ) : null}
+-
+-            <button
+-              onClick={handleStartQuiz}
+-              disabled={quizLoading || (currentLessonDetail.contentType !== "quiz" && !documentReadComplete)}
+-              className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 text-sm cursor-pointer mx-auto"
+-            >
+-              {quizLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-slate-950" /> : <PlayCircle className="w-4 h-4" />}
+-              Bắt đầu làm bài Quiz
+-            </button>
+-          </div>
+-        ) : quizAttempt && quizQuestions.length > 0 && !quizResult ? (
+-          <div className="p-5 flex flex-col select-text text-left">
+-            <div className="flex justify-between items-center border-b border-[#252840] pb-3 mb-3 shrink-0">
+-              <h3 className="font-bold text-xs text-amber-400 uppercase tracking-wider">ĐANG LÀM BÀI QUIZ: {currentLessonDetail.quiz?.title}</h3>
+-              {quizTimeLeft > 0 && (
+-                <span className="text-[11px] font-bold text-rose-400 bg-rose-400/15 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
+-                  Còn lại: {formatTime(quizTimeLeft)}
+-                </span>
+-              )}
+-            </div>
+-            <div className="space-y-5 overflow-y-auto max-h-[500px] pr-1">
+-              {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
+-                <div key={q.id} className="space-y-2.5">
+-                  <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
+-                  <div className="grid grid-cols-1 gap-2 pl-2">
+-                    {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
+-                      <label
+-                        key={opt.id}
+-                        className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
+-                          selectedAnswers[q.id] === opt.id
+-                            ? "border-amber-500 bg-amber-500/10 text-amber-300 font-bold"
+-                            : "border-[#252840] hover:bg-[#1a1d2e] text-[#a0aec0]"
+-                        }`}
+-                      >
+-                        <input
+-                          type="radio"
+-                          name={`question-${q.id}`}
+-                          checked={selectedAnswers[q.id] === opt.id}
+-                          onChange={() => handleSelectAnswer(q.id, opt.id)}
+-                          className="accent-amber-500 cursor-pointer"
+-                        />
+-                        <span>{opt.optionText}</span>
+-                      </label>
+-                    ))}
+-                  </div>
+-                </div>
+-              ))}
+-            </div>
+-            <div className="border-t border-[#252840] pt-3 mt-3 shrink-0 flex justify-end">
+-              <button
+-                onClick={handleSubmitQuiz}
+-                disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
+-                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-xs"
+-              >
+-                {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
+-              </button>
+-            </div>
+-          </div>
+-        ) : quizResult ? (
+-          <div className="flex flex-col items-center justify-center p-6 text-center">
+-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
+-              quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-400" : "bg-rose-500/20 ring-rose-500/10 text-rose-400"
+-            }`}>
+-              {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+-            </div>
+-            <h3 className="text-base font-bold mb-1">
+-              {quizResult.passed ? "Chúc mừng bạn đã vượt qua!" : "Rất tiếc, bạn chưa đạt điểm yêu cầu"}
+-            </h3>
+-            <p className="text-xs text-slate-400 mb-4">
+-              Điểm số: <span className="font-bold text-white">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
+-            </p>
+-            {!quizResult.passed && (
+-              <button
+-                onClick={handleStartQuiz}
+-                disabled={quizLoading}
+-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer mx-auto"
+-              >
+-                <PlayCircle className="w-4 h-4" /> Thử lại bài Quiz
+-              </button>
+-            )}
+-          </div>
+-        ) : null}
+-      </div>
+-    );
+-  };
+-
+   if (authLoading || loadingCourse) {
+     return (
+       <div className={`h-screen flex flex-col overflow-hidden font-sans transition-colors duration-300 ${t.root}`}>
+@@ -670,7 +563,7 @@ export default function LearnPage() {
+                     <p className="text-slate-400 text-xs">Không thể load video. URL không hợp lệ.</p>
+                   </div>
+                 )
+-              ) : currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" || currentLessonDetail?.contentType === "quiz" ? (
++              ) : currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" ? (
+                 (() => {
+                   const requiredTime = currentLessonDetail?.durationSeconds ?? 5;
+                   return (
+@@ -725,13 +618,117 @@ export default function LearnPage() {
+                           </div>
+                         ) : (
+                           <div className="prose prose-invert max-w-none text-[11px] leading-relaxed text-slate-300 whitespace-pre-line bg-[#0d0f1a] p-4 rounded-xl border border-[#252840]">
+-                            {currentLessonDetail.contentUrl || (currentLessonDetail.contentType === "quiz" ? 'Bài học này không có tài liệu/nội dung lý thuyết. Nhấp vào tab Quiz ở bên dưới để tiến hành làm bài kiểm tra trắc nghiệm!' : 'Nội dung bài viết đang được cập nhật...')}
++                            {currentLessonDetail.contentUrl || 'Nội dung bài viết đang được cập nhật...'}
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   );
+                 })()
++              ) : currentLessonDetail?.contentType === "quiz" ? (
++                <div className="absolute inset-0 bg-[#0d0f1a] text-[#e2e8f0]">
++                  {!quizAttempt ? (
++                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
++                      <Trophy className="w-14 h-14 text-amber-400 mb-4 animate-bounce" />
++                      <h3 className="text-base font-bold mb-2">{currentLessonDetail.quiz?.title || "Bài Quiz Kiểm Tra"}</h3>
++                      <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
++                        {currentLessonDetail.quiz?.description || "Kiểm tra lại kiến thức đã học trong chương này. Điểm đạt yêu cầu: " + (currentLessonDetail.quiz?.passingScore || 80) + "%"}
++                      </p>
++                      {quizError && <p className="text-xs text-rose-500 mb-4">{quizError}</p>}
++                      <button
++                        onClick={handleStartQuiz}
++                        disabled={quizLoading}
++                        className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 text-sm cursor-pointer"
++                      >
++                        {quizLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-slate-950" /> : <PlayCircle className="w-4 h-4" />}
++                        Bắt đầu làm bài Quiz
++                      </button>
++                    </div>
++                  ) : quizAttempt && quizQuestions.length > 0 && !quizResult ? (
++                    <div className="absolute inset-0 p-5 flex flex-col overflow-hidden select-text text-left">
++                      <div className="flex justify-between items-center border-b border-[#252840] pb-3 mb-3 shrink-0">
++                        <h3 className="font-bold text-xs text-amber-400 uppercase tracking-wider">ĐANG LÀM BÀI QUIZ: {currentLessonDetail.quiz?.title}</h3>
++                        {quizTimeLeft > 0 && (
++                          <span className="text-[11px] font-bold text-rose-400 bg-rose-400/15 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
++                            Còn lại: {formatTime(quizTimeLeft)}
++                          </span>
++                        )}
++                      </div>
++                      <div className="flex-1 space-y-5 overflow-y-auto pr-1">
++                        {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
++                          <div key={q.id} className="space-y-2.5">
++                            <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
++                            <div className="grid grid-cols-1 gap-2 pl-2">
++                              {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
++                                <label
++                                  key={opt.id}
++                                  className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
++                                    selectedAnswers[q.id] === opt.id
++                                      ? "border-amber-500 bg-amber-500/10 text-amber-300 font-bold"
++                                      : "border-[#252840] hover:bg-[#1a1d2e] text-[#a0aec0]"
++                                  }`}
++                                >
++                                  <input
++                                    type="radio"
++                                    name={`question-${q.id}`}
++                                    checked={selectedAnswers[q.id] === opt.id}
++                                    onChange={() => handleSelectAnswer(q.id, opt.id)}
++                                    className="accent-amber-500 cursor-pointer"
++                                  />
++                                  <span>{opt.optionText}</span>
++                                </label>
++                              ))}
++                            </div>
++                          </div>
++                        ))}
++                      </div>
++                      <div className="border-t border-[#252840] pt-3 mt-3 shrink-0 flex justify-end">
++                        <button
++                          onClick={handleSubmitQuiz}
++                          disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
++                          className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-xs"
++                        >
++                          {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
++                        </button>
++                      </div>
++                    </div>
++                  ) : quizResult ? (
++                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
++                      <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
++                        quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-400" : "bg-rose-500/20 ring-rose-500/10 text-rose-400"
++                      }`}>
++                        {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
++                      </div>
++                      <h3 className="text-xl font-extrabold mb-1">
++                        {quizResult.passed ? "Chúc mừng! Bạn đã Đạt" : "Rất tiếc! Bạn chưa đạt"}
++                      </h3>
++                      <p className="text-xs text-slate-400 mb-6">
++                        Điểm số: <span className="font-bold text-white">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
++                      </p>
++                      <div className="flex gap-2">
++                        <button
++                          onClick={handleStartQuiz}
++                          className={`px-4 py-2 border border-slate-700 hover:bg-slate-800 text-[11px] font-bold rounded-xl transition-all cursor-pointer`}
++                        >
++                          Làm lại bài Quiz
++                        </button>
++                        {quizResult.passed && (
++                          <button
++                            onClick={goNextAndComplete}
++                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
++                          >
++                            Bài tiếp theo
++                            <ArrowRight className="w-3.5 h-3.5" />
++                          </button>
++                        )}
++                      </div>
++                    </div>
++                  ) : (
++                    <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
++                      Đang chuẩn bị câu hỏi...
++                    </div>
++                  )}
++                </div>
+               ) : (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
+                   <BookOpen className="w-12 h-12 text-slate-600 mb-2" />
+@@ -795,23 +792,7 @@ export default function LearnPage() {
+                 <span className={`text-xs font-semibold ${t.muted}`}>{progress}%</span>
+               </div>
+ 
+-              {currentLessonDetail?.quiz ? (
+-                currentLesson?.completed ? (
+-                  <button
+-                    id="next-lesson-btn-quiz"
+-                    onClick={goNextAndComplete}
+-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all active:scale-[0.97]"
+-                  >
+-                    <ChevronRight className="w-4 h-4" />
+-                    <span>{curIdx === flatUnlocked.length - 1 ? "Finish Course" : "Next Lesson"}</span>
+-                  </button>
+-                ) : (
+-                  <div className="text-xs text-amber-500 bg-amber-500/10 px-3.5 py-2 rounded-xl border border-amber-500/20 font-bold flex items-center gap-2">
+-                    <AlertCircle className="w-4 h-4 text-amber-400" />
+-                    Hoàn thành Quiz để mở khóa bài tiếp theo
+-                  </div>
+-                )
+-              ) : (
++              {currentLessonDetail?.contentType !== "quiz" && (
+                 <button
+                   id="complete-next-btn"
+                   onClick={goNextAndComplete}
+@@ -842,16 +823,11 @@ export default function LearnPage() {
+             <div className={`border-b ${t.border}`}>
+               <nav className="flex gap-1 -mb-px">
+                 {(
+-                  (() => {
+-                    const tabs = [
+-                      { key: "overview", label: "Overview", Icon: BookOpen },
+-                      { key: "attachments", label: "Attachments", Icon: Download },
+-                    ] as { key: "overview" | "attachments" | "quiz"; label: string; Icon: any }[];
+-                    if (currentLessonDetail?.quiz) {
+-                      tabs.push({ key: "quiz", label: "Quiz", Icon: Trophy });
+-                    }
+-                    return tabs;
+-                  })()
++                  [
++                    { key: "overview", label: "Overview", Icon: BookOpen },
++                    { key: "attachments", label: "Attachments", Icon: Download },
++
++                  ] as const
+                 ).map(({ key, label, Icon }) => (
+                   <button
+                     key={key}
+@@ -990,13 +966,6 @@ export default function LearnPage() {
+                 </div>
+               )}
+ 
+-              {/* Quiz */}
+-              {activeTab === "quiz" && (
+-                <div className="space-y-3 animate-in fade-in duration-300 slide-in-from-bottom-2 bg-slate-900/40 dark:bg-[#13151f]/40 border border-slate-200 dark:border-[#252840] rounded-2xl p-4">
+-                  {renderQuizContent()}
+-                </div>
+-              )}
+-
+             </div>
+           </div>
+         </div>
+diff --git a/client/src/lib/api.ts b/client/src/lib/api.ts
+index 1a36fbd..771376c 100644
+--- a/client/src/lib/api.ts
++++ b/client/src/lib/api.ts
+@@ -65,9 +65,7 @@ export async function apiFetch(
+   });
+ 
+   // Auto-refresh on 401
+-  // [BUG-18 FIX] Thêm guard chống infinite loop khi refresh cũng trả 401
+-  const isRetry = (options.headers as Record<string, string>)?.['X-Retry'] === '1';
+-  if (res.status === 401 && !isRetry) {
++  if (res.status === 401) {
+     if (!isRefreshing) {
+       isRefreshing = true;
+       const newToken = await doRefresh();
+@@ -76,22 +74,17 @@ export async function apiFetch(
+       if (newToken) {
+         accessToken = newToken;
+         onTokenRefreshed(newToken);
+-        // Retry original request with new token + retry flag
+-        const retryHeaders = { ...(options.headers as Record<string, string>), 'X-Retry': '1' };
+-        return apiFetch(path, { ...options, headers: retryHeaders });
++        // Retry original request with new token
++        return apiFetch(path, options);
+       } else {
+         accessToken = null;
+-        if (typeof window !== 'undefined') {
+-          localStorage.removeItem('refreshToken');
+-        }
+         return res;
+       }
+     } else {
+       // Queue this request until refresh is done
+       return new Promise((resolve) => {
+         subscribeToRefresh(() => {
+-          const retryHeaders = { ...(options.headers as Record<string, string>), 'X-Retry': '1' };
+-          resolve(apiFetch(path, { ...options, headers: retryHeaders }));
++          resolve(apiFetch(path, options));
+         });
+       });
+     }

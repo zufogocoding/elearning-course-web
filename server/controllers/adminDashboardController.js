@@ -17,7 +17,7 @@ const getDashboardStats = async (req, res) => {
     });
 
     const totalUsers = await prisma.user.count({
-      where: { deletedAt: null, role: 'user' }
+      where: { deletedAt: null, role: 'USER' }
     });
 
     return res.status(200).json({
