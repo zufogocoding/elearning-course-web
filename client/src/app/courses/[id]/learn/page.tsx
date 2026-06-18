@@ -85,6 +85,15 @@ export default function LearnPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "attachments" | "quiz">("overview");
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const [courseDetail, setCourseDetail] = useState<any>(null);
   const [loadingCourse, setLoadingCourse] = useState(true);
@@ -461,6 +470,54 @@ export default function LearnPage() {
     );
   }
 
+  const handleReportSubmit = async () => {
+    if (!reportReason.trim()) return;
+    setReportSubmitting(true);
+    try {
+      const res = await api.post("/api/reports", {
+        targetType: "lesson",
+        targetId: currentLessonId,
+        reason: reportReason.trim()
+      });
+      if (res.ok) {
+        alert("Cảm ơn bạn đã gửi báo cáo. Chúng tôi sẽ xem xét sớm nhất có thể.");
+        setShowReportModal(false);
+        setReportReason("");
+      } else {
+        alert("Có lỗi xảy ra khi gửi báo cáo.");
+      }
+    } catch {
+      alert("Lỗi kết nối mạng.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
+  const handleReviewSubmit = async () => {
+    if (!courseDetail?.id) return;
+    setReviewSubmitting(true);
+    try {
+      const res = await api.post(`/api/courses/${courseDetail.id}/reviews`, {
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      if (res.ok) {
+        setReviewSubmitted(true);
+      } else {
+        const err = await res.json();
+        if (err.error === 'Bạn đã đánh giá khóa học này rồi.') {
+           setReviewSubmitted(true);
+        } else {
+           alert(err.error || "Có lỗi xảy ra khi gửi đánh giá.");
+        }
+      }
+    } catch {
+      alert("Lỗi kết nối.");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
   if (authLoading || loadingCourse) {
     return (
       <div className={`h-screen flex flex-col overflow-hidden font-sans transition-colors duration-300 ${t.root}`}>
@@ -820,7 +877,7 @@ export default function LearnPage() {
             </div>
 
             {/* Tabs */}
-            <div className={`border-b ${t.border}`}>
+            <div className={`border-b flex justify-between items-end ${t.border}`}>
               <nav className="flex gap-1 -mb-px">
                 {(
                   [
@@ -842,6 +899,14 @@ export default function LearnPage() {
                   </button>
                 ))}
               </nav>
+              <button
+                onClick={() => setShowReportModal(true)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold hover:text-rose-500 transition-colors ${t.muted}`}
+                title="Báo cáo nội dung bài học có vấn đề"
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+                Báo cáo
+              </button>
             </div>
 
             {/* Tab Content */}
@@ -1116,24 +1181,57 @@ export default function LearnPage() {
       {/* Course Completion Modal */}
       {showCompletionModal && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto"
           style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
         >
           <div
-            className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-all text-center p-8 ${
+            className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-all text-center p-8 my-8 ${
               isDark ? "bg-[#0d0f1a] border border-[#252840]" : "bg-white border border-slate-200"
             }`}
           >
-            <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30">
-              <Trophy className="w-10 h-10 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30">
+              <Trophy className="w-8 h-8 text-white" />
             </div>
             
-            <h2 className={`text-2xl font-extrabold mb-2 ${isDark ? "text-white" : "text-slate-900"}`}>
-              Course Completed!
+            <h2 className={`text-2xl font-extrabold mb-1 ${isDark ? "text-white" : "text-slate-900"}`}>
+              Chúc mừng bạn!
             </h2>
-            <p className={`text-sm mb-8 ${isDark ? "text-[#a0aec0]" : "text-slate-500"}`}>
-              Congratulations! You have successfully completed all lessons in this course. Your certificate is now ready.
+            <p className={`text-sm mb-6 ${isDark ? "text-[#a0aec0]" : "text-slate-500"}`}>
+              Bạn đã hoàn thành khóa học. Chứng chỉ của bạn đã sẵn sàng.
             </p>
+
+            {/* Review Section */}
+            {!reviewSubmitted ? (
+              <div className={`mb-6 p-5 rounded-2xl border text-left ${isDark ? 'bg-[#13151f] border-[#252840]' : 'bg-slate-50 border-slate-200'}`}>
+                <h3 className={`text-sm font-bold mb-3 ${isDark ? 'text-white' : 'text-slate-800'}`}>Đánh giá khóa học</h3>
+                <div className="flex justify-center gap-2 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button key={star} onClick={() => setReviewRating(star)} className="focus:outline-none transition-transform hover:scale-110">
+                      <Star className={`w-8 h-8 ${star <= reviewRating ? "fill-amber-400 text-amber-400" : "text-slate-300 dark:text-[#2d314d]"}`} />
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  rows={2}
+                  placeholder="Chia sẻ cảm nhận của bạn về khóa học..."
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm rounded-xl outline-none focus:ring-2 transition-all resize-none border ${isDark ? 'bg-[#1a1d2e] border-[#2d314d] text-white focus:ring-indigo-500' : 'bg-white border-slate-200 focus:ring-indigo-500'}`}
+                />
+                <button
+                  onClick={handleReviewSubmit}
+                  disabled={reviewSubmitting}
+                  className="w-full mt-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-sm"
+                >
+                  {reviewSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
+                </button>
+              </div>
+            ) : (
+              <div className={`mb-6 p-4 rounded-xl flex flex-col items-center gap-2 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
+                <CheckCircle className="w-6 h-6" />
+                <span className="text-sm font-bold">Cảm ơn bạn đã đánh giá!</span>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3">
               <button
@@ -1141,7 +1239,7 @@ export default function LearnPage() {
                 className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-indigo-600/20"
               >
                 <Award className="w-4 h-4" />
-                View Certificate
+                Nhận chứng chỉ
               </button>
               <button
                 onClick={() => {
@@ -1154,7 +1252,34 @@ export default function LearnPage() {
                     : "border-slate-200 text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                Back to Course
+                Quay lại tổng quan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+          <div className={`w-full max-w-md overflow-hidden rounded-2xl shadow-2xl border ${isDark ? "bg-[#13151f] border-[#252840]" : "bg-white border-slate-200"}`}>
+            <div className={`flex items-center justify-between px-6 py-4 border-b ${t.border}`}>
+              <h3 className={`text-base font-bold ${t.text}`}>Báo cáo nội dung bài học</h3>
+              <button onClick={() => setShowReportModal(false)} className={`p-1.5 rounded-lg transition-all ${t.iconBtn}`}><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className={`text-sm ${t.muted}`}>Vui lòng cho chúng tôi biết vấn đề bạn gặp phải với bài học này để chúng tôi khắc phục.</p>
+              <textarea
+                rows={4}
+                placeholder="VD: Video bị lỗi âm thanh, nội dung không phù hợp..."
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                className={`w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 transition-all text-sm resize-none ${t.input}`}
+              />
+            </div>
+            <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${t.border}`}>
+              <button onClick={() => setShowReportModal(false)} className={`px-4 py-2.5 border rounded-xl text-sm font-semibold transition-all ${isDark ? "border-[#252840] text-[#e2e8f0] hover:bg-[#1a1d2e]" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>Hủy</button>
+              <button onClick={handleReportSubmit} disabled={reportSubmitting || !reportReason.trim()} className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-sm">
+                {reportSubmitting ? "Đang gửi..." : "Gửi báo cáo"}
               </button>
             </div>
           </div>

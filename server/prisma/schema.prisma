@@ -31,6 +31,7 @@ model User {
   courseReviews         CourseReview[]
   certificates          Certificate[]
   emailVerificationOtps EmailVerificationOtp[]
+  contentReports        ContentReport[]
 
   @@map("users")
 }
@@ -365,4 +366,19 @@ model EmailVerificationOtp {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("email_verification_otps")
+}
+
+// 11. Content Reports
+model ContentReport {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  targetType  String   @map("target_type") // 'course' or 'lesson'
+  targetId    Int      @map("target_id")
+  reason      String
+  details     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("content_reports")
 }

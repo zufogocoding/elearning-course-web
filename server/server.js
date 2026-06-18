@@ -23,6 +23,7 @@ const videoRoutes = require('./routes/videoRoutes');
 const learningRoutes = require('./routes/learningRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -89,6 +90,7 @@ app.use('/api/videos', videoRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/courses/:courseId/reviews', reviewRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Global Error Handler (MUST BE THE LAST MIDDLEWARE)
 app.use(errorHandler);
