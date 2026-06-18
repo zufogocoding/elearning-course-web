@@ -543,12 +543,18 @@ const checkPrecedingLessonsCompleted = async (userId, courseId, lessonId) => {
       { orderIndex: 'asc' },
       { id: 'asc' },
     ],
-    select: { id: true },
+    select: { id: true, contentType: true, quiz: { select: { id: true } } },
   });
 
-  const currentLessonIdx = allCourseLessons.findIndex((l) => l.id === Number(lessonId));
+  // Filter out zombie lessons: quiz-type lessons without an actual Quiz record
+  // These can never be completed, so they shouldn't block progression
+  const completableLessons = allCourseLessons.filter(
+    (l) => l.contentType !== 'quiz' || l.quiz !== null
+  );
+
+  const currentLessonIdx = completableLessons.findIndex((l) => l.id === Number(lessonId));
   if (currentLessonIdx > 0) {
-    const precedingLessonIds = allCourseLessons.slice(0, currentLessonIdx).map((l) => l.id);
+    const precedingLessonIds = completableLessons.slice(0, currentLessonIdx).map((l) => l.id);
     const completedPreceding = await prisma.lessonCompletion.count({
       where: {
         userId,

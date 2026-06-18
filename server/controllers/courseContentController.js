@@ -137,16 +137,32 @@ const createLesson = async (req, res) => {
       return res.status(404).json({ error: 'Chương học không tồn tại hoặc đã bị xóa.' });
     }
 
-    const lesson = await prisma.lesson.create({
-      data: {
-        sectionId: parsedSectionId,
-        title,
-        contentType, // "video", "text", "quiz"
-        contentUrl,
-        durationSeconds: parseInt(durationSeconds) || 0,
-        isPreview: isPreview || false,
-        orderIndex: parseInt(orderIndex) || 0,
+    const lesson = await prisma.$transaction(async (tx) => {
+      const newLesson = await tx.lesson.create({
+        data: {
+          sectionId: parsedSectionId,
+          title,
+          contentType,
+          contentUrl,
+          durationSeconds: parseInt(durationSeconds) || 0,
+          isPreview: isPreview || false,
+          orderIndex: parseInt(orderIndex) || 0,
+        }
+      });
+
+      // Auto-create a default Quiz record for quiz-type lessons to prevent zombie lessons
+      if (contentType === 'quiz') {
+        await tx.quiz.create({
+          data: {
+            lessonId: newLesson.id,
+            title: title,
+            passingScore: 80,
+            maxAttempts: 0,
+          }
+        });
       }
+
+      return newLesson;
     });
 
     res.status(201).json({ message: 'Tạo bài học thành công', lesson });
@@ -184,10 +200,28 @@ const updateLesson = async (req, res) => {
     }
 
     const lesson = await prisma.lesson.findUnique({
+      where: { id: parsedId },
+      include: { quiz: { select: { id: true } } }
+    });
+
+    // Auto-create a default Quiz record when changing to quiz type
+    if (lesson && contentType === 'quiz' && !lesson.quiz) {
+      await prisma.quiz.create({
+        data: {
+          lessonId: parsedId,
+          title: title || lesson.title,
+          passingScore: 80,
+          maxAttempts: 0,
+        }
+      });
+    }
+
+    // Add the quiz record to the response
+    const updatedLesson = await prisma.lesson.findUnique({
       where: { id: parsedId }
     });
 
-    res.status(200).json({ message: 'Cập nhật bài học thành công', lesson });
+    res.status(200).json({ message: 'Cập nhật bài học thành công', lesson: updatedLesson });
   } catch (error) {
     console.error('Lỗi cập nhật lesson:', error);
     res.status(500).json({ error: 'Lỗi server khi cập nhật bài học.' });

@@ -282,7 +282,10 @@ export default function LearnPage() {
 
 
   const handleStartQuiz = async () => {
-    if (!currentLessonDetail?.quiz) return;
+    if (!currentLessonDetail?.quiz) {
+      setQuizError('Bài quiz chưa được thiết lập. Vui lòng liên hệ giảng viên.');
+      return;
+    }
     setQuizLoading(true);
     setQuizError(null);
     try {
