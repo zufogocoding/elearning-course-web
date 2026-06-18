@@ -119,6 +119,12 @@ export default function ManageCouponsPage() {
 
   const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.validFrom && formData.validTo) {
+      if (new Date(formData.validFrom) > new Date(formData.validTo)) {
+        showToast("error", "Ngày kết thúc phải lớn hơn ngày bắt đầu");
+        return;
+      }
+    }
     try {
       if (formData.id) {
         // Update
@@ -390,6 +396,7 @@ export default function ManageCouponsPage() {
                         id="valid-to-input"
                         type="date"
                         required
+                        min={formData.validFrom || undefined}
                         value={formData.validTo}
                         onChange={(e) => setFormData({ ...formData, validTo: e.target.value })}
                         className={`w-full px-3 py-2.5 border rounded-xl outline-none transition-all text-sm font-semibold ${input}`}
