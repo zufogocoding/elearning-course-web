@@ -66,7 +66,7 @@ const register = async (req, res) => {
     });
 
     // Send OTP (also logs to console as fallback)
-    sendEmailVerificationOtp(email, otp).catch(console.error);
+    await sendEmailVerificationOtp(email, otp).catch(console.error);
 
     res.status(201).json({
       message: 'Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP xác thực.',
@@ -182,7 +182,7 @@ const resendEmailOtp = async (req, res) => {
       },
     });
 
-    sendEmailVerificationOtp(user.email, otp).catch(console.error);
+    await sendEmailVerificationOtp(user.email, otp).catch(console.error);
 
     res.status(200).json({ message: 'Đã gửi lại mã OTP. Vui lòng kiểm tra email.' });
   } catch (error) {
@@ -330,7 +330,7 @@ const forgotPassword = async (req, res) => {
     });
 
     // Send OTP (logs to console as fallback)
-    sendPasswordResetOtp(email, otp).catch(console.error);
+    await sendPasswordResetOtp(email, otp).catch(console.error);
 
     res.status(200).json(genericResponse);
   } catch (error) {
