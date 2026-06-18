@@ -87,7 +87,7 @@ export default function AdminReportsPage() {
       const refunded = txs.filter((t) => t.status === "refunded");
       const pending = txs.filter((t) => t.status === "pending");
 
-      const totalRevenue = completed.reduce((sum, t) => sum + t.amount, 0);
+      const totalRevenue = completed.reduce((sum, t) => sum + Number(t.amount), 0);
       const averageValue = completed.length > 0 ? totalRevenue / completed.length : 0;
 
       setStats({
@@ -181,7 +181,7 @@ export default function AdminReportsPage() {
         courseEnrollments[title] = { count: 0, revenue: 0 };
       }
       courseEnrollments[title].count += 1;
-      courseEnrollments[title].revenue += tx.amount;
+      courseEnrollments[title].revenue += Number(tx.amount);
     }
   });
 
@@ -339,7 +339,7 @@ export default function AdminReportsPage() {
                       t.status === "completed" &&
                       t.paymentMethod.toLowerCase() === method.toLowerCase()
                   );
-                  const methodTotal = methodCompleted.reduce((sum, t) => sum + t.amount, 0);
+                  const methodTotal = methodCompleted.reduce((sum, t) => sum + Number(t.amount), 0);
                   const totalCompleted = stats.totalRevenue;
                   const share = totalCompleted > 0 ? (methodTotal / totalCompleted) * 100 : 0;
 
