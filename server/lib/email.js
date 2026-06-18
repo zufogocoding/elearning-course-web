@@ -6,6 +6,7 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 }
 
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 
 
 /**
@@ -24,6 +25,11 @@ let transporter = null;
  * Khởi tạo transporter (gọi 1 lần khi server start)
  */
 const initEmailTransporter = async () => {
+  if (process.env.RESEND_API_KEY) {
+    console.log(`📧 Email service: Resend HTTP API (active)`);
+    return;
+  }
+
   if (process.env.SMTP_HOST) {
     const originalHost = process.env.SMTP_HOST;
     let host = originalHost;
@@ -75,15 +81,51 @@ const initEmailTransporter = async () => {
 };
 
 /**
+ * Helper to send email either via Resend HTTP API or Nodemailer Transporter
+ * @param {Object} mailOptions - Object containing from, to, subject, html
+ */
+const sendEmail = async (mailOptions) => {
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const response = await axios.post('https://api.resend.com/emails', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (err) {
+      const errMsg = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+      throw new Error(`Resend API Error: ${errMsg}`);
+    }
+  }
+
+  // Fallback to Nodemailer transporter
+  if (!transporter) {
+    await initEmailTransporter();
+  }
+  if (!transporter) {
+    throw new Error('Email transporter not initialized');
+  }
+  
+  const info = await transporter.sendMail(mailOptions);
+  if (!process.env.SMTP_HOST) {
+    console.log(`📧 Preview: ${nodemailer.getTestMessageUrl(info)}`);
+  }
+  return info;
+};
+
+/**
  * Gửi email reset mật khẩu
  * @param {string} to - Email người nhận
  * @param {string} resetToken - Token reset password
  */
 const sendPasswordResetEmail = async (to, resetToken) => {
-  if (!transporter) {
-    await initEmailTransporter();
-  }
-
   const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
   const mailOptions = {
@@ -111,14 +153,7 @@ const sendPasswordResetEmail = async (to, resetToken) => {
     `,
   };
 
-  const info = await transporter.sendMail(mailOptions);
-
-  // Trong dev mode, in ra URL preview email
-  if (!process.env.SMTP_HOST) {
-    console.log(`📧 Preview email: ${nodemailer.getTestMessageUrl(info)}`);
-  }
-
-  return info;
+  return await sendEmail(mailOptions);
 };
 
 /**
@@ -129,10 +164,6 @@ const sendEmailVerificationOtp = async (to, otp) => {
   // Log OTP for dev/grading fallback (never in production)
   if (process.env.NODE_ENV !== 'production') {
     console.log(`\n🔑 [EMAIL VERIFY OTP] Email: ${to} | OTP: ${otp}\n`);
-  }
-
-  if (!transporter) {
-    try { await initEmailTransporter(); } catch(e) { return; }
   }
 
   const mailOptions = {
@@ -158,10 +189,7 @@ const sendEmailVerificationOtp = async (to, otp) => {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    if (!process.env.SMTP_HOST) {
-      console.log(`📧 Preview: ${nodemailer.getTestMessageUrl(info)}`);
-    }
+    await sendEmail(mailOptions);
   } catch(e) {
     console.error('Email send error (OTP still logged above):', e.message);
   }
@@ -175,10 +203,6 @@ const sendPasswordResetOtp = async (to, otp) => {
   // Log OTP for dev/grading fallback (never in production)
   if (process.env.NODE_ENV !== 'production') {
     console.log(`\n🔑 [RESET PASSWORD OTP] Email: ${to} | OTP: ${otp}\n`);
-  }
-
-  if (!transporter) {
-    try { await initEmailTransporter(); } catch(e) { return; }
   }
 
   const mailOptions = {
@@ -204,10 +228,7 @@ const sendPasswordResetOtp = async (to, otp) => {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    if (!process.env.SMTP_HOST) {
-      console.log(`📧 Preview: ${nodemailer.getTestMessageUrl(info)}`);
-    }
+    await sendEmail(mailOptions);
   } catch(e) {
     console.error('Email send error (OTP still logged above):', e.message);
   }
