@@ -1034,36 +1034,63 @@ const submitQuizAttempt = async (req, res) => {
     }
 
     const answerMap = new Map(
-      answers.map((answer) => [Number(answer.questionId), Number(answer.selectedOptionId)])
+      answers.map((answer) => [Number(answer.questionId), answer])
     );
 
     let correctAnswers = 0;
     const userAnswersData = [];
 
     for (const question of questions) {
-      const selectedOptionId = answerMap.get(question.id) || null;
+      const answer = answerMap.get(question.id) || {};
 
-      const selectedOption = selectedOptionId
-        ? question.questionOptions.find((option) => option.id === selectedOptionId)
-        : null;
+      if (question.questionType === 'multiple_choice') {
+        const selectedIds = (answer.selectedOptionIds) || [];
+        const correctIds = question.questionOptions
+          .filter((opt) => opt.isCorrect)
+          .map((opt) => opt.id)
+          .sort((a, b) => a - b);
+        const userSorted = [...selectedIds].sort((a, b) => a - b);
 
-      if (selectedOptionId && !selectedOption) {
-        return error(
-          res,
-          400,
-          `Đáp án đã chọn không hợp lệ cho câu hỏi ${question.id}.`
-        );
+        const isCorrect =
+          selectedIds.length > 0 &&
+          correctIds.length === userSorted.length &&
+          correctIds.every((id, i) => id === userSorted[i]);
+
+        if (isCorrect) correctAnswers += 1;
+
+        userAnswersData.push({
+          attemptId,
+          questionId: question.id,
+          selectedOptionId: null,
+          selectedOptionIds: selectedIds,
+          isCorrect,
+        });
+      } else {
+        const selectedOptionId = answer.selectedOptionId || null;
+
+        const selectedOption = selectedOptionId
+          ? question.questionOptions.find((option) => option.id === selectedOptionId)
+          : null;
+
+        if (selectedOptionId && !selectedOption) {
+          return error(
+            res,
+            400,
+            `Đáp án đã chọn không hợp lệ cho câu hỏi ${question.id}.`
+          );
+        }
+
+        const isCorrect = !!selectedOption?.isCorrect;
+        if (isCorrect) correctAnswers += 1;
+
+        userAnswersData.push({
+          attemptId,
+          questionId: question.id,
+          selectedOptionId: selectedOption ? selectedOption.id : null,
+          selectedOptionIds: null,
+          isCorrect,
+        });
       }
-
-      const isCorrect = !!selectedOption?.isCorrect;
-      if (isCorrect) correctAnswers += 1;
-
-      userAnswersData.push({
-        attemptId,
-        questionId: question.id,
-        selectedOptionId: selectedOption ? selectedOption.id : null,
-        isCorrect,
-      });
     }
 
     const score = Math.round((correctAnswers / questions.length) * 100);
@@ -1081,9 +1108,10 @@ const submitQuizAttempt = async (req, res) => {
           },
           update: {
             selectedOptionId: answerData.selectedOptionId,
+            selectedOptionIds: answerData.selectedOptionIds,
             isCorrect: answerData.isCorrect,
           },
-          create: answerData,
+          create: { ...answerData, selectedOptionId: answerData.selectedOptionId ?? null },
         })
       ),
       prisma.userQuizAttempt.update({
@@ -1181,15 +1209,42 @@ const getQuizAttemptResult = async (req, res) => {
     const questions = attempt.userAnswers
       .sort((a, b) => a.question.orderIndex - b.question.orderIndex)
       .map((answer) => {
-        const correctOption = answer.question.questionOptions.find((option) => option.isCorrect);
-        return {
+        const correctOptions = answer.question.questionOptions.filter((option) => option.isCorrect);
+        const correctOptionIds = correctOptions.map((o) => o.id).sort();
+        const correctOptionTexts = correctOptions.map((o) => o.optionText);
+
+        const base = {
           questionId: answer.questionId,
           questionText: answer.question.questionText,
+          questionType: answer.question.questionType,
+          isCorrect: answer.isCorrect,
+          correctOptionIds,
+          correctOptionTexts,
+        };
+
+        if (answer.question.questionType === 'multiple_choice') {
+          const selectedIds = (answer.selectedOptionIds || []);
+          const selectedTexts = selectedIds
+            .map((id) => answer.question.questionOptions.find((o) => o.id === id)?.optionText)
+            .filter(Boolean);
+          return {
+            ...base,
+            selectedOptionIds: selectedIds,
+            selectedOptionTexts: selectedTexts,
+            selectedOptionId: null,
+            selectedOptionText: null,
+          };
+        }
+
+        const correctOption = correctOptions[0] || null;
+        return {
+          ...base,
           selectedOptionId: answer.selectedOptionId,
           selectedOptionText: answer.selectedOption?.optionText || null,
+          selectedOptionIds: null,
+          selectedOptionTexts: [],
           correctOptionId: correctOption?.id || null,
           correctOptionText: correctOption?.optionText || null,
-          isCorrect: answer.isCorrect,
         };
       });
 

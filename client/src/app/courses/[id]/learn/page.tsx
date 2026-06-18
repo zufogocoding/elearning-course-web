@@ -5,13 +5,15 @@ import {
   PlayCircle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight,
   Download, HelpCircle, Sun, Moon, X, FileText, BookOpen,
   Clock, Lock, Circle, PanelRightClose, PanelRightOpen, Star,
-  AlertCircle, Trophy, ArrowRight, Award
+  AlertCircle, Trophy, ArrowRight, Award, XCircle
 } from "lucide-react";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import confetti from "canvas-confetti";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -37,7 +39,7 @@ interface Attachment { id: number; fileName: string; fileSize: number; fileType:
 interface ApiLesson { id: number; title: string; durationSeconds: number; isCompleted: boolean; isPreview: boolean; contentType: string; quizId?: number; }
 interface ApiSection { id: number; title: string; lessons: ApiLesson[]; }
 interface QuizOption { id: number; optionText: string; isCorrect?: boolean; }
-interface QuizQuestion { id: number; questionText: string; explanation?: string | null; questionOptions?: QuizOption[]; options?: QuizOption[]; }
+interface QuizQuestion { id: number; questionText: string; questionType: string; explanation?: string | null; questionOptions?: QuizOption[]; options?: QuizOption[]; }
 
 
 // ATTACHMENTS removed in favor of dynamic lesson attachments
@@ -105,8 +107,9 @@ export default function LearnPage() {
   // Quiz Attempt States
   const [quizAttempt, setQuizAttempt] = useState<any>(null);
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | number[]>>({});
   const [quizResult, setQuizResult] = useState<any>(null);
+  const [quizReview, setQuizReview] = useState<any[] | null>(null);
   const [quizTimeLeft, setQuizTimeLeft] = useState(0);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizSubmitting, setQuizSubmitting] = useState(false);
@@ -293,18 +296,19 @@ export default function LearnPage() {
       const res = await api.post(`/api/learning/quizzes/${qId}/start`);
       if (res.ok) {
         const result = await res.json();
-        const attempt = result.data;
-        if (attempt && !attempt.id && attempt.attemptId) {
-          attempt.id = attempt.attemptId;
-        }
-        setQuizAttempt(attempt);
+    const attempt = result.data;
+    if (attempt && !attempt.id && attempt.attemptId) {
+      attempt.id = attempt.attemptId;
+    }
+    setQuizAttempt(attempt);
 
-        const qRes = await api.get(`/api/learning/quiz-attempts/${attempt.id}/questions`);
-        if (qRes.ok) {
-          const qData = await qRes.json();
-          setQuizQuestions(qData.data.questions || []);
-          setSelectedAnswers({});
-          setQuizResult(null);
+    const qRes = await api.get(`/api/learning/quiz-attempts/${attempt.id}/questions`);
+    if (qRes.ok) {
+      const qData = await qRes.json();
+      setQuizQuestions(qData.data.questions || []);
+      setSelectedAnswers({});
+      setQuizResult(null);
+      setQuizReview(null);
 
           if (currentLessonDetail.quiz.timeLimitMinutes) {
             setQuizTimeLeft(currentLessonDetail.quiz.timeLimitMinutes * 60);
@@ -323,18 +327,37 @@ export default function LearnPage() {
     }
   };
 
-  const handleSelectAnswer = (qId: number, oId: number) => {
-    setSelectedAnswers((prev) => ({ ...prev, [qId]: oId }));
+  const handleSelectAnswer = (qId: number, oId: number, isMultiple: boolean) => {
+    if (isMultiple) {
+      setSelectedAnswers((prev) => {
+        const current: number[] = (prev[qId] as number[]) || [];
+        return {
+          ...prev,
+          [qId]: current.includes(oId)
+            ? current.filter((x) => x !== oId)
+            : [...current, oId],
+        };
+      });
+    } else {
+      setSelectedAnswers((prev) => ({ ...prev, [qId]: oId }));
+    }
   };
 
   const handleSubmitQuiz = async () => {
     if (!quizAttempt || quizSubmitting) return;
     setQuizSubmitting(true);
     try {
-      const answersArray = Object.entries(selectedAnswers).map(([qId, oId]) => ({
-        questionId: parseInt(qId, 10),
-        selectedOptionId: oId
-      }));
+      const answersArray = quizQuestions.map((q) => {
+        const val = selectedAnswers[q.id];
+        if (q.questionType === 'multiple_choice') {
+          const ids = Array.isArray(val) ? val : (val != null ? [val] : []);
+          return { questionId: q.id, selectedOptionIds: ids };
+        }
+        return {
+          questionId: q.id,
+          selectedOptionId: Array.isArray(val) ? (val[0] ?? null) : (val ?? null),
+        };
+      });
 
       const res = await api.post(`/api/learning/quiz-attempts/${quizAttempt.id}/submit`, {
         answers: answersArray
@@ -343,6 +366,14 @@ export default function LearnPage() {
       if (res.ok) {
         const result = await res.json();
         setQuizResult(result.data);
+        // Fetch detailed result for review
+        try {
+          const detailRes = await api.get(`/api/learning/quiz-attempts/${quizAttempt.id}/result`);
+          if (detailRes.ok) {
+            const detailData = await detailRes.json();
+            setQuizReview(detailData.data.questions);
+          }
+        } catch {} // non-critical; review not essential for flow
 
         if (result.data.passed) {
           setSections((prev) =>
@@ -658,8 +689,10 @@ export default function LearnPage() {
                           </a>
                         </div>
                       ) : (
-                        <div className="prose prose-sm max-w-none leading-relaxed whitespace-pre-line">
-                          {currentLessonDetail.contentUrl || 'Nội dung bài viết đang được cập nhật...'}
+                        <div className="prose prose-sm max-w-none dark:prose-invert leading-relaxed">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {currentLessonDetail.contentUrl || 'Nội dung bài viết đang được cập nhật...'}
+                          </ReactMarkdown>
                         </div>
                       )}
                     </div>
@@ -697,37 +730,54 @@ export default function LearnPage() {
                           )}
                         </div>
                         <div className="space-y-5">
-                          {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
-                            <div key={q.id} className="space-y-2.5">
-                              <p className="text-sm font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
-                              <div className="grid grid-cols-1 gap-2">
-                                {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
-                                  <label
-                                    key={opt.id}
-                                    className={`flex items-center gap-2.5 p-3 border rounded-xl cursor-pointer text-sm transition-all ${
-                                      selectedAnswers[q.id] === opt.id
-                                        ? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-300 font-bold"
-                                        : `${t.border} ${t.hover}`
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`question-${q.id}`}
-                                      checked={selectedAnswers[q.id] === opt.id}
-                                      onChange={() => handleSelectAnswer(q.id, opt.id)}
-                                      className="accent-amber-500 cursor-pointer"
-                                    />
-                                    <span>{opt.optionText}</span>
-                                  </label>
-                                ))}
+                          {quizQuestions.map((q: QuizQuestion, qIdx: number) => {
+                            const isMulti = q.questionType === 'multiple_choice';
+                            const currentVal = selectedAnswers[q.id];
+                            const isSelected = (optId: number) =>
+                              isMulti
+                                ? (currentVal as number[])?.includes(optId)
+                                : currentVal === optId;
+
+                            return (
+                              <div key={q.id} className="space-y-2.5">
+                                <p className="text-sm font-bold leading-normal">{qIdx + 1}. {q.questionText}
+                                  {isMulti && <span className="text-amber-500 text-xs ml-2">(Chọn nhiều)</span>}
+                                </p>
+                                <div className="grid grid-cols-1 gap-2">
+                                  {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
+                                    <label
+                                      key={opt.id}
+                                      className={`flex items-center gap-2.5 p-3 border rounded-xl cursor-pointer text-sm transition-all ${
+                                        isSelected(opt.id)
+                                          ? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-300 font-bold"
+                                          : `${t.border} ${t.hover}`
+                                      }`}
+                                    >
+                                      <input
+                                        type={isMulti ? "checkbox" : "radio"}
+                                        name={`question-${q.id}`}
+                                        checked={isSelected(opt.id)}
+                                        onChange={() => handleSelectAnswer(q.id, opt.id, isMulti)}
+                                        className="accent-amber-500 cursor-pointer"
+                                      />
+                                      <span>{opt.optionText}</span>
+                                    </label>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         <div className="border-t pt-3 flex justify-end">
                           <button
                             onClick={handleSubmitQuiz}
-                            disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
+                            disabled={quizSubmitting || quizQuestions.some((q) => {
+                              const val = selectedAnswers[q.id];
+                              if (q.questionType === 'multiple_choice') {
+                                return !Array.isArray(val) || val.length === 0;
+                              }
+                              return val == null;
+                            })}
                             className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-sm"
                           >
                             {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
@@ -735,35 +785,76 @@ export default function LearnPage() {
                         </div>
                       </div>
                     ) : quizResult ? (
-                      <div className="flex flex-col items-center justify-center p-8 text-center">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
-                          quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-500" : "bg-rose-500/20 ring-rose-500/10 text-rose-500"
-                        }`}>
-                          {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
-                        </div>
-                        <h3 className="text-xl font-extrabold mb-1">
-                          {quizResult.passed ? "Chúc mừng! Bạn đã Đạt" : "Rất tiếc! Bạn chưa đạt"}
-                        </h3>
-                        <p className={`text-sm mb-6 ${t.muted}`}>
-                          Điểm số: <span className="font-bold">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleStartQuiz}
-                            className={`px-4 py-2 border rounded-xl text-sm font-bold transition-all cursor-pointer ${t.border} ${t.hover}`}
-                          >
-                            Làm lại bài Quiz
-                          </button>
-                          {quizResult.passed && (
+                      <div>
+                        <div className="flex flex-col items-center justify-center p-8 text-center">
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
+                            quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-500" : "bg-rose-500/20 ring-rose-500/10 text-rose-500"
+                          }`}>
+                            {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+                          </div>
+                          <h3 className="text-xl font-extrabold mb-1">
+                            {quizResult.passed ? "Chúc mừng! Bạn đã Đạt" : "Rất tiếc! Bạn chưa đạt"}
+                          </h3>
+                          <p className={`text-sm mb-6 ${t.muted}`}>
+                            Điểm số: <span className="font-bold">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
+                          </p>
+                          <div className="flex gap-2">
                             <button
-                              onClick={goNextAndComplete}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                              onClick={handleStartQuiz}
+                              className={`px-4 py-2 border rounded-xl text-sm font-bold transition-all cursor-pointer ${t.border} ${t.hover}`}
                             >
-                              Bài tiếp theo
-                              <ArrowRight className="w-3.5 h-3.5" />
+                              Làm lại bài Quiz
                             </button>
-                          )}
+                            {quizResult.passed && (
+                              <button
+                                onClick={goNextAndComplete}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                              >
+                                Bài tiếp theo
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {/* ── Quiz Review ── */}
+                        {quizReview && quizReview.length > 0 && (
+                          <div className="border-t px-5 py-4 space-y-4">
+                            <h4 className="font-bold text-sm uppercase tracking-wider text-amber-500">Chi tiết câu hỏi</h4>
+                            {quizReview.map((item: any, idx: number) => {
+                              const isMulti = item.questionType === 'multiple_choice';
+                              return (
+                                <div key={item.questionId} className={`p-3 rounded-xl border ${item.isCorrect ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'}`}>
+                                  <p className="text-sm font-bold mb-2">{idx + 1}. {item.questionText}</p>
+                                  {isMulti ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {item.selectedOptionTexts?.length > 0
+                                        ? item.selectedOptionTexts.map((txt: string, i: number) => (
+                                            <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${item.isCorrect ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300' : 'bg-rose-500/20 text-rose-600 dark:text-rose-300'}`}>
+                                              {txt}
+                                            </span>
+                                          ))
+                                        : <span className="text-xs text-rose-500">(Chưa chọn đáp án nào)</span>}
+                                      <span className="text-xs text-muted-foreground ml-1">| Đáp án đúng: {item.correctOptionTexts?.join(', ') || 'N/A'}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                                      <span className={`${item.isCorrect ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {item.isCorrect ? <CheckCircle className="inline w-3 h-3 mr-1" /> : <XCircle className="inline w-3 h-3 mr-1" />}
+                                        {item.selectedOptionText || '(Chưa chọn)'}
+                                      </span>
+                                      {!item.isCorrect && (
+                                        <span className="text-muted-foreground">
+                                          → Đáp án đúng: <span className="text-emerald-500 font-bold">{item.correctOptionText}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center justify-center py-16">
