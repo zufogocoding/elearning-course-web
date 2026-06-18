@@ -25,17 +25,37 @@ let transporter = null;
  */
 const initEmailTransporter = async () => {
   if (process.env.SMTP_HOST) {
+    const originalHost = process.env.SMTP_HOST;
+    let host = originalHost;
+    let tlsConfig = {};
+
+    // For IPv4 / IPv6 dual-stack environments where IPv6 outbound routing is broken (e.g. Render),
+    // we resolve the SMTP host to IPv4 explicitly to force IPv4 connection.
+    try {
+      const addresses = await dns.promises.resolve4(originalHost);
+      if (addresses && addresses.length > 0) {
+        host = addresses[0];
+        tlsConfig = {
+          servername: originalHost
+        };
+        console.log(`📧 Resolved SMTP host ${originalHost} to IPv4: ${host}`);
+      }
+    } catch (dnsErr) {
+      console.warn(`⚠️ DNS IPv4 resolution failed for ${originalHost}, using hostname directly:`, dnsErr.message);
+    }
+
     // Production mode: dùng SMTP thật
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: host,
       port: parseInt(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === 'true', // true cho port 465
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      tls: tlsConfig,
     });
-    console.log(`📧 Email service: SMTP (${process.env.SMTP_HOST})`);
+    console.log(`📧 Email service: SMTP (${originalHost})`);
   } else {
     // Development mode: dùng Ethereal (fake inbox)
     const testAccount = await nodemailer.createTestAccount();
