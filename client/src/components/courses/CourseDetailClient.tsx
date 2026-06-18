@@ -85,6 +85,9 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
 
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+
 
   useEffect(() => {
     const checkEnrollment = async () => {
@@ -108,7 +111,23 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
       }
     };
 
+    const fetchReviews = async () => {
+      if (!courseDetail?.id) return;
+      try {
+        const res = await api.get(`/api/courses/${courseDetail.id}/reviews`);
+        if (res.ok) {
+          const data = await res.json();
+          setReviews(data.data || []);
+        }
+      } catch (err) {
+        console.error("Error fetching reviews", err);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
     checkEnrollment();
+    fetchReviews();
   }, [user, courseDetail]);
 
   const handleEnrollClick = () => {
@@ -183,8 +202,8 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
     finalPrice: price
   } = calculateCoursePricing(courseDetail, discountType, discountValue, !!discountType, courseDetail.price || 0);
   const level = courseDetail.level ? courseDetail.level.charAt(0).toUpperCase() + courseDetail.level.slice(1) : "Beginner";
-  const rating = 0;
-  const reviewsCount = 0;
+  const reviewsCount = reviews.length;
+  const rating = reviewsCount > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviewsCount).toFixed(1) : 0;
   const students = 0;
   const language = "Vietnamese";
 
@@ -412,34 +431,66 @@ export default function CourseDetailClient({ courseDetail }: CourseDetailClientP
                       <div className={`text-5xl font-extrabold ${text}`}>{rating}</div>
                       <div className="flex justify-center text-amber-400 my-2">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-current" />
+                          <Star key={i} className={`w-4 h-4 ${i < Math.round(Number(rating)) ? "fill-current" : ""}`} />
                         ))}
                       </div>
-                      <div className={`text-sm font-medium ${muted}`}>Đánh giá khóa học</div>
+                      <div className={`text-sm font-medium ${muted}`}>{reviewsCount} đánh giá</div>
                     </div>
                     <div className="flex-1 space-y-2 w-full">
-                      {[5, 4, 3, 2, 1].map((star, i) => (
-                        <div key={star} className={`flex items-center text-sm font-medium ${muted}`}>
-                          <span className="w-12">{star} sao</span>
-                          <div className={`flex-1 h-2 mx-3 ${isDark ? "bg-[#1e2235]" : "bg-slate-100"} rounded-full overflow-hidden`}>
-                            <div
-                              className="h-full bg-amber-400 rounded-full"
-                              style={{
-                                width: star === 5 ? "75%" : star === 4 ? "20%" : i === 2 ? "3%" : "1%",
-                              }}
-                            />
+                      {[5, 4, 3, 2, 1].map((star, i) => {
+                        const count = reviews.filter(r => r.rating === star).length;
+                        const percent = reviewsCount > 0 ? (count / reviewsCount) * 100 : 0;
+                        return (
+                          <div key={star} className={`flex items-center text-sm font-medium ${muted}`}>
+                            <span className="w-12">{star} sao</span>
+                            <div className={`flex-1 h-2 mx-3 ${isDark ? "bg-[#1e2235]" : "bg-slate-100"} rounded-full overflow-hidden`}>
+                              <div
+                                className="h-full bg-amber-400 rounded-full"
+                                style={{ width: `${percent}%` }}
+                              />
+                            </div>
+                            <span className="w-10 text-right">{Math.round(percent)}%</span>
                           </div>
-                          <span className="w-8 text-right">
-                            {star === 5 ? "75%" : star === 4 ? "20%" : star === 3 ? "3%" : "1%"}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
                   {/* Review Items */}
                   <div className="space-y-6">
-                    <p className={`text-sm ${muted} italic`}>Chưa có đánh giá nào cho khóa học này.</p>
+                    {reviewsLoading ? (
+                      <p className={`text-sm ${muted}`}>Đang tải đánh giá...</p>
+                    ) : reviewsCount === 0 ? (
+                      <p className={`text-sm ${muted} italic`}>Chưa có đánh giá nào cho khóa học này.</p>
+                    ) : (
+                      reviews.map((r) => (
+                        <div key={r.id} className={`p-5 rounded-xl border ${divider} ${sectionBg}`}>
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center font-bold text-indigo-500">
+                                {r.user.username.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <h4 className={`font-bold text-sm ${text}`}>{r.user.username}</h4>
+                                <div className="flex text-amber-400 mt-1">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star key={i} className={`w-3 h-3 ${i < r.rating ? "fill-current" : ""}`} />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <span className={`text-xs ${muted}`}>
+                              {new Date(r.createdAt).toLocaleDateString("vi-VN")}
+                            </span>
+                          </div>
+                          {r.comment && (
+                            <p className={`mt-3 text-sm leading-relaxed ${text}`}>
+                              {r.comment}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
