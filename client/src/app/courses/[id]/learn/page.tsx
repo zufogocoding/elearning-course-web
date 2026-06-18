@@ -461,6 +461,113 @@ export default function LearnPage() {
     );
   }
 
+  const renderQuizContent = () => {
+    if (!currentLessonDetail?.quiz) return null;
+    return (
+      <div className="w-full text-[#e2e8f0] select-text">
+        {!quizAttempt ? (
+          <div className="flex flex-col items-center justify-center p-6 text-center">
+            <Trophy className="w-14 h-14 text-amber-400 mb-4 animate-bounce" />
+            <h3 className="text-base font-bold mb-2">{currentLessonDetail.quiz?.title || "Bài Quiz Kiểm Tra"}</h3>
+            <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
+              {currentLessonDetail.quiz?.description || "Kiểm tra lại kiến thức đã học trong chương này. Điểm đạt yêu cầu: " + (currentLessonDetail.quiz?.passingScore || 80) + "%"}
+            </p>
+            {quizError && <p className="text-xs text-rose-500 mb-4">{quizError}</p>}
+            
+            {/* Conditional Start Quiz Button based on reading completeness */}
+            {currentLessonDetail.contentType !== "quiz" && !documentReadComplete ? (
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl max-w-sm mb-4 mx-auto">
+                <p className="text-xs font-semibold">
+                  Bạn cần hoàn thành nội dung bài học (xem video / đọc tài liệu) trước khi bắt đầu làm bài Quiz này!
+                </p>
+              </div>
+            ) : null}
+
+            <button
+              onClick={handleStartQuiz}
+              disabled={quizLoading || (currentLessonDetail.contentType !== "quiz" && !documentReadComplete)}
+              className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 text-sm cursor-pointer mx-auto"
+            >
+              {quizLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-slate-950" /> : <PlayCircle className="w-4 h-4" />}
+              Bắt đầu làm bài Quiz
+            </button>
+          </div>
+        ) : quizAttempt && quizQuestions.length > 0 && !quizResult ? (
+          <div className="p-5 flex flex-col select-text text-left">
+            <div className="flex justify-between items-center border-b border-[#252840] pb-3 mb-3 shrink-0">
+              <h3 className="font-bold text-xs text-amber-400 uppercase tracking-wider">ĐANG LÀM BÀI QUIZ: {currentLessonDetail.quiz?.title}</h3>
+              {quizTimeLeft > 0 && (
+                <span className="text-[11px] font-bold text-rose-400 bg-rose-400/15 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
+                  Còn lại: {formatTime(quizTimeLeft)}
+                </span>
+              )}
+            </div>
+            <div className="space-y-5 overflow-y-auto max-h-[500px] pr-1">
+              {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
+                <div key={q.id} className="space-y-2.5">
+                  <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
+                  <div className="grid grid-cols-1 gap-2 pl-2">
+                    {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
+                      <label
+                        key={opt.id}
+                        className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
+                          selectedAnswers[q.id] === opt.id
+                            ? "border-amber-500 bg-amber-500/10 text-amber-300 font-bold"
+                            : "border-[#252840] hover:bg-[#1a1d2e] text-[#a0aec0]"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={`question-${q.id}`}
+                          checked={selectedAnswers[q.id] === opt.id}
+                          onChange={() => handleSelectAnswer(q.id, opt.id)}
+                          className="accent-amber-500 cursor-pointer"
+                        />
+                        <span>{opt.optionText}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-[#252840] pt-3 mt-3 shrink-0 flex justify-end">
+              <button
+                onClick={handleSubmitQuiz}
+                disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-xs"
+              >
+                {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
+              </button>
+            </div>
+          </div>
+        ) : quizResult ? (
+          <div className="flex flex-col items-center justify-center p-6 text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
+              quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-400" : "bg-rose-500/20 ring-rose-500/10 text-rose-400"
+            }`}>
+              {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+            </div>
+            <h3 className="text-base font-bold mb-1">
+              {quizResult.passed ? "Chúc mừng bạn đã vượt qua!" : "Rất tiếc, bạn chưa đạt điểm yêu cầu"}
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Điểm số: <span className="font-bold text-white">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
+            </p>
+            {!quizResult.passed && (
+              <button
+                onClick={handleStartQuiz}
+                disabled={quizLoading}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer mx-auto"
+              >
+                <PlayCircle className="w-4 h-4" /> Thử lại bài Quiz
+              </button>
+            )}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   if (authLoading || loadingCourse) {
     return (
       <div className={`h-screen flex flex-col overflow-hidden font-sans transition-colors duration-300 ${t.root}`}>
@@ -563,7 +670,7 @@ export default function LearnPage() {
                     <p className="text-slate-400 text-xs">Không thể load video. URL không hợp lệ.</p>
                   </div>
                 )
-              ) : currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" ? (
+              ) : currentLessonDetail?.contentType === "text" || currentLessonDetail?.contentType === "document" || currentLessonDetail?.contentType === "quiz" ? (
                 (() => {
                   const requiredTime = currentLessonDetail?.durationSeconds ?? 5;
                   return (
@@ -618,117 +725,13 @@ export default function LearnPage() {
                           </div>
                         ) : (
                           <div className="prose prose-invert max-w-none text-[11px] leading-relaxed text-slate-300 whitespace-pre-line bg-[#0d0f1a] p-4 rounded-xl border border-[#252840]">
-                            {currentLessonDetail.contentUrl || 'Nội dung bài viết đang được cập nhật...'}
+                            {currentLessonDetail.contentUrl || (currentLessonDetail.contentType === "quiz" ? 'Bài học này không có tài liệu/nội dung lý thuyết. Nhấp vào tab Quiz ở bên dưới để tiến hành làm bài kiểm tra trắc nghiệm!' : 'Nội dung bài viết đang được cập nhật...')}
                           </div>
                         )}
                       </div>
                     </div>
                   );
                 })()
-              ) : currentLessonDetail?.contentType === "quiz" ? (
-                <div className="absolute inset-0 bg-[#0d0f1a] text-[#e2e8f0]">
-                  {!quizAttempt ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
-                      <Trophy className="w-14 h-14 text-amber-400 mb-4 animate-bounce" />
-                      <h3 className="text-base font-bold mb-2">{currentLessonDetail.quiz?.title || "Bài Quiz Kiểm Tra"}</h3>
-                      <p className="text-xs text-slate-400 max-w-md text-center mb-6 leading-relaxed">
-                        {currentLessonDetail.quiz?.description || "Kiểm tra lại kiến thức đã học trong chương này. Điểm đạt yêu cầu: " + (currentLessonDetail.quiz?.passingScore || 80) + "%"}
-                      </p>
-                      {quizError && <p className="text-xs text-rose-500 mb-4">{quizError}</p>}
-                      <button
-                        onClick={handleStartQuiz}
-                        disabled={quizLoading}
-                        className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 text-sm cursor-pointer"
-                      >
-                        {quizLoading ? <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-slate-950" /> : <PlayCircle className="w-4 h-4" />}
-                        Bắt đầu làm bài Quiz
-                      </button>
-                    </div>
-                  ) : quizAttempt && quizQuestions.length > 0 && !quizResult ? (
-                    <div className="absolute inset-0 p-5 flex flex-col overflow-hidden select-text text-left">
-                      <div className="flex justify-between items-center border-b border-[#252840] pb-3 mb-3 shrink-0">
-                        <h3 className="font-bold text-xs text-amber-400 uppercase tracking-wider">ĐANG LÀM BÀI QUIZ: {currentLessonDetail.quiz?.title}</h3>
-                        {quizTimeLeft > 0 && (
-                          <span className="text-[11px] font-bold text-rose-400 bg-rose-400/15 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
-                            Còn lại: {formatTime(quizTimeLeft)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-5 overflow-y-auto pr-1">
-                        {quizQuestions.map((q: QuizQuestion, qIdx: number) => (
-                          <div key={q.id} className="space-y-2.5">
-                            <p className="text-xs font-bold leading-normal">{qIdx + 1}. {q.questionText}</p>
-                            <div className="grid grid-cols-1 gap-2 pl-2">
-                              {(q.options || q.questionOptions)?.map((opt: QuizOption) => (
-                                <label
-                                  key={opt.id}
-                                  className={`flex items-center gap-2.5 p-2.5 border rounded-xl cursor-pointer text-[11px] transition-all ${
-                                    selectedAnswers[q.id] === opt.id
-                                      ? "border-amber-500 bg-amber-500/10 text-amber-300 font-bold"
-                                      : "border-[#252840] hover:bg-[#1a1d2e] text-[#a0aec0]"
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={`question-${q.id}`}
-                                    checked={selectedAnswers[q.id] === opt.id}
-                                    onChange={() => handleSelectAnswer(q.id, opt.id)}
-                                    className="accent-amber-500 cursor-pointer"
-                                  />
-                                  <span>{opt.optionText}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t border-[#252840] pt-3 mt-3 shrink-0 flex justify-end">
-                        <button
-                          onClick={handleSubmitQuiz}
-                          disabled={quizSubmitting || Object.keys(selectedAnswers).length < quizQuestions.length}
-                          className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-45 disabled:cursor-not-allowed text-slate-950 font-extrabold rounded-xl transition-all text-xs"
-                        >
-                          {quizSubmitting ? "Đang chấm..." : "Nộp bài Quiz"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : quizResult ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ring-8 ${
-                        quizResult.passed ? "bg-emerald-500/20 ring-emerald-500/10 text-emerald-400" : "bg-rose-500/20 ring-rose-500/10 text-rose-400"
-                      }`}>
-                        {quizResult.passed ? <CheckCircle className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
-                      </div>
-                      <h3 className="text-xl font-extrabold mb-1">
-                        {quizResult.passed ? "Chúc mừng! Bạn đã Đạt" : "Rất tiếc! Bạn chưa đạt"}
-                      </h3>
-                      <p className="text-xs text-slate-400 mb-6">
-                        Điểm số: <span className="font-bold text-white">{quizResult.score}%</span> (Yêu cầu đạt: {currentLessonDetail.quiz?.passingScore || 80}%)
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleStartQuiz}
-                          className={`px-4 py-2 border border-slate-700 hover:bg-slate-800 text-[11px] font-bold rounded-xl transition-all cursor-pointer`}
-                        >
-                          Làm lại bài Quiz
-                        </button>
-                        {quizResult.passed && (
-                          <button
-                            onClick={goNextAndComplete}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                          >
-                            Bài tiếp theo
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
-                      Đang chuẩn bị câu hỏi...
-                    </div>
-                  )}
-                </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white">
                   <BookOpen className="w-12 h-12 text-slate-600 mb-2" />
@@ -792,7 +795,23 @@ export default function LearnPage() {
                 <span className={`text-xs font-semibold ${t.muted}`}>{progress}%</span>
               </div>
 
-              {currentLessonDetail?.contentType !== "quiz" && (
+              {currentLessonDetail?.quiz ? (
+                currentLesson?.completed ? (
+                  <button
+                    id="next-lesson-btn-quiz"
+                    onClick={goNextAndComplete}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all active:scale-[0.97]"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>{curIdx === flatUnlocked.length - 1 ? "Finish Course" : "Next Lesson"}</span>
+                  </button>
+                ) : (
+                  <div className="text-xs text-amber-500 bg-amber-500/10 px-3.5 py-2 rounded-xl border border-amber-500/20 font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                    Hoàn thành Quiz để mở khóa bài tiếp theo
+                  </div>
+                )
+              ) : (
                 <button
                   id="complete-next-btn"
                   onClick={goNextAndComplete}
@@ -823,11 +842,16 @@ export default function LearnPage() {
             <div className={`border-b ${t.border}`}>
               <nav className="flex gap-1 -mb-px">
                 {(
-                  [
-                    { key: "overview", label: "Overview", Icon: BookOpen },
-                    { key: "attachments", label: "Attachments", Icon: Download },
-
-                  ] as const
+                  (() => {
+                    const tabs = [
+                      { key: "overview", label: "Overview", Icon: BookOpen },
+                      { key: "attachments", label: "Attachments", Icon: Download },
+                    ] as { key: "overview" | "attachments" | "quiz"; label: string; Icon: any }[];
+                    if (currentLessonDetail?.quiz) {
+                      tabs.push({ key: "quiz", label: "Quiz", Icon: Trophy });
+                    }
+                    return tabs;
+                  })()
                 ).map(({ key, label, Icon }) => (
                   <button
                     key={key}
@@ -963,6 +987,13 @@ export default function LearnPage() {
                       <p className={`text-sm ${t.muted}`}>Không có tài liệu đính kèm nào cho bài học này.</p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Quiz */}
+              {activeTab === "quiz" && (
+                <div className="space-y-3 animate-in fade-in duration-300 slide-in-from-bottom-2 bg-slate-900/40 dark:bg-[#13151f]/40 border border-slate-200 dark:border-[#252840] rounded-2xl p-4">
+                  {renderQuizContent()}
                 </div>
               )}
 

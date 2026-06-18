@@ -21,6 +21,7 @@ export default function LessonEditor({
   const [contentUrl, setContentUrl] = useState(lesson.contentUrl || "");
   const [durationSeconds, setDurationSeconds] = useState(lesson.durationSeconds);
   const [isPreview, setIsPreview] = useState(lesson.isPreview);
+  const [contentType, setContentType] = useState(lesson.contentType);
   const [attachments, setAttachments] = useState(lesson.attachments || []);
   const [uploadingAtt, setUploadingAtt] = useState(false);
 
@@ -33,16 +34,17 @@ export default function LessonEditor({
     setDurationSeconds(lesson.durationSeconds);
     setIsPreview(lesson.isPreview);
     setAttachments(lesson.attachments || []);
+    setContentType(lesson.contentType);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
   }, [lesson.id]);
 
   // Maintain latest values in a ref for unmount/switch saving
-  const latestValuesRef = useRef({ title, contentUrl, durationSeconds, isPreview, lessonId: lesson.id });
+  const latestValuesRef = useRef({ title, contentUrl, durationSeconds, isPreview, contentType, lessonId: lesson.id });
   useEffect(() => {
-    latestValuesRef.current = { title, contentUrl, durationSeconds, isPreview, lessonId: lesson.id };
-  }, [title, contentUrl, durationSeconds, isPreview, lesson.id]);
+    latestValuesRef.current = { title, contentUrl, durationSeconds, isPreview, contentType, lessonId: lesson.id };
+  }, [title, contentUrl, durationSeconds, isPreview, contentType, lesson.id]);
 
   // Flush unsaved edits immediately on unmount or lesson change
   useEffect(() => {
@@ -55,6 +57,7 @@ export default function LessonEditor({
           contentUrl: last.contentUrl,
           durationSeconds: parseInt(String(last.durationSeconds), 10) || 0,
           isPreview: last.isPreview,
+          contentType: last.contentType,
         }).catch((err) => console.error("Lỗi lưu bài học khi chuyển bài:", err));
       }
     };
@@ -66,6 +69,7 @@ export default function LessonEditor({
     contentUrl: string;
     durationSeconds: number;
     isPreview: boolean;
+    contentType: string;
   }) => {
     setSaveState("saving");
 
@@ -80,6 +84,7 @@ export default function LessonEditor({
           contentUrl: updatedFields.contentUrl,
           durationSeconds: parseInt(String(updatedFields.durationSeconds), 10) || 0,
           isPreview: updatedFields.isPreview,
+          contentType: updatedFields.contentType,
         });
 
         if (res.ok) {
@@ -100,7 +105,7 @@ export default function LessonEditor({
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setTitle(val);
-    triggerAutoSave({ title: val, contentUrl, durationSeconds, isPreview });
+    triggerAutoSave({ title: val, contentUrl, durationSeconds, isPreview, contentType });
   };
 
   const handleContentUrlChange = (
@@ -108,19 +113,25 @@ export default function LessonEditor({
   ) => {
     const val = e.target.value;
     setContentUrl(val);
-    triggerAutoSave({ title, contentUrl: val, durationSeconds, isPreview });
+    triggerAutoSave({ title, contentUrl: val, durationSeconds, isPreview, contentType });
   };
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value, 10) || 0;
     setDurationSeconds(val);
-    triggerAutoSave({ title, contentUrl, durationSeconds: val, isPreview });
+    triggerAutoSave({ title, contentUrl, durationSeconds: val, isPreview, contentType });
   };
 
   const handlePreviewChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.checked;
     setIsPreview(val);
-    triggerAutoSave({ title, contentUrl, durationSeconds, isPreview: val });
+    triggerAutoSave({ title, contentUrl, durationSeconds, isPreview: val, contentType });
+  };
+
+  const handleContentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value as "video" | "document" | "quiz";
+    setContentType(val);
+    triggerAutoSave({ title, contentUrl, durationSeconds, isPreview, contentType: val });
   };
 
   const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,30 +197,46 @@ export default function LessonEditor({
   return (
     <div className={`border rounded-2xl p-6 ${card} space-y-6 shadow-sm`}>
       <div className="flex items-center gap-3 border-b pb-4 border-slate-200 dark:border-[#252840]">
-        {lesson.contentType === "video" ? (
+        {contentType === "video" ? (
           <Video className="w-5 h-5 text-indigo-500" />
+        ) : contentType === "quiz" ? (
+          <HelpCircle className="w-5 h-5 text-amber-500" />
         ) : (
           <FileText className="w-5 h-5 text-emerald-500" />
         )}
         <div>
           <h2 className={`text-base font-bold ${text}`}>Chỉnh sửa thông tin bài học</h2>
-          <p className={`text-xs ${muted}`}>Loại bài giảng: <span className="capitalize font-semibold">{lesson.contentType}</span></p>
+          <p className={`text-xs ${muted}`}>Cấu hình loại nội dung bài học và tài liệu</p>
         </div>
       </div>
 
       <div className="space-y-5">
-        <div>
-          <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Tên bài học</label>
-          <input
-            type="text"
-            value={title}
-            onChange={handleTitleChange}
-            className={`w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${inputStyle}`}
-            placeholder="Ví dụ: Giới thiệu khóa học"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Tên bài học</label>
+            <input
+              type="text"
+              value={title}
+              onChange={handleTitleChange}
+              className={`w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${inputStyle}`}
+              placeholder="Ví dụ: Giới thiệu khóa học"
+            />
+          </div>
+          <div>
+            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Loại bài giảng</label>
+            <select
+              value={contentType}
+              onChange={handleContentTypeChange}
+              className={`w-full px-4 py-2.5 border rounded-xl outline-none focus:ring-2 text-xs transition-all ${inputStyle}`}
+            >
+              <option value="video">Bài học Video</option>
+              <option value="document">Bài đọc (Tài liệu)</option>
+              <option value="quiz">Bài Quiz trắc nghiệm</option>
+            </select>
+          </div>
         </div>
 
-        {lesson.contentType === "video" && (
+        {contentType === "video" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Đường dẫn Video (YouTube ID hoặc link)</label>
@@ -234,7 +261,7 @@ export default function LessonEditor({
           </div>
         )}
 
-        {lesson.contentType === "document" && (
+        {(contentType === "document" || contentType === "quiz") && (
           <div>
             <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${muted}`}>Nội dung bài viết (Markdown/Text)</label>
             <textarea
