@@ -37,6 +37,28 @@ export default function CertificatesPage() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewCert, setPreviewCert] = useState<Certificate | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById("certificate-view");
+    if (!element) return;
+    setIsDownloading(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+      
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("l", "pt", [canvas.width, canvas.height]);
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`Certificate_${previewCert?.course || "Completed"}.pdf`);
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi tạo PDF.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchCerts = async () => {
@@ -175,6 +197,7 @@ export default function CertificatesPage() {
                       </button>
                       <button
                         id={`download-cert-${cert.id}`}
+                        onClick={() => setPreviewCert(cert)}
                         className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2.5 border rounded-xl transition-all ${
                           isDark
                             ? "border-[#252840] text-[#a0aec0] hover:border-indigo-500/40 hover:text-indigo-400"
@@ -218,6 +241,7 @@ export default function CertificatesPage() {
             <div className="p-6 sm:p-8">
               {/* Outer decorative border */}
               <div
+                id="certificate-view"
                 className="relative p-6 sm:p-8"
                 style={{
                   border: "3px double #c9a227",
@@ -320,9 +344,11 @@ export default function CertificatesPage() {
               </button>
               <button
                 id="modal-download-btn"
-                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20"
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-600/20"
               >
-                <Download className="w-4 h-4" /> Download PDF
+                <Download className="w-4 h-4" /> {isDownloading ? "Downloading..." : "Download PDF"}
               </button>
             </div>
           </div>
