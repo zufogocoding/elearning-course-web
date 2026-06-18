@@ -25,6 +25,14 @@ let transporter = null;
  * Khởi tạo transporter (gọi 1 lần khi server start)
  */
 const initEmailTransporter = async () => {
+  if (process.env.SENDGRID_API_KEY) {
+    console.log(`📧 Email service: SendGrid HTTP API (active)`);
+    return;
+  }
+  if (process.env.BREVO_API_KEY) {
+    console.log(`📧 Email service: Brevo HTTP API (active)`);
+    return;
+  }
   if (process.env.RESEND_API_KEY) {
     console.log(`📧 Email service: Resend HTTP API (active)`);
     return;
@@ -81,10 +89,95 @@ const initEmailTransporter = async () => {
 };
 
 /**
- * Helper to send email either via Resend HTTP API or Nodemailer Transporter
+ * Utility to parse display name and email address from standard EMAIL_FROM values
+ * e.g. "LMS Platform" <noreply@lms.local> -> { name: "LMS Platform", email: "noreply@lms.local" }
+ */
+const parseEmailFrom = (emailFrom) => {
+  const defaultFrom = { name: 'LMS Platform', email: 'noreply@lms.local' };
+  if (!emailFrom) return defaultFrom;
+
+  const match = emailFrom.match(/^(?:"?([^"]*)"?\s)?(?:<([^>]+)>|([^\s<>]+))$/);
+  if (match) {
+    const name = match[1] ? match[1].trim() : 'LMS Platform';
+    const email = (match[2] || match[3] || '').trim();
+    return { name, email };
+  }
+  return { name: 'LMS Platform', email: emailFrom.replace(/['"<>]/g, '').trim() };
+};
+
+/**
+ * Helper to send email either via Resend/SendGrid/Brevo HTTP API or Nodemailer Transporter
  * @param {Object} mailOptions - Object containing from, to, subject, html
  */
 const sendEmail = async (mailOptions) => {
+  const parsedFrom = parseEmailFrom(mailOptions.from);
+
+  // 1. SendGrid HTTP API
+  if (process.env.SENDGRID_API_KEY) {
+    try {
+      const response = await axios.post('https://api.sendgrid.com/v3/mail/send', {
+        personalizations: [
+          {
+            to: [
+              {
+                email: mailOptions.to,
+              }
+            ],
+          }
+        ],
+        from: {
+          email: parsedFrom.email,
+          name: parsedFrom.name,
+        },
+        subject: mailOptions.subject,
+        content: [
+          {
+            type: 'text/html',
+            value: mailOptions.html,
+          }
+        ],
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (err) {
+      const errMsg = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+      throw new Error(`SendGrid API Error: ${errMsg}`);
+    }
+  }
+
+  // 2. Brevo HTTP API
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const response = await axios.post('https://api.brevo.com/v3/smtp/email', {
+        sender: {
+          name: parsedFrom.name,
+          email: parsedFrom.email,
+        },
+        to: [
+          {
+            email: mailOptions.to,
+          }
+        ],
+        subject: mailOptions.subject,
+        htmlContent: mailOptions.html,
+      }, {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (err) {
+      const errMsg = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+      throw new Error(`Brevo API Error: ${errMsg}`);
+    }
+  }
+
+  // 3. Resend HTTP API
   if (process.env.RESEND_API_KEY) {
     try {
       const response = await axios.post('https://api.resend.com/emails', {
